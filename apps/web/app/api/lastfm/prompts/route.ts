@@ -67,25 +67,26 @@ interface Prompt {
 }
 
 /**
- * Fetch track info from Last.fm to get better artwork
+ * Fetch track info from Last.fm to get better artwork and album name
  */
-async function fetchLastFmTrackInfo(track: string, artist: string, apiKey: string): Promise<string> {
+async function fetchLastFmTrackInfo(track: string, artist: string, apiKey: string): Promise<{ artwork: string; album: string }> {
   try {
     const url = `https://ws.audioscrobbler.com/2.0/?method=track.getinfo&api_key=${apiKey}&artist=${encodeURIComponent(artist)}&track=${encodeURIComponent(track)}&format=json`;
     const res = await fetch(url);
     if (res.ok) {
       const data = await res.json();
-      if (data.track?.album?.image) {
-        const artwork = data.track.album.image.find((img: any) => img.size === "extralarge" || img.size === "large" || img.size === "medium")?. ["#text"];
-        if (artwork && !artwork.includes("2a96cbd8b46e442fc41c2b86b821562f")) {
-          return artwork;
-        }
-      }
+      const albumName = data.track?.album?.title || "";
+      const artwork = data.track?.album?.image?.find((img: any) => img.size === "extralarge" || img.size === "large" || img.size === "medium")?. ["#text"] || "";
+
+      return {
+        artwork: (artwork && !artwork.includes("2a96cbd8b46e442fc41c2b86b821562f")) ? artwork : "",
+        album: albumName,
+      };
     }
   } catch (error) {
     console.error("[Last.fm Prompts] track.getinfo error:", error);
   }
-  return "";
+  return { artwork: "", album: "" };
 }
 
 /**
@@ -286,7 +287,7 @@ export async function GET() {
     // Priority 1: Tracks on heavy repeat (from top tracks of the week) - Limit to 3
     for (const track of topTracks.slice(0, 10)) {
       const artistName = getArtistName(track.artist);
-      const albumName = getAlbumName(track.album);
+      let albumName = getAlbumName(track.album);
 
       // Skip only if missing track name or artist (album is optional)
       if (!track.name || !artistName || track.name.trim() === "" || artistName.trim() === "") {
@@ -310,9 +311,15 @@ export async function GET() {
       // Check if Last.fm actually has valid artwork (not just empty/placeholder)
       const hasValidLastFmArt = artworkUrl && artworkUrl !== "" && !artworkUrl.includes("2a96cbd8b46e442fc41c2b86b821562f");
 
-      // If no valid artwork, try Last.fm track.getinfo API (often has better artwork)
-      if (!hasValidLastFmArt) {
-        artworkUrl = await fetchLastFmTrackInfo(track.name, artistName, apiKey);
+      // If no valid artwork or missing album, try Last.fm track.getinfo API
+      if (!hasValidLastFmArt || !albumName) {
+        const trackInfo = await fetchLastFmTrackInfo(track.name, artistName, apiKey);
+        if (trackInfo.artwork) {
+          artworkUrl = trackInfo.artwork;
+        }
+        if (!albumName && trackInfo.album) {
+          albumName = trackInfo.album;
+        }
       }
 
       // If still no artwork and we have an album, try Last.fm album.getinfo
@@ -357,7 +364,7 @@ export async function GET() {
     // Priority 2: Recently played unique tracks - Limit to 3
     for (const track of tracks.slice(0, 20)) {
       const artistName = getArtistName(track.artist);
-      const albumName = getAlbumName(track.album);
+      let albumName = getAlbumName(track.album);
 
       // Skip only if missing track name or artist (album is optional)
       if (!track.name || !artistName || track.name.trim() === "" || artistName.trim() === "") {
@@ -378,9 +385,15 @@ export async function GET() {
       // Check if Last.fm actually has valid artwork (not just empty/placeholder)
       const hasValidLastFmArt = artworkUrl && artworkUrl !== "" && !artworkUrl.includes("2a96cbd8b46e442fc41c2b86b821562f");
 
-      // If no valid artwork, try Last.fm track.getinfo API (often has better artwork)
-      if (!hasValidLastFmArt) {
-        artworkUrl = await fetchLastFmTrackInfo(track.name, artistName, apiKey);
+      // If no valid artwork or missing album, try Last.fm track.getinfo API
+      if (!hasValidLastFmArt || !albumName) {
+        const trackInfo = await fetchLastFmTrackInfo(track.name, artistName, apiKey);
+        if (trackInfo.artwork) {
+          artworkUrl = trackInfo.artwork;
+        }
+        if (!albumName && trackInfo.album) {
+          albumName = trackInfo.album;
+        }
       }
 
       // If still no artwork and we have an album, try Last.fm album.getinfo
@@ -485,14 +498,28 @@ export async function GET() {
       if (albumCandidates.length >= 2) break; // Limit to 2 album prompts
     }
 
+    // Shuffle each category to provide variety on refresh
+    const shuffleArray = <T,>(array: T[]): T[] => {
+      const shuffled = [...array];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      return shuffled;
+    };
+
+    const shuffledRepeat = shuffleArray(repeatCandidates);
+    const shuffledRecent = shuffleArray(recentCandidates);
+    const shuffledAlbum = shuffleArray(albumCandidates);
+
     // Intersperse repeat, recent, and album prompts
     const prompts: Prompt[] = [];
-    const maxLength = Math.max(repeatCandidates.length, recentCandidates.length, albumCandidates.length);
+    const maxLength = Math.max(shuffledRepeat.length, shuffledRecent.length, shuffledAlbum.length);
 
     for (let i = 0; i < maxLength; i++) {
-      if (i < repeatCandidates.length) prompts.push(repeatCandidates[i]);
-      if (i < albumCandidates.length) prompts.push(albumCandidates[i]);
-      if (i < recentCandidates.length) prompts.push(recentCandidates[i]);
+      if (i < shuffledRepeat.length) prompts.push(shuffledRepeat[i]);
+      if (i < shuffledAlbum.length) prompts.push(shuffledAlbum[i]);
+      if (i < shuffledRecent.length) prompts.push(shuffledRecent[i]);
     }
 
     console.log("[Last.fm Prompts] Final prompts count:", prompts.length);
