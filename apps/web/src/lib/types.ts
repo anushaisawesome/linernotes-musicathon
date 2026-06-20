@@ -1,5 +1,7 @@
 // THE DATA CONTRACT — everyone imports, only Abia edits
 
+import type { Palette } from "@/lib/palette";
+
 export type Note = {
   id: string;
   seconds: number;
@@ -30,6 +32,7 @@ export type Track = {
   artworkUrl: string;
   previewUrl?: string;
   genre?: string;
+  palette?: Palette;
 };
 
 export type Album = {
