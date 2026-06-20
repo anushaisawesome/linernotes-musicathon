@@ -326,14 +326,8 @@ export async function GET(request: Request) {
         if (trackInfo.artwork) {
           artworkUrl = trackInfo.artwork;
         }
-        // Only use album name from track.getinfo if it looks valid (no leading numbers, reasonable length)
         if (!albumName && trackInfo.album) {
-          const isValidAlbum = trackInfo.album.length > 0 &&
-                               trackInfo.album.length < 100 &&
-                               !/^\d+/.test(trackInfo.album); // Skip if starts with numbers
-          if (isValidAlbum) {
-            albumName = trackInfo.album;
-          }
+          albumName = trackInfo.album;
         }
       }
 
@@ -407,14 +401,8 @@ export async function GET(request: Request) {
         if (trackInfo.artwork) {
           artworkUrl = trackInfo.artwork;
         }
-        // Only use album name from track.getinfo if it looks valid (no leading numbers, reasonable length)
         if (!albumName && trackInfo.album) {
-          const isValidAlbum = trackInfo.album.length > 0 &&
-                               trackInfo.album.length < 100 &&
-                               !/^\d+/.test(trackInfo.album); // Skip if starts with numbers
-          if (isValidAlbum) {
-            albumName = trackInfo.album;
-          }
+          albumName = trackInfo.album;
         }
       }
 
