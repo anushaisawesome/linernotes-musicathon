@@ -1,0 +1,23 @@
+{
+  "name": "linernotes-monorepo",
+  "version": "0.2.0",
+  "private": true,
+  "description": "LinerNotes - A diary of the felt, in-the-moment listening experience",
+  "scripts": {
+    "dev": "pnpm --parallel dev",
+    "build": "pnpm -r build",
+    "clean": "rm -rf node_modules pnpm-lock.yaml apps/*/node_modules packages/*/node_modules",
+    "android": "cd apps/mobile && expo run:android",
+    "ios": "cd apps/mobile && expo run:ios"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@8.15.0",
+  "dependencies": {
+    "expo": "~56.0.12",
+    "react": "19.2.3",
+    "react-native": "0.85.3"
+  }
+}
