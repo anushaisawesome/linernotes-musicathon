@@ -255,6 +255,16 @@ export function ImmersiveReview({
               Open in Spotify
             </button>
 
+            {/* Experience button - show if has notes/moments */}
+            {vm.notes && vm.notes.length > 0 && (
+              <button onClick={() => router.push(`/experience/${vm.id}`)} className="ln-press" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 9, padding: "12px 16px", borderRadius: 999, border: `1px solid ${gold}55`, background: `${gold}12`, cursor: "pointer", fontFamily: "var(--ln-body)", fontSize: 14, fontWeight: 600, color: gold }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2v6M12 16v6M6 12h12M6 12l-4 4M6 12l-4-4M18 12l4 4M18 12l4-4" stroke={gold} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                Experience
+              </button>
+            )}
+
             {npTrack && (
               <div style={{ padding: "13px 15px", borderRadius: 14, background: `${gold}12`, border: `1px solid ${gold}3a`, display: "flex", alignItems: "center", gap: 12 }}>
                 <Eq color={gold} />
