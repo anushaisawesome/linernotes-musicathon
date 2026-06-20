@@ -47,7 +47,7 @@ export default function Home() {
       try {
         const [reviews, albumRes] = await Promise.all([
           getReviews().catch(() => []),
-          fetch("/api/album-reviews").then((r) => (r.ok ? r.json() : { albumReviews: [] })).catch(() => ({ albumReviews: [] })),
+          fetch("/api/album-reviews", { cache: "no-store" }).then((r) => (r.ok ? r.json() : { albumReviews: [] })).catch(() => ({ albumReviews: [] })),
         ]);
         const albumReviews: AlbumReview[] = albumRes.albumReviews || [];
         const vms = [

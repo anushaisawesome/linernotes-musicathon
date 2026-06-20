@@ -4,7 +4,7 @@
 // the vertical card (profile grid), the per-track strip, and the action row. All
 // consume the ReviewVM produced by view-adapter.ts.
 
-import { useState, type MouseEvent } from "react";
+import { useState, useEffect, type MouseEvent } from "react";
 import { useRouter } from "next/navigation";
 import { LNArt, LNStars, LNReact, LNIcon, LNAvatar, LNMoment, lnRel } from "./atoms";
 import type { ReviewVM, AlbumVM, MomentVM } from "@/lib/view-adapter";
@@ -274,6 +274,14 @@ export function FeedItem({
   const [save, setSave] = useState(!!vm.saved);
   const [repost, setRepost] = useState({ on: !!vm.repostedByMe, n: vm.repostCount });
   const [loading, setLoading] = useState({ like: false, repost: false, save: false });
+
+  // Re-sync with fresh server data when the feed refetches. The card key is stable
+  // (`kind-id`), so React reuses this instance across refetches — without this the
+  // initial useState would keep showing stale like/repost/save state (e.g. a like
+  // saved on another page wouldn't appear when you return).
+  useEffect(() => { setLike({ on: !!vm.likedByMe, n: vm.likeCount }); }, [vm.id, vm.likedByMe, vm.likeCount]);
+  useEffect(() => { setRepost({ on: !!vm.repostedByMe, n: vm.repostCount }); }, [vm.id, vm.repostedByMe, vm.repostCount]);
+  useEffect(() => { setSave(!!vm.saved); }, [vm.id, vm.saved]);
 
   const stop = (fn: () => void) => (e: MouseEvent) => {
     e.stopPropagation();

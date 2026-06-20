@@ -62,7 +62,9 @@ export async function getReviews(options?: {
   if (options?.userId) params.set("userId", options.userId);
   if (options?.feed) params.set("feed", options.feed);
 
-  const response = await fetch(`/api/reviews?${params}`);
+  // Always fresh: like/repost state is per-user and must reflect the latest DB
+  // state when navigating back to a feed (never a cached response).
+  const response = await fetch(`/api/reviews?${params}`, { cache: "no-store" });
 
   if (!response.ok) {
     throw new Error("Failed to fetch reviews");

@@ -21,7 +21,7 @@ export default function FeedPage() {
       try {
         // Public feed - load for everyone (hackathon demo)
         const reviews = await getReviews({ feed: "friends" });
-        const albumReviewsRes = await fetch("/api/album-reviews?feed=friends");
+        const albumReviewsRes = await fetch("/api/album-reviews?feed=friends", { cache: "no-store" });
         const albumReviewsData = await albumReviewsRes.json();
         const albumReviews: AlbumReview[] = albumReviewsData.albumReviews || [];
 
