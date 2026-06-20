@@ -84,6 +84,12 @@ export default function Home() {
     fetchPrompts();
   }, [fetchPrompts]);
 
+  // "Play the Experience" / the covers open the Experience for the most recent
+  // track review in the community feed (track reviews are what the player runs;
+  // falls back to the feed until the data loads or if there are none).
+  const experienceReview = items.find((vm) => vm.kind === "track");
+  const experienceHref = experienceReview ? `/experience/${experienceReview.id}` : "/feed";
+
   return (
     <div style={{ background: "var(--ln-bg)", color: "var(--ln-fg)", minHeight: "100vh", position: "relative", display: "flex", flexDirection: "column", flex: 1 }}>
       <TopBar />
@@ -104,7 +110,7 @@ export default function Home() {
                 The track plays while the notes and the lyrics move in time — the exact second a song gets you, lit up as it happens. Everyone built a mood app; this is what listening could feel like.
               </p>
               <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 14, marginTop: 28 }}>
-                <Link href="/feed" className="ln-press" style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: "15px 26px", borderRadius: 999, textDecoration: "none", background: "var(--ln-accent)", color: "#2c1517", fontFamily: "var(--ln-body)", fontSize: 16, fontWeight: 700, boxShadow: "0 16px 34px -12px var(--ln-accent)" }}>
+                <Link href={experienceHref} className="ln-press" style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: "15px 26px", borderRadius: 999, textDecoration: "none", background: "var(--ln-accent)", color: "#2c1517", fontFamily: "var(--ln-body)", fontSize: 16, fontWeight: 700, boxShadow: "0 16px 34px -12px var(--ln-accent)" }}>
                   <svg width="17" height="17" viewBox="0 0 24 24" fill="#2c1517"><path d="M8 5v14l11-7z" /></svg>
                   Play the Experience
                 </Link>
@@ -119,7 +125,7 @@ export default function Home() {
             </div>
 
             {/* hero art — stacked covers, gateway into the feed */}
-            <Link href="/feed" className="ln-press mu-hero-art" style={{ position: "relative", display: "block", textDecoration: "none", animation: "ln-rise 0.6s cubic-bezier(.2,.8,.2,1) 0.1s both" }}>
+            <Link href={experienceHref} className="ln-press mu-hero-art" style={{ position: "relative", display: "block", textDecoration: "none", animation: "ln-rise 0.6s cubic-bezier(.2,.8,.2,1) 0.1s both" }}>
               <div style={{ position: "relative", height: 340, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 {HERO_ART.map((p, i) => {
                   const off = i - 1;
