@@ -78,7 +78,7 @@ async function fetchLastFmTrackInfo(track: string, artist: string, apiKey: strin
       const data = await res.json();
       // Last.fm track.getinfo returns album.title OR album["#text"]
       const albumName = data.track?.album?.title || data.track?.album?.["#text"] || "";
-      const artwork = data.track?.album?.image?.find((img: any) => img.size === "extralarge" || img.size === "large" || img.size === "medium")?. ["#text"] || "";
+      const artwork = data.track?.album?.image?.find((img: any) => img.size === "mega" || img.size === "extralarge" || img.size === "large" || img.size === "medium")?. ["#text"] || "";
 
       console.log("[Last.fm Prompts] track.getinfo response for", track, ":", { albumName, hasArtwork: !!artwork });
 
@@ -103,7 +103,7 @@ async function fetchLastFmAlbumInfo(album: string, artist: string, apiKey: strin
     if (res.ok) {
       const data = await res.json();
       if (data.album?.image) {
-        const artwork = data.album.image.find((img: any) => img.size === "extralarge" || img.size === "large" || img.size === "medium")?. ["#text"];
+        const artwork = data.album.image.find((img: any) => img.size === "mega" || img.size === "extralarge" || img.size === "large" || img.size === "medium")?. ["#text"];
         if (artwork && !artwork.includes("2a96cbd8b46e442fc41c2b86b821562f")) {
           return artwork;
         }
@@ -311,8 +311,9 @@ export async function GET(request: Request) {
       const playCount = track.playcount ? parseInt(track.playcount) : 0;
       if (playCount < 3) continue; // Only show if played 3+ times
 
-      // Try to get artwork from Last.fm first
-      let artworkUrl = track.image?.find((img) => img.size === "extralarge")?.["#text"] ||
+      // Try to get artwork from Last.fm first (prefer highest quality)
+      let artworkUrl = track.image?.find((img) => img.size === "mega")?.["#text"] ||
+                       track.image?.find((img) => img.size === "extralarge")?.["#text"] ||
                        track.image?.find((img) => img.size === "large")?.["#text"] ||
                        track.image?.find((img) => img.size === "medium")?.["#text"] || "";
 
@@ -385,8 +386,9 @@ export async function GET(request: Request) {
       if (seenTracks.has(trackKey)) continue;
       seenTracks.add(trackKey);
 
-      // Try to get artwork from Last.fm first
-      let artworkUrl = track.image?.find((img) => img.size === "extralarge")?.["#text"] ||
+      // Try to get artwork from Last.fm first (prefer highest quality)
+      let artworkUrl = track.image?.find((img) => img.size === "mega")?.["#text"] ||
+                       track.image?.find((img) => img.size === "extralarge")?.["#text"] ||
                        track.image?.find((img) => img.size === "large")?.["#text"] ||
                        track.image?.find((img) => img.size === "medium")?.["#text"] || "";
 
@@ -460,8 +462,9 @@ export async function GET(request: Request) {
       const playCount = parseInt(album.playcount) || 0;
       if (playCount < 3) continue; // Only show if played 3+ times
 
-      // Try to get artwork from Last.fm first
-      let artworkUrl = album.image?.find((img) => img.size === "extralarge")?.["#text"] ||
+      // Try to get artwork from Last.fm first (prefer highest quality)
+      let artworkUrl = album.image?.find((img) => img.size === "mega")?.["#text"] ||
+                       album.image?.find((img) => img.size === "extralarge")?.["#text"] ||
                        album.image?.find((img) => img.size === "large")?.["#text"] ||
                        album.image?.find((img) => img.size === "medium")?.["#text"] || "";
 

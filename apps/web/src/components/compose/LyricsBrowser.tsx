@@ -20,6 +20,8 @@ export function LyricsBrowser({ trackIsrc, trackName, artistName, onBookmark, bo
   const [lyrics, setLyrics] = useState<LyricLine[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [annotatingIndex, setAnnotatingIndex] = useState<number | null>(null);
+  const [annotation, setAnnotation] = useState("");
 
   useEffect(() => {
     if (!trackIsrc && (!trackName || !artistName)) return;
@@ -76,14 +78,37 @@ export function LyricsBrowser({ trackIsrc, trackName, artistName, onBookmark, bo
     fetchLyrics();
   }, [trackIsrc, trackName, artistName]);
 
-  const handleLineClick = (line: LyricLine) => {
-    // Add as a bookmarked lyric moment
-    onBookmark({
-      seconds: line.seconds,
-      label: line.text.substring(0, 50) + (line.text.length > 50 ? "..." : ""), // Truncate for label
-      note: line.text, // Full lyric text in note
-      lyric: line.text, // Mark this as a lyric bookmark
-    });
+  const handleLineClick = (line: LyricLine, index: number) => {
+    if (bookmarkedLines.has(line.text)) return;
+    setAnnotatingIndex(index);
+    setAnnotation("");
+  };
+
+  const handleSaveAnnotation = (line: LyricLine) => {
+    if (!annotation.trim()) {
+      // If no annotation provided, just save the lyric
+      onBookmark({
+        seconds: line.seconds,
+        label: line.text.substring(0, 50) + (line.text.length > 50 ? "..." : ""),
+        note: "", // No annotation
+        lyric: line.text,
+      });
+    } else {
+      // Save both lyric and annotation
+      onBookmark({
+        seconds: line.seconds,
+        label: line.text.substring(0, 50) + (line.text.length > 50 ? "..." : ""),
+        note: annotation.trim(), // Your personal annotation
+        lyric: line.text, // The lyric line
+      });
+    }
+    setAnnotatingIndex(null);
+    setAnnotation("");
+  };
+
+  const handleCancelAnnotation = () => {
+    setAnnotatingIndex(null);
+    setAnnotation("");
   };
 
   const gold = "var(--ln-accent)";
@@ -125,21 +150,109 @@ export function LyricsBrowser({ trackIsrc, trackName, artistName, onBookmark, bo
   return (
     <div>
       <div style={{ marginBottom: 12, fontFamily: "var(--ln-body)", fontSize: 13, color: "rgba(var(--ln-fg-rgb),0.6)" }}>
-        Click any line to bookmark it as a favorite moment. Your bookmarks will appear with synced timing when the track plays.
+        Click any line to add your annotation. The lyric and your note will appear together during playback.
       </div>
 
       <div style={{ maxHeight: 400, overflowY: "auto", border: "1px solid rgba(var(--ln-fg-rgb),0.1)", borderRadius: 12, background: "rgba(var(--ln-fg-rgb),0.02)" }}>
         {lyrics.map((line, index) => {
           const isBookmarked = bookmarkedLines.has(line.text);
+          const isAnnotating = annotatingIndex === index;
           const minutes = Math.floor(line.seconds / 60);
           const seconds = Math.floor(line.seconds % 60);
           const timestamp = `${minutes}:${seconds.toString().padStart(2, "0")}`;
+
+          if (isAnnotating) {
+            return (
+              <div
+                key={index}
+                style={{
+                  padding: "12px 14px",
+                  borderBottom: index < lyrics.length - 1 ? "1px solid rgba(var(--ln-fg-rgb),0.06)" : "none",
+                  background: `${gold}08`,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 10 }}>
+                  <div style={{ fontFamily: "var(--ln-mono)", fontSize: 11, color: gold, minWidth: 40 }}>
+                    {timestamp}
+                  </div>
+                  <div style={{ flex: 1, fontFamily: "var(--ln-preview)", fontStyle: "italic", fontSize: 14.5, lineHeight: 1.5, color: "var(--ln-fg)" }}>
+                    "{line.text}"
+                  </div>
+                </div>
+                <div style={{ marginLeft: 52 }}>
+                  <input
+                    type="text"
+                    autoFocus
+                    placeholder="Add your annotation (optional, press Enter to save)"
+                    value={annotation}
+                    onChange={(e) => setAnnotation(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        handleSaveAnnotation(line);
+                      } else if (e.key === "Escape") {
+                        handleCancelAnnotation();
+                      }
+                    }}
+                    style={{
+                      width: "100%",
+                      padding: "8px 10px",
+                      fontFamily: "var(--ln-body)",
+                      fontSize: 13,
+                      border: `1px solid ${gold}55`,
+                      borderRadius: 6,
+                      background: "var(--ln-bg)",
+                      color: "var(--ln-fg)",
+                      outline: "none",
+                    }}
+                  />
+                  <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                    <button
+                      type="button"
+                      onClick={() => handleSaveAnnotation(line)}
+                      className="ln-press"
+                      style={{
+                        padding: "6px 12px",
+                        fontFamily: "var(--ln-mono)",
+                        fontSize: 10,
+                        fontWeight: 600,
+                        border: `1px solid ${gold}`,
+                        borderRadius: 6,
+                        background: gold,
+                        color: "var(--ln-bg)",
+                        cursor: "pointer",
+                      }}
+                    >
+                      SAVE
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCancelAnnotation}
+                      className="ln-press"
+                      style={{
+                        padding: "6px 12px",
+                        fontFamily: "var(--ln-mono)",
+                        fontSize: 10,
+                        fontWeight: 600,
+                        border: "1px solid rgba(var(--ln-fg-rgb),0.2)",
+                        borderRadius: 6,
+                        background: "transparent",
+                        color: "var(--ln-fg)",
+                        cursor: "pointer",
+                      }}
+                    >
+                      CANCEL
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          }
 
           return (
             <button
               key={index}
               type="button"
-              onClick={() => handleLineClick(line)}
+              onClick={() => handleLineClick(line, index)}
               disabled={isBookmarked}
               className={isBookmarked ? "" : "ln-press"}
               style={{
