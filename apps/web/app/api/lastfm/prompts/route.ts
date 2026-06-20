@@ -116,6 +116,41 @@ async function fetchLastFmAlbumInfo(album: string, artist: string, apiKey: strin
 }
 
 /**
+ * Validate album name against Spotify and get correct metadata
+ * Returns { album: string; artwork: string }
+ */
+async function validateWithSpotify(track: string, artist: string, lastfmAlbum: string): Promise<{ album: string; artwork: string }> {
+  try {
+    // Search Spotify for this track
+    const trackSearchUrl = `${process.env.NEXTAUTH_URL}/api/music/search/tracks?q=${encodeURIComponent(`${track} ${artist}`)}&limit=1`;
+    const res = await fetch(trackSearchUrl);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.tracks?.[0]) {
+        const spotifyTrack = data.tracks[0];
+        const spotifyAlbum = spotifyTrack.album?.name || "";
+        const spotifyArtwork = spotifyTrack.album?.artworkUrl || "";
+
+        // If Spotify has the track, use Spotify's album name and artwork
+        if (spotifyAlbum) {
+          console.log(`[Last.fm Prompts] Spotify validation for "${track}":`, {
+            lastfmAlbum,
+            spotifyAlbum,
+            using: spotifyAlbum,
+          });
+          return { album: spotifyAlbum, artwork: spotifyArtwork };
+        }
+      }
+    }
+  } catch (error) {
+    console.error("[Last.fm Prompts] Spotify validation error:", error);
+  }
+
+  // If Spotify doesn't have it, fall back to Last.fm data
+  return { album: lastfmAlbum, artwork: "" };
+}
+
+/**
  * Fetch album artwork from MusicBrainz/iTunes if Last.fm doesn't have it
  */
 async function fetchFallbackArtwork(track: string, artist: string, album: string): Promise<string> {
@@ -329,6 +364,15 @@ export async function GET(request: Request) {
         // Don't use album name from track.getinfo - it can have corrupted/user-submitted metadata
       }
 
+      // Validate album name with Spotify to avoid user-corrupted Last.fm data
+      const spotifyValidation = await validateWithSpotify(track.name, artistName, albumName);
+      if (spotifyValidation.album) {
+        albumName = spotifyValidation.album;
+      }
+      if (spotifyValidation.artwork && !artworkUrl) {
+        artworkUrl = spotifyValidation.artwork;
+      }
+
       // If still no artwork and we have an album, try Last.fm album.getinfo
       if (!artworkUrl && albumName) {
         artworkUrl = await fetchLastFmAlbumInfo(albumName, artistName, apiKey);
@@ -400,6 +444,15 @@ export async function GET(request: Request) {
           artworkUrl = trackInfo.artwork;
         }
         // Don't use album name from track.getinfo - it can have corrupted/user-submitted metadata
+      }
+
+      // Validate album name with Spotify to avoid user-corrupted Last.fm data
+      const spotifyValidation = await validateWithSpotify(track.name, artistName, albumName);
+      if (spotifyValidation.album) {
+        albumName = spotifyValidation.album;
+      }
+      if (spotifyValidation.artwork && !artworkUrl) {
+        artworkUrl = spotifyValidation.artwork;
       }
 
       // If still no artwork and we have an album, try Last.fm album.getinfo
