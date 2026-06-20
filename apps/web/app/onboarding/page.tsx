@@ -32,7 +32,7 @@ const inputStyle: React.CSSProperties = {
 type OnboardingStep = 1 | 2;
 
 function OnboardingContent() {
-  const { data: session, update: updateSession } = useSession();
+  const { data: session, status, update: updateSession } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [step, setStep] = useState<OnboardingStep>(1);
@@ -42,21 +42,29 @@ function OnboardingContent() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [lastfmConnected, setLastfmConnected] = useState(false);
+  const [initialChecked, setInitialChecked] = useState(false);
 
-  // Check if redirected from Last.fm OAuth
+  // Returning from the Last.fm OAuth round-trip: the profile was already built
+  // before connecting, so jump to the (now-confirmed) Last.fm step.
   useEffect(() => {
-    const connected = searchParams.get("lastfm_connected");
-    if (connected === "true") {
+    if (searchParams.get("lastfm_connected") === "true") {
       setLastfmConnected(true);
+      setStep(2);
     }
   }, [searchParams]);
 
-  // Redirect to home if user already has a handle (already onboarded)
+  // First-load gate only: if the user has already finished onboarding (has a
+  // handle) and isn't mid Last.fm round-trip, send them home. Running this once
+  // means completing step 1 (which sets the handle) won't bounce them off the
+  // Last.fm step.
   useEffect(() => {
-    if (session?.user?.handle) {
+    if (status === "loading" || initialChecked) return;
+    setInitialChecked(true);
+    const fromLastfm = searchParams.get("lastfm_connected") === "true";
+    if (session?.user?.handle && !fromLastfm) {
       router.push("/");
     }
-  }, [session, router]);
+  }, [status, session, initialChecked, searchParams, router]);
 
   const saveProfile = async () => {
     if (!displayName.trim() || !handle.trim()) {
@@ -68,7 +76,7 @@ function OnboardingContent() {
     setError("");
 
     try {
-      const response = await fetch("/api/user/profile", {
+      const response = await fetch("/api/users/me", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -61,7 +61,10 @@ function LoginForm() {
     }
   };
 
-  const handleSpotifySignIn = () => signIn("spotify", { callbackUrl });
+  // Spotify is the primary funnel: send everyone through onboarding after auth.
+  // Already-onboarded users (with a handle) are bounced straight to home by the
+  // onboarding page's first-load gate, so this is safe for returning users too.
+  const handleSpotifySignIn = () => signIn("spotify", { callbackUrl: "/onboarding" });
 
   const gold = "var(--ln-accent)";
 

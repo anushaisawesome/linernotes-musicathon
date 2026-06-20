@@ -99,15 +99,13 @@ export function TopBar({ transparent = false }: { transparent?: boolean }) {
             >
               Friends
             </Link>
-            {handle && (
-              <Link
-                href={`/profile/${handle}`}
-                className="ln-press lnw-nav-login"
-                style={{ color: muted, textDecoration: "none", fontFamily: "var(--ln-body)", fontSize: 13.5, fontWeight: 600, padding: "6px 4px", whiteSpace: "nowrap" }}
-              >
-                Profile
-              </Link>
-            )}
+            <Link
+              href={handle ? `/profile/${handle}` : "/onboarding"}
+              className="ln-press lnw-nav-login"
+              style={{ color: pathname.startsWith("/profile") ? ink : muted, textDecoration: "none", fontFamily: "var(--ln-body)", fontSize: 13.5, fontWeight: 600, padding: "6px 4px", whiteSpace: "nowrap" }}
+            >
+              Profile
+            </Link>
             <button
               onClick={() => signOut({ callbackUrl: "/" })}
               className="ln-press"
