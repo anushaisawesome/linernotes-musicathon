@@ -90,7 +90,8 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    if (bio !== undefined && typeof bio !== "string") {
+    // Bio is optional: undefined = leave unchanged, null/"" = clear it.
+    if (bio !== undefined && bio !== null && typeof bio !== "string") {
       return NextResponse.json(
         { error: "Bio must be a string" },
         { status: 400 }
@@ -141,7 +142,7 @@ export async function PATCH(request: NextRequest) {
       where: { id: user.id },
       data: {
         ...(displayName !== undefined && { displayName: displayName.trim() }),
-        ...(bio !== undefined && { bio: bio.trim() || null }),
+        ...(bio !== undefined && { bio: typeof bio === "string" ? bio.trim() || null : null }),
         ...(avatarUrl !== undefined && { avatarUrl: avatarUrl.trim() || null }),
         ...(handle !== undefined && { handle: handle.trim().toLowerCase() }),
       },

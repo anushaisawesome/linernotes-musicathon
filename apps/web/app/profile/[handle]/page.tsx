@@ -234,10 +234,14 @@ export default function ProfilePage() {
   }
 
   const tint = tintFromString(user.id || user.handle);
-  const recentItems = [...reviews]
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 8)
-    .map(trackToFav);
+  // Every review this user has made — track + album — newest first, no cap.
+  const reviewTime = (x: { createdAt?: string }) => new Date(x.createdAt || 0).getTime();
+  const allReviewItems = [
+    ...reviews.map((r) => ({ t: reviewTime(r), fav: trackToFav(r) })),
+    ...albumReviews.map((a) => ({ t: reviewTime(a as { createdAt?: string }), fav: albumToFav(a) })),
+  ]
+    .sort((a, b) => b.t - a.t)
+    .map((o) => o.fav);
   const momentCount =
     reviews.reduce((s, r) => s + (r.notes?.length || 0), 0) +
     albumReviews.reduce((s, ar) => s + (ar.trackReviews?.reduce((t, tr) => t + (tr.notes?.length || 0), 0) || 0), 0);
@@ -361,13 +365,13 @@ export default function ProfilePage() {
               </div>
             )}
 
-            {recentItems.length > 0 && (
+            {allReviewItems.length > 0 && (
               <div style={{ marginTop: 40 }}>
-                <SectionLabel>recent ratings</SectionLabel>
+                <SectionLabel>all reviews</SectionLabel>
                 <div className="ln-scroll" style={{ display: "flex", gap: 16, overflowX: "auto", paddingBottom: 6 }}>
-                  {recentItems.map((it) => (
+                  {allReviewItems.map((it) => (
                     <div key={it.key} style={{ width: 150, flexShrink: 0 }}>
-                      <FavTile item={it} onOpen={() => router.push(it.href)} />
+                      <FavTile item={it} onOpen={() => it.href && router.push(it.href)} />
                     </div>
                   ))}
                 </div>

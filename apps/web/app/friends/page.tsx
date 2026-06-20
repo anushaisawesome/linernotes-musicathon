@@ -220,6 +220,27 @@ export default function FriendsPage() {
                 </button>
               </div>
 
+              {/* Confirmed friends */}
+              <div style={{ marginTop: 34 }}>
+                <SectionLabel count={friends.length}>your friends</SectionLabel>
+                {friends.length === 0 ? (
+                  <div style={{ padding: "14px 2px", fontFamily: "var(--ln-body)", fontSize: 13.5, color: "rgba(var(--ln-fg-rgb),0.45)" }}>
+                    No friends yet — add someone by their @handle, or share your profile.
+                  </div>
+                ) : (
+                  <div>
+                    {friends.map((f) => (
+                      <Link key={f.id} href={`/profile/${f.handle}`} style={{ display: "block", textDecoration: "none" }} className="ln-card-hover">
+                        <PersonRow
+                          user={f}
+                          right={<span style={{ flexShrink: 0, fontSize: 16, lineHeight: 1, color: "rgba(var(--ln-fg-rgb),0.3)" }}>→</span>}
+                        />
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {/* Pending requests */}
               <div style={{ marginTop: 34 }}>
                 <SectionLabel count={incoming.length}>pending requests</SectionLabel>
@@ -247,27 +268,6 @@ export default function FriendsPage() {
                         user={s.addressee}
                         right={<span style={{ flexShrink: 0, fontFamily: "var(--ln-mono)", fontSize: 11, color: "rgba(var(--ln-fg-rgb),0.45)", padding: "0 6px" }}>requested</span>}
                       />
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Confirmed friends */}
-              <div style={{ marginTop: 34 }}>
-                <SectionLabel count={friends.length}>your friends</SectionLabel>
-                {friends.length === 0 ? (
-                  <div style={{ padding: "14px 2px", fontFamily: "var(--ln-body)", fontSize: 13.5, color: "rgba(var(--ln-fg-rgb),0.45)" }}>
-                    No friends yet — add someone by their @handle, or share your profile.
-                  </div>
-                ) : (
-                  <div>
-                    {friends.map((f) => (
-                      <Link key={f.id} href={`/profile/${f.handle}`} style={{ display: "block", textDecoration: "none" }} className="ln-card-hover">
-                        <PersonRow
-                          user={f}
-                          right={<span style={{ flexShrink: 0, fontSize: 16, lineHeight: 1, color: "rgba(var(--ln-fg-rgb),0.3)" }}>→</span>}
-                        />
-                      </Link>
                     ))}
                   </div>
                 )}

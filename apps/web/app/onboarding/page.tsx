@@ -82,7 +82,9 @@ function OnboardingContent() {
         body: JSON.stringify({
           displayName: displayName.trim(),
           handle: handle.trim().toLowerCase().replace(/[^a-z0-9_]/g, ""),
-          bio: bio.trim() || null,
+          // Bio is optional — only send it when the user actually wrote one, so an
+          // empty bio never trips the backend's string validation.
+          ...(bio.trim() ? { bio: bio.trim() } : {}),
         }),
       });
 
