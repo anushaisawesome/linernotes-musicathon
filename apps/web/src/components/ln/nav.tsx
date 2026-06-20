@@ -213,6 +213,8 @@ function NavLink({
 
 // ── Footer ───────────────────────────────────────────────────────────────────
 export function Footer({ dark = true }: { dark?: boolean }) {
+  const { data: session } = useSession();
+  const handle = session?.user?.handle;
   const accent = "var(--ln-accent)";
   const fg = dark ? "#f1ebe0" : "var(--ln-fg)";
   const muted = dark ? "rgba(241,235,224,0.5)" : "rgba(var(--ln-fg-rgb),0.55)";
@@ -225,23 +227,25 @@ export function Footer({ dark = true }: { dark?: boolean }) {
             <span style={{ fontFamily: "var(--ln-logo)", fontWeight: 800, fontSize: 20, color: fg, letterSpacing: "-0.02em" }}>LinerNotes</span>
           </Link>
           <p style={{ margin: "12px 0 0", fontFamily: "var(--ln-preview)", fontStyle: "italic", fontSize: 16, lineHeight: 1.45, color: muted }}>
-            The moment a song hits you, kept while you&apos;re still in it.
+            Press play. The song reads along with you.
           </p>
           <div style={{ marginTop: 16, fontFamily: "var(--ln-mono)", fontSize: 10.5, letterSpacing: "0.04em", color: muted }}>© 2026 LinerNotes · made for listeners</div>
         </div>
 
         <div style={{ display: "flex", gap: 54, flexWrap: "wrap" }}>
-          <FootCol head="Product" links={[["The feed", "/feed"], ["Log a note", "/log"]]} fg={fg} muted={muted} />
-          <FootCol head="You" links={[["Friends", "/friends"], ["Log in", "/login"]]} fg={fg} muted={muted} />
+          <FootCol head="Product" links={[["Explore", "/feed"], ["Log a note", "/log"]]} fg={fg} muted={muted} />
+          <FootCol head="You" links={[["Friends", "/friends"], ["Profile", handle ? `/profile/${handle}` : "/login"]]} fg={fg} muted={muted} />
         </div>
 
-        <div style={{ minWidth: 220 }}>
-          <div style={{ fontFamily: "var(--ln-label)", fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", fontWeight: 700, color: accent, marginBottom: 12 }}>get started</div>
-          <Link href="/login" className="ln-press" style={{ display: "block", textAlign: "center", textDecoration: "none", width: "100%", boxSizing: "border-box", padding: "13px", borderRadius: 12, background: accent, color: "#2c1517", fontFamily: "var(--ln-body)", fontSize: 14, fontWeight: 700, boxShadow: `0 10px 26px -12px ${accent}` }}>
-            Sign up
-          </Link>
-          <p style={{ margin: "10px 0 0", fontFamily: "var(--ln-mono)", fontSize: 10, lineHeight: 1.5, color: muted, letterSpacing: "0.02em" }}>Start logging your listening moments</p>
-        </div>
+        {!session && (
+          <div style={{ minWidth: 220 }}>
+            <div style={{ fontFamily: "var(--ln-label)", fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", fontWeight: 700, color: accent, marginBottom: 12 }}>get started</div>
+            <Link href="/login" className="ln-press" style={{ display: "block", textAlign: "center", textDecoration: "none", width: "100%", boxSizing: "border-box", padding: "13px", borderRadius: 12, background: accent, color: "#2c1517", fontFamily: "var(--ln-body)", fontSize: 14, fontWeight: 700, boxShadow: `0 10px 26px -12px ${accent}` }}>
+              Sign up
+            </Link>
+            <p style={{ margin: "10px 0 0", fontFamily: "var(--ln-mono)", fontSize: 10, lineHeight: 1.5, color: muted, letterSpacing: "0.02em" }}>Start logging your listening moments</p>
+          </div>
+        )}
       </div>
     </footer>
   );
