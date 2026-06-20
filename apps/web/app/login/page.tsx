@@ -61,7 +61,7 @@ function LoginForm() {
     }
   };
 
-  const handleGoogleSignIn = () => signIn("google", { callbackUrl });
+  const handleSpotifySignIn = () => signIn("spotify", { callbackUrl });
 
   const gold = "var(--ln-accent)";
 
@@ -96,14 +96,11 @@ function LoginForm() {
           )}
 
           <div style={{ marginTop: 24, display: "flex", flexDirection: "column", gap: 11 }}>
-            <button onClick={handleGoogleSignIn} className="ln-press" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, width: "100%", padding: "14px", borderRadius: 14, border: "none", cursor: "pointer", background: "#f4ede0", color: "#1a1714", fontFamily: "var(--ln-body)", fontSize: 15, fontWeight: 600, boxShadow: "0 10px 26px -14px rgba(0,0,0,0.8)" }}>
-              <svg width="18" height="18" viewBox="0 0 48 48">
-                <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.6 30.2 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.8 6.1C12.3 13.2 17.7 9.5 24 9.5z" />
-                <path fill="#4285F4" d="M46.1 24.6c0-1.6-.1-2.8-.4-4.1H24v7.8h12.4c-.3 2.1-1.6 5.2-4.6 7.3l7.1 5.5c4.2-3.9 6.6-9.6 6.6-16.5z" />
-                <path fill="#FBBC05" d="M10.4 28.7c-.5-1.4-.8-2.9-.8-4.7s.3-3.3.8-4.7l-7.8-6.1C1 16.5 0 20.1 0 24s1 7.5 2.6 10.8l7.8-6.1z" />
-                <path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.1-5.5c-2 1.4-4.7 2.3-8.8 2.3-6.3 0-11.7-3.7-13.6-9.1l-7.8 6.1C6.5 42.6 14.6 48 24 48z" />
+            <button onClick={handleSpotifySignIn} className="ln-press" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, width: "100%", padding: "14px", borderRadius: 14, border: "none", cursor: "pointer", background: "#1DB954", color: "#fff", fontFamily: "var(--ln-body)", fontSize: 15, fontWeight: 600, boxShadow: "0 10px 26px -14px rgba(0,0,0,0.8)" }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
               </svg>
-              Continue with Google
+              Continue with Spotify
             </button>
 
             <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "3px 0" }}>

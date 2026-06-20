@@ -1,7 +1,7 @@
 import NextAuth from "next-auth";
 import type { NextAuthConfig } from "next-auth";
 import { PrismaAdapter } from "@auth/prisma-adapter";
-import GoogleProvider from "next-auth/providers/google";
+import SpotifyProvider from "next-auth/providers/spotify";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
@@ -23,10 +23,14 @@ export const authOptions: NextAuthConfig = {
   adapter: PrismaAdapter(prisma) as any,
   debug: process.env.NODE_ENV === 'development',
   providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID as string,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
-      allowDangerousEmailAccountLinking: true, // Allow linking Google to existing email accounts
+    SpotifyProvider({
+      clientId: process.env.SPOTIFY_CLIENT_ID as string,
+      clientSecret: process.env.SPOTIFY_CLIENT_SECRET as string,
+      authorization: {
+        params: {
+          scope: "user-read-email user-read-private",
+        },
+      },
     }),
     CredentialsProvider({
       name: "Email",
@@ -114,8 +118,8 @@ export const authOptions: NextAuthConfig = {
   callbacks: {
     async signIn({ user, account, profile }) {
       try {
-        // For Google OAuth, ensure user has a handle
-        if (account?.provider === "google") {
+        // For Spotify OAuth, ensure user has a handle
+        if (account?.provider === "spotify") {
           const existingUser = await prisma.user.findUnique({
             where: { email: user.email! },
           });
@@ -174,7 +178,7 @@ export const authOptions: NextAuthConfig = {
   events: {
     async createUser({ user }) {
       try {
-        // Ensure new Google users have a handle and displayName
+        // Ensure new Spotify users have a handle and displayName
         const dbUser = await prisma.user.findUnique({
           where: { id: user.id },
         });
