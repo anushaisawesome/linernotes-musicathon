@@ -255,11 +255,11 @@ export default function FriendsPage() {
 
               {/* Requests — toggle between incoming (friend requests) and outgoing (pending) */}
               <div style={{ marginTop: 34 }}>
-                <div style={{ display: "inline-flex", gap: 4, padding: 4, borderRadius: 999, background: "rgba(var(--ln-fg-rgb),0.05)", border: "1px solid rgba(var(--ln-line-rgb),0.1)", marginBottom: 18 }}>
+                <div style={{ display: "inline-flex", gap: 4, padding: 3, borderRadius: 999, background: "rgba(var(--ln-fg-rgb),0.04)", marginBottom: 18 }}>
                   {([["incoming", "Friend requests", incoming.length], ["sent", "Pending requests", sent.length]] as const).map(([id, label, n]) => {
                     const on = reqTab === id;
                     return (
-                      <button key={id} onClick={() => setReqTab(id)} className="ln-press" style={{ padding: "8px 16px", borderRadius: 999, border: "none", cursor: "pointer", background: on ? gold : "transparent", color: on ? "#2c1517" : "rgba(var(--ln-fg-rgb),0.7)", fontFamily: "var(--ln-body)", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap" }}>
+                      <button key={id} onClick={() => setReqTab(id)} className="ln-press" style={{ padding: "6px 13px", borderRadius: 999, border: "none", cursor: "pointer", background: on ? "rgba(var(--ln-fg-rgb),0.09)" : "transparent", color: on ? "var(--ln-fg)" : "rgba(var(--ln-fg-rgb),0.5)", fontFamily: "var(--ln-body)", fontSize: 12.5, fontWeight: on ? 600 : 500, whiteSpace: "nowrap", transition: "color 0.15s, background 0.15s" }}>
                         {label}{n > 0 ? ` · ${n}` : ""}
                       </button>
                     );

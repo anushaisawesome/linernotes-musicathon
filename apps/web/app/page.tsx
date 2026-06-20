@@ -46,8 +46,8 @@ export default function Home() {
     (async () => {
       try {
         const [reviews, albumRes] = await Promise.all([
-          getReviews().catch(() => []),
-          fetch("/api/album-reviews", { cache: "no-store" }).then((r) => (r.ok ? r.json() : { albumReviews: [] })).catch(() => ({ albumReviews: [] })),
+          getReviews({ feed: "friends" }).catch(() => []),
+          fetch("/api/album-reviews?feed=friends", { cache: "no-store" }).then((r) => (r.ok ? r.json() : { albumReviews: [] })).catch(() => ({ albumReviews: [] })),
         ]);
         const albumReviews: AlbumReview[] = albumRes.albumReviews || [];
         const vms = [
@@ -192,8 +192,8 @@ export default function Home() {
                 <FeedItem
                   key={vm.id}
                   vm={vm}
-                  onLike={() => vm.kind === "track" && toggleLike(vm.id).catch(() => {})}
-                  onRepost={() => vm.kind === "track" && toggleRepost(vm.id).catch(() => {})}
+                  onLike={() => { if (vm.kind === "track") toggleLike(vm.id).catch(() => {}); else if (vm.kind === "album") fetch(`/api/album-reviews/${vm.id}/like`, { method: "POST" }).catch(() => {}); }}
+                  onRepost={() => { if (vm.kind === "track") toggleRepost(vm.id).catch(() => {}); else if (vm.kind === "album") fetch(`/api/album-reviews/${vm.id}/repost`, { method: "POST" }).catch(() => {}); }}
                   onSave={() => { if (vm.kind === "track") fetch(`/api/reviews/${vm.id}/save`, { method: "POST" }).catch(() => {}); }}
                 />
               ))}

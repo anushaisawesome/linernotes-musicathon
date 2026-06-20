@@ -24,6 +24,7 @@ interface TrackReaction {
   take?: string;
   notes: TrackNote[];
   showNoteForm: boolean;
+  included: boolean; // explicitly shown on the review even without a reaction/note
 }
 
 export function AlbumComposeForm({ onSubmit, onSuccess, searchAPI }: AlbumComposeFormProps) {
@@ -58,6 +59,7 @@ export function AlbumComposeForm({ onSubmit, onSuccess, searchAPI }: AlbumCompos
             take: "",
             notes: [],
             showNoteForm: false,
+            included: false,
           }))
         );
       }
@@ -71,8 +73,10 @@ export function AlbumComposeForm({ onSubmit, onSuccess, searchAPI }: AlbumCompos
 
   const upd = (i: number, patch: Partial<TrackReaction>) =>
     setTrackReactions((arr) => arr.map((t, j) => (j === i ? { ...t, ...patch } : t)));
-  const isIncluded = (tr: TrackReaction) => !!(tr.reaction || tr.notes.length || tr.take);
+  const isIncluded = (tr: TrackReaction) => tr.included || !!(tr.reaction || tr.notes.length || tr.take);
   const includedCount = trackReactions.filter(isIncluded).length;
+  const allSelected = trackReactions.length > 0 && trackReactions.every((t) => t.included);
+  const toggleSelectAll = () => setTrackReactions((arr) => arr.map((t) => ({ ...t, included: !allSelected })));
 
   const takeLines = albumTake.split("\n").map((s) => s.trim()).filter(Boolean);
   const capIdx = takeLines.length ? Math.min(captionIdx, takeLines.length - 1) : 0;
@@ -257,7 +261,10 @@ export function AlbumComposeForm({ onSubmit, onSuccess, searchAPI }: AlbumCompos
               {/* track strip */}
               {showTracks && (
                 <div style={{ marginTop: 13, borderRadius: 14, border: "1px solid rgba(var(--ln-fg-rgb),0.1)" }}>
-                  <div style={{ padding: "9px 14px", fontFamily: "var(--ln-mono)", fontSize: 10, letterSpacing: "0.06em", color: "rgba(var(--ln-fg-rgb),0.5)", textTransform: "uppercase", borderBottom: "1px solid rgba(var(--ln-fg-rgb),0.08)" }}>tap a track to react · bookmark a note</div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "8px 10px 8px 14px", borderBottom: "1px solid rgba(var(--ln-fg-rgb),0.08)" }}>
+                    <span style={{ fontFamily: "var(--ln-mono)", fontSize: 10, letterSpacing: "0.06em", color: "rgba(var(--ln-fg-rgb),0.5)", textTransform: "uppercase" }}>check to include · tap to react</span>
+                    <button type="button" onClick={toggleSelectAll} className="ln-press" style={{ flexShrink: 0, padding: "5px 11px", borderRadius: 999, cursor: "pointer", border: `1px solid ${allSelected ? gold : "rgba(var(--ln-fg-rgb),0.18)"}`, background: allSelected ? `${gold}1a` : "transparent", color: allSelected ? gold : "rgba(var(--ln-fg-rgb),0.7)", fontFamily: "var(--ln-body)", fontSize: 11.5, fontWeight: 600, whiteSpace: "nowrap" }}>{allSelected ? "Clear all" : "Select all tracks"}</button>
+                  </div>
                   {trackReactions.map((tr, i) => {
                     const open = openTrack === i;
                     const mc = tr.notes.length;
@@ -265,7 +272,10 @@ export function AlbumComposeForm({ onSubmit, onSuccess, searchAPI }: AlbumCompos
                     return (
                       <div key={tr.track.trackId} style={{ borderBottom: "1px solid rgba(var(--ln-fg-rgb),0.06)" }}>
                         <div style={{ display: "flex", alignItems: "center" }}>
-                          <div onClick={() => setOpenTrack((o) => (o === i ? null : i))} style={{ flex: 1, display: "flex", alignItems: "center", gap: 11, padding: "12px 6px 12px 14px", cursor: "pointer", minWidth: 0 }}>
+                          <button type="button" onClick={() => upd(i, { included: !tr.included })} title={included ? "Included on the review" : "Include this track"} className="ln-press" style={{ flexShrink: 0, marginLeft: 12, width: 18, height: 18, borderRadius: 5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, border: `1.5px solid ${included ? gold : "rgba(var(--ln-fg-rgb),0.3)"}`, background: included ? gold : "transparent" }}>
+                            {included && <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#2c1517" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+                          </button>
+                          <div onClick={() => setOpenTrack((o) => (o === i ? null : i))} style={{ flex: 1, display: "flex", alignItems: "center", gap: 11, padding: "12px 6px 12px 10px", cursor: "pointer", minWidth: 0 }}>
                             <span style={{ fontFamily: "var(--ln-mono)", fontSize: 11, color: included ? "rgba(var(--ln-fg-rgb),0.45)" : "rgba(var(--ln-fg-rgb),0.28)", width: 16 }}>{String(tr.trackNumber).padStart(2, "0")}</span>
                             <span style={{ flex: 1, fontFamily: "var(--ln-body)", fontSize: 14.5, color: included ? "var(--ln-fg)" : "rgba(var(--ln-fg-rgb),0.5)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>{tr.track.name}</span>
                           </div>
