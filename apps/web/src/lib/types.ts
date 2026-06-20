@@ -18,6 +18,7 @@ export type User = {
   id: string;
   handle: string;
   displayName: string;
+  name?: string | null; // NextAuth display name (from the OAuth profile)
   avatarUrl?: string;
 };
 

@@ -292,9 +292,9 @@ function ExperienceContent() {
                   {noteOpen ? "hide" : "show"}
                 </button>
               </div>
-              {noteOpen && review.body && (
+              {noteOpen && review.take && (
                 <p style={{ margin: 0, fontFamily: "var(--ln-preview)", fontStyle: "italic", fontWeight: 500, fontSize: 18, lineHeight: 1.45, color: INK, wordWrap: "break-word" }}>
-                  {review.body}
+                  {review.take}
                 </p>
               )}
             </div>
@@ -330,7 +330,7 @@ function ExperienceContent() {
                       const dist = Math.abs(i - (annotations?.activeLineIndex || 0));
 
                       return (
-                        <div key={i} ref={(el) => (lineRefs.current[i] = el)}
+                        <div key={i} ref={(el) => { lineRefs.current[i] = el; }}
                           onClick={() => player?.seek(lineSec * 1000 + 200)}
                           style={{
                             cursor: "pointer",

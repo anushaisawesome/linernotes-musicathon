@@ -9,7 +9,7 @@
 import { useEffect, useState } from "react";
 import type { Review } from "@/lib/types";
 import { LNArt, LNStars, lnFmt } from "@/components/ln/atoms";
-import type { Palette } from "@/lib/palette";
+import { paletteFromString } from "@/lib/palette";
 
 interface ShareModalProps {
   review: Review;
@@ -19,9 +19,9 @@ interface ShareModalProps {
 
 export function ShareModal({ review, accent: accentProp, onClose }: ShareModalProps) {
   const acc = accentProp || "#d5896f";
-  const p = review.track.palette || ({} as Palette);
+  const p = paletteFromString(review.track.trackId || review.track.album || review.track.name);
   const user = review.user;
-  const hasFull = !!review.body;
+  const hasFull = !!review.take;
   const [format, setFormat] = useState<"story" | "square" | "link">("story");
   const [copied, setCopied] = useState(false);
   const url = `linernotes.app/r/${review.id}`;
@@ -179,7 +179,7 @@ function LinkSlot({ acc, label }: { acc: string; label: string }) {
 
 // Compact share sticker
 function ShareSticker({ review, acc, compact }: { review: Review; acc: string; compact: boolean }) {
-  const p = review.track.palette || ({} as Palette);
+  const p = paletteFromString(review.track.trackId || review.track.album || review.track.name);
   const featured = review.notes && review.notes.length > 0
     ? { sec: review.notes[0].seconds, label: review.notes[0].label || "moment", note: review.notes[0].note }
     : null;
@@ -203,9 +203,9 @@ function ShareSticker({ review, acc, compact }: { review: Review; acc: string; c
             {review.track.artist}
           </div>
         </div>
-        {review.body && (
+        {review.take && (
           <p style={{ margin: 0, fontFamily: "var(--ln-preview)", fontStyle: "italic", fontWeight: 500, fontSize: compact ? 14 : 15.5, lineHeight: 1.36, color: "var(--ln-fg)", display: "-webkit-box", WebkitLineClamp: compact ? 2 : 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-            {review.body}
+            {review.take}
           </p>
         )}
         {featured && (
@@ -232,7 +232,7 @@ function ShareSticker({ review, acc, compact }: { review: Review; acc: string; c
 
 // Link card preview
 function ShareLinkCard({ review, acc, url }: { review: Review; acc: string; url: string }) {
-  const p = review.track.palette || ({} as Palette);
+  const p = paletteFromString(review.track.trackId || review.track.album || review.track.name);
   const user = review.user;
 
   return (
@@ -249,9 +249,9 @@ function ShareLinkCard({ review, acc, url }: { review: Review; acc: string; url:
       <div style={{ padding: "13px 15px 15px" }}>
         <div style={{ fontFamily: "var(--ln-album)", fontWeight: 600, fontSize: 18, color: "var(--ln-fg)", lineHeight: 1.12 }}>{review.track.name}</div>
         <div style={{ fontFamily: "var(--ln-body)", fontSize: 13, color: "var(--ln-muted)", marginTop: 1 }}>{review.track.artist}</div>
-        {review.body && (
+        {review.take && (
           <p style={{ margin: "9px 0 0", fontFamily: "var(--ln-preview)", fontStyle: "italic", fontSize: 14, lineHeight: 1.4, color: "rgba(var(--ln-fg-rgb),0.82)", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-            {review.body}
+            {review.take}
           </p>
         )}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 12, paddingTop: 11, borderTop: "1px solid rgba(var(--ln-fg-rgb),0.08)" }}>
