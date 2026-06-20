@@ -366,11 +366,11 @@ export function ImmersiveReview({
               This is one note. Your library is full of them.
             </h2>
             <p style={{ margin: "16px 0 0", fontFamily: "var(--ln-body)", fontSize: 17, lineHeight: 1.55, color: muted(0.74) }}>
-              Capture the exact second a song gets you, the moment you&apos;re still in it — and keep them somewhere that remembers. The app is in beta.
+              Capture the exact second a song gets you, the moment you&apos;re still in it — and keep them somewhere that remembers.
             </p>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 13, marginTop: 26 }}>
               <button onClick={() => router.push("/login")} className="ln-press" style={{ padding: "14px 24px", borderRadius: 999, border: "none", cursor: "pointer", background: gold, color: "#1a0a04", fontFamily: "var(--ln-body)", fontSize: 15, fontWeight: 700, boxShadow: `0 14px 32px -12px ${gold}` }}>
-                Join the beta
+                Sign up
               </button>
               <button onClick={() => router.push(`/profile/${vm.user.handle}`)} className="ln-press" style={{ padding: "14px 22px", borderRadius: 999, cursor: "pointer", border: "1px solid rgba(241,235,224,0.2)", background: "rgba(241,235,224,0.05)", color: INK, fontFamily: "var(--ln-body)", fontSize: 15, fontWeight: 600 }}>
                 See {vm.user.name}&apos;s profile

@@ -33,7 +33,7 @@ export const lnRel = (iso: string): string => {
 export function LNStars({
   rating,
   size = 13,
-  color = "var(--ln-accent)",
+  color = "var(--ln-star)",
   showNum = true,
 }: {
   rating: number;

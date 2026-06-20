@@ -7,18 +7,21 @@
    ───────────────────────────────────────────────────────────────────────── */
 
 :root {
-  /* Theme — garnet (default dark) */
-  --ln-bg: #1a0a0c;
-  --ln-surface: #2c1418;
-  --ln-surface-rgb: 44, 20, 24;
-  --ln-fg: #f8ecdb;
-  --ln-fg-rgb: 248, 236, 219;
-  --ln-line-rgb: 255, 205, 165;
-  --ln-muted: #bd9183;
-  --ln-shadow: rgba(20, 2, 6, 0.7);
+  /* Theme — Musicathon: warm oxblood cards on a deep maroon ground, sand text.
+     (MU_BASE from the musicathon design bundle) */
+  --ln-bg: #251214;
+  --ln-surface: #3e1e20;
+  --ln-surface-rgb: 62, 30, 32;
+  --ln-fg: #f0e2cc;
+  --ln-fg-rgb: 240, 226, 204;
+  --ln-line-rgb: 218, 183, 133;
+  --ln-muted: #b6927a;
+  --ln-shadow: rgba(14, 5, 6, 0.7);
 
-  /* Accent + reaction/semantic colours */
-  --ln-accent: #e6b450;
+  /* Accent + reaction/semantic colours.
+     Accent = coral (Musicathon default). Stars stay GOLD regardless of accent. */
+  --ln-accent: #d5896f;
+  --ln-star: #e6b450;
   --ln-flame: #e0762f;
   --ln-love: #d98aa0;
   --ln-skip: #7a7468;

@@ -29,6 +29,13 @@ interface Prompt {
   };
 }
 
+// Decorative stacked-cover gradients for the Experience hero (warm coral / brick / sage).
+const HERO_ART = [
+  { mid: "#7a3a34", deep: "#3e1e20", lo: "#1a0c0d" },
+  { mid: "#c97a5e", deep: "#5e2a26", lo: "#2a1413" },
+  { mid: "#6e8f7a", deep: "#33473d", lo: "#16201b" },
+];
+
 export default function Home() {
   const { data: session } = useSession();
   const [items, setItems] = useState<ReviewVM[]>([]);
@@ -82,33 +89,55 @@ export default function Home() {
       <TopBar />
 
       <main style={{ position: "relative", zIndex: 1 }}>
-        {/* Hero — the pitch */}
-        <section style={{ maxWidth: 1180, margin: "0 auto", padding: "118px 24px 26px" }}>
-          <div style={{ maxWidth: 760, animation: "ln-rise 0.6s cubic-bezier(.2,.8,.2,1) both" }}>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 8, fontFamily: "var(--ln-label)", fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", fontWeight: 700, color: "var(--ln-accent)", marginBottom: 18 }}>
-              <span style={{ width: 22, height: 1, background: "var(--ln-accent)" }} />
-              A listening journal
-            </div>
-            <h1 style={{ margin: 0, fontFamily: "var(--ln-display)", fontWeight: 700, fontSize: "clamp(40px, 5.4vw, 66px)", lineHeight: 1.02, letterSpacing: "-0.025em", color: "var(--ln-fg)" }}>
-              The moment a song hits you, kept while you&apos;re still in it.
-            </h1>
-            <p style={{ margin: "20px 0 0", maxWidth: 560, fontFamily: "var(--ln-body)", fontSize: 18, lineHeight: 1.55, color: "var(--ln-muted)" }}>
-              Rate it, time-stamp the exact second it got you, and pass it to the friends you&apos;d actually tell. This is what people are logging.
-            </p>
-            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 14, marginTop: 28 }}>
-              {session ? (
-                <Link href="/feed" className="ln-press" style={{ padding: "14px 24px", borderRadius: 999, textDecoration: "none", background: "var(--ln-accent)", color: "#1a0a04", fontFamily: "var(--ln-body)", fontSize: 15, fontWeight: 700, boxShadow: "0 14px 32px -12px var(--ln-accent)" }}>
-                  Go to your feed
+        {/* Hero — the Experience pitch (Musicathon) */}
+        <section style={{ maxWidth: 1180, margin: "0 auto", padding: "118px 24px 20px" }}>
+          <div className="mu-hero" style={{ display: "grid", gridTemplateColumns: "1.15fr 0.85fr", gap: 48, alignItems: "center" }}>
+            <div style={{ animation: "ln-rise 0.6s cubic-bezier(.2,.8,.2,1) both" }}>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 8, fontFamily: "var(--ln-label)", fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", fontWeight: 700, color: "var(--ln-accent)", marginBottom: 18 }}>
+                <span style={{ width: 22, height: 1, background: "var(--ln-accent)" }} />
+                The Experience
+              </div>
+              <h1 style={{ margin: 0, fontFamily: "var(--ln-display)", fontWeight: 700, fontSize: "clamp(40px, 5.2vw, 64px)", lineHeight: 1.02, letterSpacing: "-0.025em", color: "var(--ln-fg)", textWrap: "balance" }}>
+                Press play. The song reads along with you.
+              </h1>
+              <p style={{ margin: "20px 0 0", maxWidth: 520, fontFamily: "var(--ln-body)", fontSize: 18, lineHeight: 1.55, color: "var(--ln-muted)" }}>
+                The track plays while the notes and the lyrics move in time — the exact second a song gets you, lit up as it happens. Everyone built a mood app; this is what listening could feel like.
+              </p>
+              <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 14, marginTop: 28 }}>
+                <Link href="/feed" className="ln-press" style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: "15px 26px", borderRadius: 999, textDecoration: "none", background: "var(--ln-accent)", color: "#2c1517", fontFamily: "var(--ln-body)", fontSize: 16, fontWeight: 700, boxShadow: "0 16px 34px -12px var(--ln-accent)" }}>
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="#2c1517"><path d="M8 5v14l11-7z" /></svg>
+                  Play the Experience
                 </Link>
-              ) : (
-                <Link href="/login" className="ln-press" style={{ padding: "14px 24px", borderRadius: 999, textDecoration: "none", background: "var(--ln-accent)", color: "#1a0a04", fontFamily: "var(--ln-body)", fontSize: 15, fontWeight: 700, boxShadow: "0 14px 32px -12px var(--ln-accent)" }}>
-                  Sign up
+                <Link href="/feed" className="ln-press" style={{ padding: "15px 22px", borderRadius: 999, textDecoration: "none", border: "1px solid rgba(var(--ln-fg-rgb),0.2)", background: "rgba(var(--ln-fg-rgb),0.04)", color: "var(--ln-fg)", fontFamily: "var(--ln-body)", fontSize: 16, fontWeight: 600 }}>
+                  Browse the notes
                 </Link>
-              )}
-              <Link href="/log" className="ln-press" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "14px 22px", borderRadius: 999, textDecoration: "none", border: "1px solid rgba(var(--ln-fg-rgb),0.2)", background: "rgba(var(--ln-fg-rgb),0.04)", color: "var(--ln-fg)", fontFamily: "var(--ln-body)", fontSize: 15, fontWeight: 600 }}>
-                Log a note
-              </Link>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 22, fontFamily: "var(--ln-mono)", fontSize: 10.5, letterSpacing: "0.03em", color: "rgba(var(--ln-fg-rgb),0.5)" }}>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: "#1DB954" }} />real Spotify playback</span>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--ln-star)" }} />Musixmatch synced lyrics</span>
+              </div>
             </div>
+
+            {/* hero art — stacked covers, gateway into the feed */}
+            <Link href="/feed" className="ln-press mu-hero-art" style={{ position: "relative", display: "block", textDecoration: "none", animation: "ln-rise 0.6s cubic-bezier(.2,.8,.2,1) 0.1s both" }}>
+              <div style={{ position: "relative", height: 340, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {HERO_ART.map((p, i) => {
+                  const off = i - 1;
+                  return (
+                    <div key={i} style={{ position: "absolute", width: 220, height: 220, borderRadius: 18, overflow: "hidden", transform: `translateX(${off * 86}px) rotate(${off * 6}deg) scale(${i === 1 ? 1.06 : 0.92})`, zIndex: i === 1 ? 3 : 1, boxShadow: "0 30px 70px -28px rgba(0,0,0,0.85), 0 0 0 1px rgba(255,255,255,0.06)", background: `radial-gradient(120% 120% at 26% 18%, ${p.mid}, ${p.deep} 60%, ${p.lo})` }}>
+                      <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(135deg, rgba(255,255,255,0.05) 0 1px, transparent 1px 13px)", mixBlendMode: "overlay" }} />
+                      {i === 1 && (
+                        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <span style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(8,6,7,0.42)", backdropFilter: "blur(6px)", border: "1px solid rgba(255,255,255,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z" /></svg>
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </Link>
           </div>
         </section>
 
@@ -155,7 +184,7 @@ export default function Home() {
           <section style={{ maxWidth: 900, margin: "0 auto", padding: "26px 20px 90px" }}>
             <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 22 }}>
               <span style={{ fontFamily: "var(--ln-label)", fontSize: 11.5, letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 700, color: "var(--ln-accent)" }}>the feed</span>
-              <span style={{ fontFamily: "var(--ln-mono)", fontSize: 10.5, color: "rgba(var(--ln-fg-rgb),0.42)", letterSpacing: "0.03em" }}>from listeners you&apos;d trust</span>
+              <span style={{ fontFamily: "var(--ln-mono)", fontSize: 10.5, color: "rgba(var(--ln-fg-rgb),0.42)", letterSpacing: "0.03em" }}>notes from people you&apos;d trust</span>
               <span style={{ flex: 1, height: 1, background: "rgba(var(--ln-fg-rgb),0.1)", alignSelf: "center" }} />
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 34, containerType: "inline-size" }}>
@@ -175,6 +204,10 @@ export default function Home() {
       <Footer />
 
       <style>{`
+        @media (max-width: 880px) {
+          .mu-hero { grid-template-columns: 1fr !important; gap: 26px !important; }
+          .mu-hero-art { order: -1; }
+        }
         @container (max-width: 680px) {
           .lnw-fcard { flex-direction: column !important; }
           .lnw-fcard-art { width: 100% !important; }

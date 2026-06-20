@@ -61,7 +61,7 @@ export function TopBar({ transparent = false }: { transparent?: boolean }) {
 
         <nav className="lnw-nav-links" style={{ display: "flex", alignItems: "center", gap: 22 }}>
           <NavLink label="Home" href="/" active={pathname === "/"} ink={ink} muted={muted} accent={accent} />
-          <NavLink label="Feed" href="/feed" active={pathname === "/feed"} ink={ink} muted={muted} accent={accent} />
+          <NavLink label="Explore" href="/feed" active={pathname === "/feed"} ink={ink} muted={muted} accent={accent} />
         </nav>
 
         <div style={{ flex: 1 }} />
