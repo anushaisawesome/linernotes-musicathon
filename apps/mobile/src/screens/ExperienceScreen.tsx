@@ -1,12 +1,15 @@
 import { tokens } from '../lib/tokens';
 /**
- * LinerNotes Experience Screen
- * Immersive read-along with album-color background
- * Based on Claude Design handoff: experience.jsx
+ * LinerNotes Experience Screen - Musicathon Edition
+ * Immersive read-along with:
+ * - Album-color background gradients
+ * - Synced lyrics from Musixmatch (fetched live, never cached per contest rules)
+ * - Auto-scrolling lyrics with active line highlighting
+ * - Live moment callouts that pulse when hit
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Dimensions, Linking, Alert, Image, Animated, PanResponder } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Dimensions, Linking, Alert, Image, Animated, PanResponder, FlatList } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Icon } from '../components/atoms/Icon';
 import { Stars } from '../components/atoms/Stars';
@@ -33,6 +36,17 @@ interface Palette {
   glow: string;
 }
 
+interface LyricLine {
+  text: string;
+  time: { total: number }; // milliseconds
+}
+
+interface SyncedLyrics {
+  lines: LyricLine[];
+  translation?: LyricLine[];
+  language?: string;
+}
+
 export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScreenProps) {
   const { user } = useAuth();
   const { album, rating } = review;
@@ -42,14 +56,63 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
   const [spotifyOpening, setSpotifyOpening] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [nowPlayingTrack, setNowPlayingTrack] = useState<{ name: string; artist: string } | null>(null);
+  const [playbackPosition, setPlaybackPosition] = useState(0); // seconds
+  const [lyrics, setLyrics] = useState<SyncedLyrics | null>(null);
+  const [lyricsError, setLyricsError] = useState<string | null>(null);
+  const [showTranslation, setShowTranslation] = useState(false);
+  const lyricListRef = useRef<FlatList>(null);
 
   const isAlbum = !!(album.tracks && album.tracks.length > 0);
-  // Album *reviews* are flagged by the adapter (kind === 'album'); use this to
-  // route deletes to the album endpoint, never the track one.
   const isAlbumReview = album.kind === 'album';
   const npTrack = album.tracks?.find((t) => t.moments && t.moments.length > 0);
 
-  // Check Last.fm for currently playing track that matches this album/artist
+  // Fetch lyrics when the track is determined
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchLyrics = async () => {
+      try {
+        // For now, fetch based on track name and artist (would use ISRC in production)
+        const trackName = album.kind === 'album' && npTrack ? npTrack.name : album.title;
+        const artistName = album.artist;
+
+        if (!trackName || !artistName) return;
+
+        const response = await fetch(
+          `${api.baseUrl}/api/lyrics?track=${encodeURIComponent(trackName)}&artist=${encodeURIComponent(artistName)}`
+        );
+
+        if (response.status === 401 || response.status === 403) {
+          setLyricsError('Musixmatch trial key expired. See demo video for full experience!');
+          return;
+        }
+
+        if (!response.ok) {
+          console.log('[Experience] No synced lyrics available');
+          return;
+        }
+
+        const data = await response.json();
+        if (isMounted && data.lyrics) {
+          setLyrics({
+            lines: data.lyrics,
+            translation: data.translation || undefined,
+            language: data.track?.language || data.subtitle_language || undefined,
+          });
+        }
+      } catch (error) {
+        console.error('[Experience] Failed to fetch lyrics:', error);
+      }
+    };
+
+    fetchLyrics();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [album.kind, album.title, album.artist, npTrack]);
+
+  // Check Last.fm for currently playing track and track playback position
   useEffect(() => {
     let interval: NodeJS.Timeout;
 
@@ -69,7 +132,6 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
           return;
         }
 
-        // Check if the playing track matches this review's album/artist
         const trackArtist = (track.artist as any)?.name || track.artist;
         const trackAlbum = typeof track.album === 'string' ? track.album : track.album?.['#text'];
 
@@ -82,6 +144,9 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
             name: track.name,
             artist: trackArtist,
           });
+          // Estimate playback position (Last.fm doesn't provide this, so we estimate)
+          // In production, use Spotify Web Playback SDK for accurate position
+          setPlaybackPosition((prev) => prev + 3);
         } else {
           setNowPlayingTrack(null);
         }
@@ -91,15 +156,38 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
     };
 
     checkNowPlaying();
-    interval = setInterval(checkNowPlaying, 3000); // Check every 3 seconds for responsive updates
+    interval = setInterval(checkNowPlaying, 3000);
 
     return () => clearInterval(interval);
   }, [album.artist, album.title, isAlbum]);
 
-  // Own note → can delete (backend also enforces ownership).
+  // Find active lyric line based on playback position
+  const displayLyrics = (lyrics && showTranslation && lyrics.translation) ? lyrics.translation : lyrics?.lines;
+  const activeLineIndex = displayLyrics?.findIndex((line, i) => {
+    const currentTime = playbackPosition * 1000;
+    const nextLine = displayLyrics[i + 1];
+    return line.time.total <= currentTime && (!nextLine || nextLine.time.total > currentTime);
+  }) ?? -1;
+
+  // Auto-scroll to active line
+  useEffect(() => {
+    if (activeLineIndex >= 0 && lyricListRef.current) {
+      lyricListRef.current.scrollToIndex({
+        index: activeLineIndex,
+        animated: true,
+        viewPosition: 0.4, // Center at 40% from top
+      });
+    }
+  }, [activeLineIndex]);
+
+  // Find active moment (pulses for 5s after playhead hits it)
+  const activeMoment = review.notes?.find((m) =>
+    playbackPosition >= m.sec && playbackPosition < m.sec + 5
+  ) || null;
+
   const isOwn = !!user?.handle && review.user?.handle === user.handle;
 
-  // Swipe down from the top bar to dismiss (finger-tracking + snap).
+  // Swipe down to dismiss
   const translateY = useRef(new Animated.Value(0)).current;
   const panResponder = useRef(
     PanResponder.create({
@@ -125,8 +213,8 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
     Alert.alert(
       isAlbumReview ? 'Delete album review?' : 'Delete note?',
       isAlbumReview
-        ? 'This permanently removes your album review. This can’t be undone.'
-        : 'This permanently removes your note. This can’t be undone.',
+        ? 'This permanently removes your album review. This can't be undone.'
+        : 'This permanently removes your note. This can't be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -136,7 +224,6 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
             if (deleting) return;
             setDeleting(true);
             try {
-              // Route by type so an album review never hits the track endpoint.
               if (isAlbumReview) {
                 await api.deleteAlbumReview(review.id);
               } else {
@@ -163,9 +250,6 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
         return;
       }
 
-      // Mirror the web: open a Spotify search for "title artist". Prefer the
-      // native app via the spotify: URI, fall back to the universal web link
-      // (which opens the Spotify app if installed, otherwise the browser).
       const encoded = encodeURIComponent(query);
       const appUri = `spotify:search:${encoded}`;
       const webUrl = `https://open.spotify.com/search/${encoded}`;
@@ -174,7 +258,6 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
       await Linking.openURL(canOpenApp ? appUri : webUrl);
     } catch (error) {
       console.error('Failed to open Spotify:', error);
-      // Last resort: the universal web URL.
       try {
         await Linking.openURL(
           `https://open.spotify.com/search/${encodeURIComponent(`${album.title} ${album.artist}`)}`
@@ -190,6 +273,40 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
   const tapNote = (key: string) => {
     setActiveNote(key);
     setTimeout(() => setActiveNote(null), 2600);
+  };
+
+  const renderLyricLine = ({ item, index }: { item: LyricLine; index: number }) => {
+    const isActive = index === activeLineIndex;
+    const passed = activeLineIndex >= 0 && index < activeLineIndex;
+    const distance = Math.abs(index - activeLineIndex);
+
+    return (
+      <TouchableOpacity
+        onPress={() => setPlaybackPosition(item.time.total / 1000)}
+        style={[
+          styles.lyricLine,
+          {
+            opacity: isActive ? 1 : Math.max(0.3, 1 - distance * 0.12),
+          },
+        ]}
+      >
+        {isActive && (
+          <View style={[styles.lyricIndicator, { backgroundColor: gold }]} />
+        )}
+        <Text
+          style={[
+            styles.lyricText,
+            {
+              fontSize: isActive ? 24 : 18,
+              fontWeight: isActive ? '600' : '500',
+              color: isActive ? '#f1ebe0' : passed ? 'rgba(241,235,224,0.35)' : 'rgba(241,235,224,0.55)',
+            },
+          ]}
+        >
+          {item.text}
+        </Text>
+      </TouchableOpacity>
+    );
   };
 
   return (
@@ -260,7 +377,7 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
             <Text style={styles.spotifyText}>Open in Spotify</Text>
           </TouchableOpacity>
 
-          {/* Now playing companion (if Last.fm detects user is listening to this album/track) */}
+          {/* Now playing companion */}
           {nowPlayingTrack && (
             <View style={[styles.nowPlaying, { backgroundColor: `${gold}12`, borderColor: `${gold}3a` }]}>
               <View style={styles.equalizer}>
@@ -278,8 +395,18 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
             </View>
           )}
 
-          {/* The caption (first line) reads as an italic pull-quote; the rest
-              of the take sits below it in plain, non-italic text. */}
+          {/* Active moment live callout */}
+          {activeMoment && (
+            <View style={[styles.activeMoment, { backgroundColor: gold }]}>
+              <Text style={styles.activeMomentTime}>{formatTimestamp(activeMoment.sec)}</Text>
+              <View style={styles.activeMomentDivider} />
+              <Text style={styles.activeMomentText} numberOfLines={2}>
+                {activeMoment.label || activeMoment.note}
+              </Text>
+            </View>
+          )}
+
+          {/* The caption */}
           {review.take && (
             <Text style={styles.quote}>"{review.take.split('\n')[0]}"</Text>
           )}
@@ -292,8 +419,49 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
             <Text style={styles.body}>{review.body}</Text>
           )}
 
+          {/* Synced lyrics section */}
+          {lyrics && lyrics.lines.length > 0 && (
+            <View style={styles.section}>
+              <View style={styles.lyricsHeader}>
+                <View style={styles.lyricsHeaderLeft}>
+                  <Text style={[styles.sectionLabel, { color: gold }]}>lyrics</Text>
+                  {lyrics.translation && (
+                    <TouchableOpacity
+                      onPress={() => setShowTranslation(!showTranslation)}
+                      style={[styles.translationToggle, { borderColor: `${gold}40`, backgroundColor: showTranslation ? `${gold}18` : 'rgba(241,235,224,0.06)' }]}
+                    >
+                      <Text style={[styles.translationToggleText, { color: showTranslation ? gold : 'rgba(241,235,224,0.65)' }]}>
+                        {showTranslation ? 'EN' : lyrics.language?.toUpperCase() || 'ORIG'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+                <Text style={styles.musixmatchAttr}>
+                  synced{lyrics.translation ? ' + translated' : ''} · Musixmatch
+                </Text>
+              </View>
+              <View style={styles.lyricsContainer}>
+                <FlatList
+                  ref={lyricListRef}
+                  data={displayLyrics}
+                  renderItem={renderLyricLine}
+                  keyExtractor={(_, i) => `lyric-${showTranslation ? 'trans' : 'orig'}-${i}`}
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={styles.lyricsList}
+                  onScrollToIndexFailed={() => {}}
+                />
+              </View>
+            </View>
+          )}
+
+          {lyricsError && (
+            <View style={styles.lyricsError}>
+              <Text style={styles.lyricsErrorText}>{lyricsError}</Text>
+            </View>
+          )}
+
           {/* Single-track moments */}
-          {!isAlbum && review.notes && review.notes.length > 0 && (
+          {!isAlbum && !lyrics && review.notes && review.notes.length > 0 && (
             <View style={styles.section}>
               <Text style={[styles.sectionLabel, { color: gold }]}>
                 the moment{review.notes.length > 1 ? 's' : ''}
@@ -343,8 +511,7 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
         </View>
       </ScrollView>
 
-      {/* Delete — pinned to the very bottom (only for your own note; the
-          backend also enforces ownership). */}
+      {/* Delete button */}
       {isOwn && (
         <View style={styles.deleteBar}>
           <TouchableOpacity
@@ -360,12 +527,12 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
         </View>
       )}
 
-      {/* Fixed top bar — swipe down here to dismiss */}
+      {/* Fixed top bar */}
       <View style={styles.topBar} {...panResponder.panHandlers}>
         <TouchableOpacity onPress={onClose} style={styles.closeButton}>
           <Icon name="chevdown" size={20} color="#f1ebe0" />
         </TouchableOpacity>
-        <Text style={styles.experienceLabel}>the experience</Text>
+        <Text style={styles.experienceLabel}>the experience · Musicathon</Text>
         <View style={{ width: 38 }} />
       </View>
     </Animated.View>
@@ -391,7 +558,6 @@ function AlbumTrackStrip({
     <View style={styles.trackStrip}>
       {tracks.map((t) => {
         const hasMoments = t.moments && t.moments.length > 0;
-        // A track can also carry a plain text note (album take / playlist note).
         const trackNote: string = (t.review || '').trim();
         const hasNote = !!trackNote;
         const hasContent = hasMoments || hasNote;
@@ -408,7 +574,6 @@ function AlbumTrackStrip({
               <Text style={styles.trackStripName} numberOfLines={1}>
                 {t.name}
               </Text>
-              {/* Optional per-track reaction */}
               {t.reaction && <ReactionIcon kind={t.reaction} size={15} />}
               {hasNote && <Icon name="bookmark" size={13} color={gold} filled />}
               {hasMoments && (
@@ -420,7 +585,6 @@ function AlbumTrackStrip({
 
             {isExpanded && hasContent && (
               <View style={styles.trackMoments}>
-                {/* Plain text note for this track */}
                 {hasNote && (
                   <View style={[styles.trackMomentRow, { borderColor: 'rgba(241,235,224,0.08)', backgroundColor: 'rgba(241,235,224,0.02)' }]}>
                     <Text style={styles.trackMomentText}>{trackNote}</Text>
@@ -649,6 +813,33 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
     textAlign: 'right',
   },
+  activeMoment: {
+    width: '100%',
+    marginTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 14,
+    borderRadius: 12,
+  },
+  activeMomentTime: {
+    fontFamily: 'Menlo',
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#2c1517',
+  },
+  activeMomentDivider: {
+    width: 1,
+    height: 18,
+    backgroundColor: 'rgba(44,21,23,0.3)',
+  },
+  activeMomentText: {
+    flex: 1,
+    fontFamily: 'System',
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2c1517',
+  },
   quote: {
     marginTop: 24,
     fontFamily: 'System',
@@ -677,6 +868,58 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
     textTransform: 'uppercase',
     fontWeight: '600',
+  },
+  lyricsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  musixmatchAttr: {
+    fontFamily: 'Menlo',
+    fontSize: 9.5,
+    color: 'rgba(241,235,224,0.45)',
+    letterSpacing: 0.4,
+  },
+  lyricsContainer: {
+    height: 360,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  lyricsList: {
+    paddingVertical: 20,
+  },
+  lyricLine: {
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  lyricIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  lyricText: {
+    flex: 1,
+    fontFamily: 'System',
+    lineHeight: 28,
+    letterSpacing: -0.2,
+  },
+  lyricsError: {
+    marginTop: 20,
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: 'rgba(224,118,47,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(224,118,47,0.3)',
+  },
+  lyricsErrorText: {
+    fontFamily: 'System',
+    fontSize: 13,
+    color: 'rgba(241,235,224,0.8)',
+    textAlign: 'center',
   },
   momentInstructions: {
     fontFamily: 'System',
