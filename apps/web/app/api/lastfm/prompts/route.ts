@@ -504,10 +504,10 @@ export async function GET(request: Request) {
         palette,
       });
 
-      if (repeatCandidates.length >= 5) break; // Limit to 5 repeat prompts
+      if (repeatCandidates.length >= 7) break; // Limit to 7 repeat prompts (more weight on meaningful repeats)
     }
 
-    // Priority 2: Recently played unique tracks - Limit to 5
+    // Priority 2: Recently played unique tracks - Limit to 2 (lower weight since they're one-offs)
     // Sample from wider range (0-100) for more variety on refresh
     const recentSample = tracks.slice(0, 100).sort(() => Math.random() - 0.5);
     for (const track of recentSample.slice(0, 30)) {
@@ -605,7 +605,7 @@ export async function GET(request: Request) {
         palette,
       });
 
-      if (recentCandidates.length >= 5) break; // Limit to 5 recent prompts
+      if (recentCandidates.length >= 2) break; // Limit to 2 recent prompts (one-offs don't matter as much)
     }
 
     // Priority 3: Top albums (heavily played) - Limit to 1
