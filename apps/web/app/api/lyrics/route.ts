@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 /**
- * GET /api/lyrics?isrc=...
+ * GET /api/lyrics?isrc=... OR /api/lyrics?track=...&artist=...
  *
  * Fetches synced lyrics from Musixmatch Pro API.
  *
@@ -13,10 +13,12 @@ import { NextRequest, NextResponse } from "next/server";
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const isrc = searchParams.get("isrc");
+  const track = searchParams.get("track");
+  const artist = searchParams.get("artist");
 
-  if (!isrc) {
+  if (!isrc && (!track || !artist)) {
     return NextResponse.json(
-      { error: "ISRC parameter is required" },
+      { error: "Either ISRC or track+artist parameters required" },
       { status: 400 }
     );
   }
@@ -31,8 +33,16 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Step 1: Get track ID from ISRC
-    const matcherUrl = `https://api.musixmatch.com/ws/1.1/matcher.track.get?format=json&track_isrc=${encodeURIComponent(isrc)}&apikey=${apiKey}`;
+    let matcherUrl: string;
+
+    // Step 1: Get track ID from ISRC or track/artist search
+    if (isrc) {
+      matcherUrl = `https://api.musixmatch.com/ws/1.1/matcher.track.get?format=json&track_isrc=${encodeURIComponent(isrc)}&apikey=${apiKey}`;
+      console.log("[Musixmatch] Searching by ISRC:", isrc);
+    } else {
+      matcherUrl = `https://api.musixmatch.com/ws/1.1/matcher.track.get?format=json&q_track=${encodeURIComponent(track!)}&q_artist=${encodeURIComponent(artist!)}&apikey=${apiKey}`;
+      console.log("[Musixmatch] Searching by track/artist:", track, "/", artist);
+    }
 
     const matcherRes = await fetch(matcherUrl);
     if (!matcherRes.ok) {
@@ -44,18 +54,20 @@ export async function GET(request: NextRequest) {
     }
 
     const matcherData = await matcherRes.json();
-    const track = matcherData.message?.body?.track;
+    console.log("[Musixmatch] Matcher response:", JSON.stringify(matcherData, null, 2));
 
-    if (!track || !track.track_id) {
-      console.log("[Musixmatch] No track found for ISRC:", isrc);
+    const trackData = matcherData.message?.body?.track;
+
+    if (!trackData || !trackData.track_id) {
+      console.log("[Musixmatch] No track found");
       return NextResponse.json(
-        { error: "Track not found", isrc },
+        { error: "Track not found on Musixmatch", searched: isrc ? { isrc } : { track, artist } },
         { status: 404 }
       );
     }
 
-    const trackId = track.track_id;
-    console.log("[Musixmatch] Found track:", track.track_name, "by", track.artist_name, "ID:", trackId);
+    const trackId = trackData.track_id;
+    console.log("[Musixmatch] Found track:", trackData.track_name, "by", trackData.artist_name, "ID:", trackId);
 
     // Step 2: Get synced lyrics (subtitle.get for line-by-line timing)
     const lyricsUrl = `https://api.musixmatch.com/ws/1.1/track.subtitle.get?format=json&track_id=${trackId}&apikey=${apiKey}`;
@@ -78,8 +90,8 @@ export async function GET(request: NextRequest) {
         {
           track: {
             id: trackId,
-            name: track.track_name,
-            artist: track.artist_name,
+            name: trackData.track_name,
+            artist: trackData.artist_name,
           },
           lyrics: null,
           message: "No synced lyrics available for this track"
@@ -100,16 +112,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log("[Musixmatch] Successfully fetched synced lyrics for:", track.track_name);
+    console.log("[Musixmatch] Successfully fetched synced lyrics for:", trackData.track_name);
 
     // Return lyrics with track metadata
     return NextResponse.json({
       track: {
         id: trackId,
-        name: track.track_name,
-        artist: track.artist_name,
-        album: track.album_name || "",
-        isrc: isrc,
+        name: trackData.track_name,
+        artist: trackData.artist_name,
+        album: trackData.album_name || "",
+        isrc: isrc || trackData.track_isrc,
       },
       lyrics: parsedLyrics,
       subtitle_language: subtitle.subtitle_language,
