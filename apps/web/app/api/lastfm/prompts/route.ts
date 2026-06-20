@@ -442,7 +442,7 @@ export async function GET(request: Request) {
         album: albumName,
         playCount,
         prompt: promptVariation(playCount),
-        tag: playCount >= 15 ? "HEAVY ROTATION" : playCount >= 10 ? "ON HEAVY PLAY" : "ON REPEAT",
+        tag: playCount >= 15 ? `HEAVY ROTATION ×${playCount}` : playCount >= 10 ? `ON HEAVY PLAY ×${playCount}` : `ON REPEAT ×${playCount}`,
         artworkUrl,
         palette,
       });
@@ -579,7 +579,7 @@ export async function GET(request: Request) {
         album: albumPlay.album,
         playCount: albumPlay.trackCount, // Use track count instead of total plays
         prompt: promptVariation(albumPlay.trackCount),
-        tag: albumPlay.trackCount >= 8 ? "FULL ALBUM LISTEN" : albumPlay.trackCount >= 5 ? "ALBUM SESSION" : "ALBUM SPIN",
+        tag: albumPlay.trackCount >= 8 ? `FULL ALBUM LISTEN · ${albumPlay.trackCount} TRACKS` : albumPlay.trackCount >= 5 ? `ALBUM SESSION · ${albumPlay.trackCount} TRACKS` : `ALBUM SPIN · ${albumPlay.trackCount} TRACKS`,
         artworkUrl,
         palette,
       });
