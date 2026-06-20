@@ -19,11 +19,7 @@ export default function FeedPage() {
 
     const loadFeed = async () => {
       try {
-        if (!session) {
-          setLoading(false);
-          return;
-        }
-
+        // Public feed - load for everyone (hackathon demo)
         const reviews = await getReviews({ feed: "friends" });
         const albumReviewsRes = await fetch("/api/album-reviews?feed=friends");
         const albumReviewsData = await albumReviewsRes.json();
@@ -43,7 +39,7 @@ export default function FeedPage() {
     };
 
     loadFeed();
-  }, [session, status]);
+  }, [status]);
 
   const onLike = (vm: ReviewVM) => {
     if (vm.kind === "track") toggleLike(vm.id).catch(() => {});
@@ -61,17 +57,10 @@ export default function FeedPage() {
       <main style={{ position: "relative", zIndex: 1, flex: 1 }}>
         <section style={{ maxWidth: 900, margin: "0 auto", padding: "112px 20px 90px" }}>
           <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 26 }}>
-            <h1 style={{ margin: 0, fontFamily: "var(--ln-display)", fontWeight: 600, fontSize: 30, letterSpacing: "-0.01em", color: "var(--ln-fg)" }}>Your feed</h1>
-            <span style={{ fontFamily: "var(--ln-mono)", fontSize: 10.5, color: "rgba(var(--ln-fg-rgb),0.42)", letterSpacing: "0.03em" }}>from listeners you&apos;d trust</span>
+            <h1 style={{ margin: 0, fontFamily: "var(--ln-display)", fontWeight: 600, fontSize: 30, letterSpacing: "-0.01em", color: "var(--ln-fg)" }}>Community Feed</h1>
+            <span style={{ fontFamily: "var(--ln-mono)", fontSize: 10.5, color: "rgba(var(--ln-fg-rgb),0.42)", letterSpacing: "0.03em" }}>what listeners are logging</span>
             <span style={{ flex: 1, height: 1, background: "rgba(var(--ln-fg-rgb),0.1)", alignSelf: "center" }} />
           </div>
-
-          {!loading && !session && (
-            <div style={{ textAlign: "center", padding: "60px 24px", borderRadius: 18, background: "var(--ln-surface)", border: "1px solid rgba(var(--ln-line-rgb),0.08)" }}>
-              <p style={{ margin: "0 0 18px", fontFamily: "var(--ln-preview)", fontStyle: "italic", fontSize: 20, color: "var(--ln-fg)" }}>Log in to see what your friends are logging.</p>
-              <Link href="/login" className="ln-press" style={{ display: "inline-block", padding: "13px 26px", borderRadius: 999, textDecoration: "none", background: "var(--ln-accent)", color: "#1a0a04", fontFamily: "var(--ln-body)", fontSize: 15, fontWeight: 700 }}>Log in</Link>
-            </div>
-          )}
 
           {loading && (
             <div style={{ display: "flex", justifyContent: "center", padding: "60px 0" }}>
@@ -79,13 +68,13 @@ export default function FeedPage() {
             </div>
           )}
 
-          {!loading && session && items.length === 0 && (
+          {!loading && items.length === 0 && (
             <div style={{ textAlign: "center", padding: "60px 24px", fontFamily: "var(--ln-preview)", fontStyle: "italic", fontSize: 19, color: "var(--ln-muted)" }}>
-              Nothing here yet. <Link href="/log" style={{ color: "var(--ln-accent)" }}>Log the first note</Link>, or add a few friends.
+              Nothing here yet. <Link href="/log" style={{ color: "var(--ln-accent)" }}>Log the first note</Link>.
             </div>
           )}
 
-          {!loading && session && items.length > 0 && (
+          {!loading && items.length > 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 34, containerType: "inline-size" }}>
               {items.map((vm) => (
                 <FeedItem key={`${vm.kind}-${vm.id}`} vm={vm} onLike={() => onLike(vm)} onRepost={() => onRepost(vm)} />

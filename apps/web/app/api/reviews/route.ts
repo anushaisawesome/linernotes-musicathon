@@ -3,7 +3,7 @@ import { getAuthSession } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/prisma";
 
 /**
- * GET /api/reviews - Get user's reviews or friends' feed
+ * GET /api/reviews - Get user's reviews or public feed
  */
 export async function GET(request: NextRequest) {
   try {
@@ -15,28 +15,11 @@ export async function GET(request: NextRequest) {
     const feedType = searchParams.get("feed"); // "friends" or null
     const reviewType = searchParams.get("type"); // "reposts" or "saved" or null
 
-    // Friends feed requires authentication
+    // Public feed - show all reviews for hackathon demo
     if (feedType === "friends") {
-      if (!currentUserId) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      }
-      // Get reviews from accepted friends
-      const friendships = await prisma.friendship.findMany({
-        where: {
-          OR: [
-            { requesterId: currentUserId, status: "ACCEPTED" },
-            { addresseeId: currentUserId, status: "ACCEPTED" },
-          ],
-        },
-      });
-
-      const friendIds = friendships.map((f) =>
-        f.requesterId === currentUserId ? f.addresseeId : f.requesterId
-      );
-
+      // No auth required - fully public feed for judges and demo
       const reviews = await prisma.review.findMany({
         where: {
-          userId: { in: friendIds },
           albumReviewId: null, // exclude per-track reviews that belong to an album
         },
         include: {

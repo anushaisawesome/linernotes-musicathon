@@ -14,31 +14,11 @@ export async function GET(request: NextRequest) {
     const userId = searchParams.get("userId");
     const feed = searchParams.get("feed");
 
-    // Get friends' album reviews (feed)
+    // Public feed - show all album reviews for hackathon demo
     if (feed === "friends") {
-      if (!currentUserId) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      }
-
-      // Get accepted friendships
-      const friendships = await prisma.friendship.findMany({
-        where: {
-          OR: [
-            { requesterId: currentUserId, status: "ACCEPTED" },
-            { addresseeId: currentUserId, status: "ACCEPTED" },
-          ],
-        },
-      });
-
-      const friendIds = friendships.map((f) =>
-        f.requesterId === currentUserId ? f.addresseeId : f.requesterId
-      );
-
-      // Include own album reviews too
-      const allUserIds = [currentUserId, ...friendIds];
-
+      // No auth required - fully public feed for judges and demo
       const albumReviews = await prisma.albumReview.findMany({
-        where: { userId: { in: allUserIds } },
+        where: {},
         include: {
           user: true,
           trackReviews: {
@@ -49,9 +29,9 @@ export async function GET(request: NextRequest) {
             },
             orderBy: { trackNumber: 'asc' },
           },
-          likes: {
+          likes: currentUserId ? {
             where: { userId: currentUserId },
-          },
+          } : false,
           reposts: {
             include: { user: true },
           },
