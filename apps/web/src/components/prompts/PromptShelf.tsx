@@ -5,8 +5,10 @@
  * Web version matching mobile PromptCard design
  */
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { extractPaletteFromImage } from "@/lib/extractPalette";
+import type { Palette } from "@/lib/palette";
 
 interface Prompt {
   id: string;
@@ -160,7 +162,36 @@ function PromptCard({
   const [hover, setHover] = useState(false);
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
-  const p = prompt.palette;
+  const [palette, setPalette] = useState<Palette>(prompt.palette);
+  const imgRef = useRef<HTMLImageElement>(null);
+  const p = palette;
+
+  // Extract colors from artwork when image loads
+  useEffect(() => {
+    if (!prompt.artworkUrl || !imgRef.current) return;
+
+    const extractColors = async () => {
+      if (!imgRef.current) return;
+
+      try {
+        const extracted = await extractPaletteFromImage(imgRef.current);
+        if (extracted) {
+          setPalette(extracted);
+        }
+      } catch (error) {
+        // Silent fail - keep deterministic palette
+        console.debug("Color extraction failed:", error);
+      }
+    };
+
+    const img = imgRef.current;
+    if (img.complete) {
+      extractColors();
+    } else {
+      img.addEventListener("load", extractColors);
+      return () => img.removeEventListener("load", extractColors);
+    }
+  }, [prompt.artworkUrl]);
 
   const handleRatingClick = (newRating: number, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -199,6 +230,7 @@ function PromptCard({
               {prompt.artworkUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
+                  ref={imgRef}
                   src={prompt.artworkUrl}
                   alt={prompt.album}
                   style={{ width: "100%", height: "100%", objectFit: "cover" }}
