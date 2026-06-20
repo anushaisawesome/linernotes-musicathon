@@ -122,7 +122,7 @@ export default function AlbumCardPage() {
 
       {showDeleteConfirm && (
         <div onClick={() => !deleting && setShowDeleteConfirm(false)} style={{ position: "fixed", inset: 0, zIndex: 400, background: "rgba(6,4,4,0.66)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 20px", animation: "ln-fade 0.2s ease both" }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 420, background: "#1a0a0c", borderRadius: 20, border: "1px solid rgba(255,205,165,0.14)", boxShadow: "0 50px 110px -34px rgba(0,0,0,0.8)", padding: "26px 24px", animation: "ln-pop 0.3s cubic-bezier(.16,1,.3,1) both" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 420, background: "var(--ln-bg)", borderRadius: 20, border: "1px solid rgba(var(--ln-line-rgb),0.14)", boxShadow: "0 50px 110px -34px rgba(0,0,0,0.8)", padding: "26px 24px", animation: "ln-pop 0.3s cubic-bezier(.16,1,.3,1) both" }}>
             <h3 style={{ margin: 0, fontFamily: "var(--ln-display)", fontSize: 22, fontWeight: 600, color: "#f1ebe0" }}>Delete this album review?</h3>
             <p style={{ margin: "10px 0 18px", fontFamily: "var(--ln-body)", fontSize: 14.5, color: "rgba(241,235,224,0.7)" }}>This deletes all its track notes too. It can&apos;t be undone.</p>
             <div style={{ display: "flex", gap: 11 }}>

@@ -42,9 +42,9 @@
      so nothing renders broken mid-migration) */
   --ln-ink: var(--ln-fg);
   --ln-ink-soft: var(--ln-muted);
-  --ln-line: rgba(255, 205, 165, 0.12);
+  --ln-line: rgba(var(--ln-line-rgb), 0.12);
   --ln-peach: var(--ln-accent);
-  --ln-accent-2: #7a1d24;
+  --ln-accent-2: #992b23;
   --ln-black: #0a0807;
   --ln-cream: var(--ln-fg);
   --ln-gold: var(--ln-accent);

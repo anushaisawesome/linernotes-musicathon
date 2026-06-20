@@ -10,16 +10,16 @@ import { useState, useEffect, Suspense } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-const INK = "#f8ecdb";
-const PAPER = "#1a0a0c";
-const GOLD = "#D4AF37";
-const LINE = "rgba(255,205,165,0.16)";
-const muted = (a: number) => `rgba(248,236,219,${a})`;
+const INK = "var(--ln-fg)";
+const PAPER = "var(--ln-bg)";
+const GOLD = "var(--ln-accent)";
+const LINE = "rgba(var(--ln-line-rgb),0.16)";
+const muted = (a: number) => `rgba(var(--ln-fg-rgb),${a})`;
 
 const inputStyle: React.CSSProperties = {
   width: "100%",
   boxSizing: "border-box",
-  background: "rgba(248,236,219,0.06)",
+  background: "rgba(var(--ln-fg-rgb),0.06)",
   color: INK,
   border: `1px solid ${LINE}`,
   borderRadius: 14,
@@ -117,7 +117,7 @@ function OnboardingContent() {
     <div
       style={{
         minHeight: "100vh",
-        background: `radial-gradient(60% 45% at 26% 14%, #2a1f18 0%, ${PAPER} 58%, #1a1512 100%)`,
+        background: `radial-gradient(60% 45% at 26% 14%, #3e1e20 0%, ${PAPER} 58%, #1a0c0d 100%)`,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -128,7 +128,7 @@ function OnboardingContent() {
         style={{
           width: "100%",
           maxWidth: 480,
-          background: "rgba(248,236,219,0.03)",
+          background: "rgba(var(--ln-fg-rgb),0.03)",
           border: `1px solid ${LINE}`,
           borderRadius: 22,
           padding: "32px 28px",
@@ -429,7 +429,7 @@ export default function OnboardingPage() {
         <div
           style={{
             minHeight: "100vh",
-            background: "radial-gradient(60% 45% at 26% 14%, #2a1f18 0%, #1a0a0c 58%, #1a1512 100%)",
+            background: "radial-gradient(60% 45% at 26% 14%, #3e1e20 0%, #251214 58%, #1a0c0d 100%)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -440,8 +440,8 @@ export default function OnboardingPage() {
               width: 28,
               height: 28,
               borderRadius: "50%",
-              border: "3px solid rgba(248,236,219,0.15)",
-              borderTopColor: "#D4AF37",
+              border: "3px solid rgba(var(--ln-fg-rgb),0.15)",
+              borderTopColor: "var(--ln-accent)",
               animation: "ln-spin 0.8s linear infinite",
             }}
           />

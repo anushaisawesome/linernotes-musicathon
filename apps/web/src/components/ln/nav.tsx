@@ -143,7 +143,7 @@ export function TopBar({ transparent = false }: { transparent?: boolean }) {
                 border: "none",
                 textDecoration: "none",
                 background: accent,
-                color: "#1a0a04",
+                color: "#2c1517",
                 fontFamily: "var(--ln-body)",
                 fontSize: 13.5,
                 fontWeight: 700,
@@ -237,7 +237,7 @@ export function Footer({ dark = true }: { dark?: boolean }) {
 
         <div style={{ minWidth: 220 }}>
           <div style={{ fontFamily: "var(--ln-label)", fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", fontWeight: 700, color: accent, marginBottom: 12 }}>get started</div>
-          <Link href="/login" className="ln-press" style={{ display: "block", textAlign: "center", textDecoration: "none", width: "100%", boxSizing: "border-box", padding: "13px", borderRadius: 12, background: accent, color: "#1a0a04", fontFamily: "var(--ln-body)", fontSize: 14, fontWeight: 700, boxShadow: `0 10px 26px -12px ${accent}` }}>
+          <Link href="/login" className="ln-press" style={{ display: "block", textAlign: "center", textDecoration: "none", width: "100%", boxSizing: "border-box", padding: "13px", borderRadius: 12, background: accent, color: "#2c1517", fontFamily: "var(--ln-body)", fontSize: 14, fontWeight: 700, boxShadow: `0 10px 26px -12px ${accent}` }}>
             Sign up
           </Link>
           <p style={{ margin: "10px 0 0", fontFamily: "var(--ln-mono)", fontSize: 10, lineHeight: 1.5, color: muted, letterSpacing: "0.02em" }}>Start logging your listening moments</p>

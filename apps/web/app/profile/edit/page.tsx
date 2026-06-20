@@ -257,7 +257,7 @@ function EditProfileContent() {
                   <p style={{ margin: 0, fontFamily: "var(--ln-body)", fontSize: 13.5, color: "rgba(var(--ln-fg-rgb),0.65)", lineHeight: 1.5 }}>
                     Connect your Last.fm account to get personalized song prompts based on what you're actually listening to.
                   </p>
-                  <button type="button" onClick={handleConnectLastfm} className="ln-press" style={{ padding: "12px", borderRadius: 12, cursor: "pointer", background: gold, color: "#1a0a04", border: "none", fontFamily: "var(--ln-body)", fontSize: 14, fontWeight: 700 }}>
+                  <button type="button" onClick={handleConnectLastfm} className="ln-press" style={{ padding: "12px", borderRadius: 12, cursor: "pointer", background: gold, color: "#2c1517", border: "none", fontFamily: "var(--ln-body)", fontSize: 14, fontWeight: 700 }}>
                     Connect Last.fm
                   </button>
                 </div>
@@ -266,7 +266,7 @@ function EditProfileContent() {
 
             <div style={{ display: "flex", gap: 11 }}>
               <button type="button" onClick={() => router.push(`/profile/${handle}`)} className="ln-press" style={{ flex: 1, padding: "13px", borderRadius: 13, cursor: "pointer", background: "rgba(var(--ln-fg-rgb),0.06)", color: "var(--ln-fg)", border: "1px solid rgba(var(--ln-fg-rgb),0.16)", fontFamily: "var(--ln-body)", fontWeight: 600 }}>Cancel</button>
-              <button type="submit" disabled={saving || !displayName.trim()} className="ln-press" style={{ flex: 1, padding: "13px", borderRadius: 13, cursor: saving ? "default" : "pointer", background: gold, color: "#1a0a04", border: "none", fontFamily: "var(--ln-body)", fontWeight: 700, opacity: saving || !displayName.trim() ? 0.5 : 1 }}>{saving ? "Saving…" : "Save changes"}</button>
+              <button type="submit" disabled={saving || !displayName.trim()} className="ln-press" style={{ flex: 1, padding: "13px", borderRadius: 13, cursor: saving ? "default" : "pointer", background: gold, color: "#2c1517", border: "none", fontFamily: "var(--ln-body)", fontWeight: 700, opacity: saving || !displayName.trim() ? 0.5 : 1 }}>{saving ? "Saving…" : "Save changes"}</button>
             </div>
           </form>
         </section>

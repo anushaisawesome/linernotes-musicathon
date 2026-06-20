@@ -206,7 +206,7 @@ export function ComposeForm({ onSubmit, onSuccess, searchAPI, initialTrack, init
               </div>
             )}
 
-            <button type="submit" disabled={!canPost || submitting} className="ln-press" style={{ width: "100%", marginTop: 22, padding: "15px", borderRadius: 14, border: "none", cursor: canPost && !submitting ? "pointer" : "default", fontFamily: "var(--ln-body)", fontSize: 15.5, fontWeight: 700, background: canPost ? gold : "rgba(var(--ln-fg-rgb),0.1)", color: canPost ? "#1a0a04" : "rgba(var(--ln-fg-rgb),0.4)", transition: "background 0.2s" }}>
+            <button type="submit" disabled={!canPost || submitting} className="ln-press" style={{ width: "100%", marginTop: 22, padding: "15px", borderRadius: 14, border: "none", cursor: canPost && !submitting ? "pointer" : "default", fontFamily: "var(--ln-body)", fontSize: 15.5, fontWeight: 700, background: canPost ? gold : "rgba(var(--ln-fg-rgb),0.1)", color: canPost ? "#2c1517" : "rgba(var(--ln-fg-rgb),0.4)", transition: "background 0.2s" }}>
               {submitting ? "Posting…" : !canPost ? "Add a rating to post" : depth === "full" ? "Post note" : depth === "caption" ? "Post" : "Post rating"}
             </button>
           </div>

@@ -176,7 +176,7 @@ export function PlaylistComposer() {
           {tracks.map((track, index) => (
             <div key={`${track.trackId}-${index}`} style={{ display: "flex", gap: 12, padding: 12, borderRadius: 12, background: "var(--ln-surface)", border: "1px solid rgba(var(--ln-line-rgb),0.08)" }}>
               {/* Order Number */}
-              <div style={{ flexShrink: 0, width: 32, height: 32, borderRadius: "50%", background: gold, color: "#1a0a04", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--ln-mono)", fontSize: 14, fontWeight: 700 }}>
+              <div style={{ flexShrink: 0, width: 32, height: 32, borderRadius: "50%", background: gold, color: "#2c1517", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--ln-mono)", fontSize: 14, fontWeight: 700 }}>
                 {index + 1}
               </div>
 
@@ -209,7 +209,7 @@ export function PlaylistComposer() {
                       style={{ ...cmpInput, fontSize: 12, padding: "8px 10px" }}
                       autoFocus
                     />
-                    <button type="button" onClick={handleSaveNote} style={{ padding: "8px 12px", borderRadius: 8, background: gold, color: "#1a0a04", border: "none", cursor: "pointer", fontFamily: "var(--ln-body)", fontSize: 12, fontWeight: 600 }}>
+                    <button type="button" onClick={handleSaveNote} style={{ padding: "8px 12px", borderRadius: 8, background: gold, color: "#2c1517", border: "none", cursor: "pointer", fontFamily: "var(--ln-body)", fontSize: 12, fontWeight: 600 }}>
                       Save
                     </button>
                     <button type="button" onClick={() => { setEditingNoteIndex(null); setNoteText(""); }} style={{ padding: "8px 12px", borderRadius: 8, background: "rgba(var(--ln-fg-rgb),0.1)", color: "var(--ln-fg)", border: "none", cursor: "pointer", fontFamily: "var(--ln-body)", fontSize: 12, fontWeight: 600 }}>
@@ -240,7 +240,7 @@ export function PlaylistComposer() {
       )}
 
       {/* Submit Button */}
-      <button type="submit" disabled={!canPost || submitting} className="ln-press" style={{ width: "100%", padding: "16px", borderRadius: 14, border: "none", cursor: canPost && !submitting ? "pointer" : "default", fontFamily: "var(--ln-body)", fontSize: 16, fontWeight: 700, background: canPost ? gold : "rgba(var(--ln-fg-rgb),0.1)", color: canPost ? "#1a0a04" : "rgba(var(--ln-fg-rgb),0.4)", transition: "background 0.2s" }}>
+      <button type="submit" disabled={!canPost || submitting} className="ln-press" style={{ width: "100%", padding: "16px", borderRadius: 14, border: "none", cursor: canPost && !submitting ? "pointer" : "default", fontFamily: "var(--ln-body)", fontSize: 16, fontWeight: 700, background: canPost ? gold : "rgba(var(--ln-fg-rgb),0.1)", color: canPost ? "#2c1517" : "rgba(var(--ln-fg-rgb),0.4)", transition: "background 0.2s" }}>
         {submitting ? "Creating playlist..." : !title.trim() ? "Add a title" : tracks.length === 0 ? "Add at least one track" : `Create playlist with ${tracks.length} track${tracks.length !== 1 ? "s" : ""}`}
       </button>
       </form>

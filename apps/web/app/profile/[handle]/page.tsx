@@ -83,7 +83,7 @@ function FavTile({ item, rank, onOpen, onRemove, selected, flat }: { item: FavIt
           <>
             <div style={{ position: "absolute", inset: 0, background: "rgba(8,7,6,0.32)" }} />
             <div style={{ position: "absolute", top: 8, right: 8, width: 22, height: 22, borderRadius: "50%", background: "var(--ln-accent)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#1a0a04" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#2c1517" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /></svg>
             </div>
           </>
         )}
@@ -226,7 +226,7 @@ export default function ProfilePage() {
           <div style={{ textAlign: "center" }}>
             <h1 style={{ fontFamily: "var(--ln-display)", fontSize: 30, fontWeight: 600, margin: 0 }}>Profile not found</h1>
             <p style={{ fontFamily: "var(--ln-body)", color: "var(--ln-muted)", marginTop: 8 }}>We couldn&apos;t load @{handle}.</p>
-            <Link href="/" style={{ display: "inline-block", marginTop: 18, padding: "12px 24px", borderRadius: 999, textDecoration: "none", background: "var(--ln-accent)", color: "#1a0a04", fontFamily: "var(--ln-body)", fontWeight: 700 }}>Go home</Link>
+            <Link href="/" style={{ display: "inline-block", marginTop: 18, padding: "12px 24px", borderRadius: 999, textDecoration: "none", background: "var(--ln-accent)", color: "#2c1517", fontFamily: "var(--ln-body)", fontWeight: 700 }}>Go home</Link>
           </div>
         </div>
       </div>
@@ -259,7 +259,7 @@ export default function ProfilePage() {
   ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
 
   const ghostBtn: React.CSSProperties = { padding: "6px 14px", borderRadius: 999, cursor: "pointer", background: "rgba(var(--ln-fg-rgb),0.05)", color: "rgba(var(--ln-fg-rgb),0.75)", border: "1px solid rgba(var(--ln-fg-rgb),0.18)", fontFamily: "var(--ln-body)", fontSize: 12.5, fontWeight: 600 };
-  const goldBtn: React.CSSProperties = { padding: "6px 16px", borderRadius: 999, cursor: "pointer", background: "var(--ln-accent)", color: "#1a0a04", border: "none", fontFamily: "var(--ln-body)", fontSize: 12.5, fontWeight: 700 };
+  const goldBtn: React.CSSProperties = { padding: "6px 16px", borderRadius: 999, cursor: "pointer", background: "var(--ln-accent)", color: "#2c1517", border: "none", fontFamily: "var(--ln-body)", fontSize: 12.5, fontWeight: 700 };
 
   return (
     <div style={{ background: "var(--ln-bg)", color: "var(--ln-fg)", minHeight: "100vh", display: "flex", flexDirection: "column", flex: 1 }}>

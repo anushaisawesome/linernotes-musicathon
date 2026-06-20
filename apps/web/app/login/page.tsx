@@ -4,15 +4,15 @@ import { signIn } from "next-auth/react";
 import { useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 
-const INK = "#f8ecdb";
-const PAPER = "#1a0a0c";
-const LINE = "rgba(255,205,165,0.16)";
-const muted = (a: number) => `rgba(248,236,219,${a})`;
+const INK = "var(--ln-fg)";
+const PAPER = "var(--ln-bg)";
+const LINE = "rgba(var(--ln-line-rgb),0.16)";
+const muted = (a: number) => `rgba(var(--ln-fg-rgb),${a})`;
 
 const inputStyle: React.CSSProperties = {
   width: "100%",
   boxSizing: "border-box",
-  background: "rgba(248,236,219,0.06)",
+  background: "rgba(var(--ln-fg-rgb),0.06)",
   color: INK,
   border: `1px solid ${LINE}`,
   borderRadius: 14,
@@ -69,12 +69,12 @@ function LoginForm() {
   const gold = "var(--ln-accent)";
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 20px", background: "#0a0908", position: "relative", overflow: "hidden" }}>
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 20px", background: "var(--ln-bg)", position: "relative", overflow: "hidden" }}>
       {/* card */}
-      <div style={{ position: "relative", width: "100%", maxWidth: 440, background: PAPER, borderRadius: 22, overflow: "hidden", border: "1px solid rgba(255,205,165,0.14)", boxShadow: "0 50px 110px -34px rgba(0,0,0,0.8)", animation: "ln-pop 0.3s cubic-bezier(.16,1,.3,1) both" }}>
+      <div style={{ position: "relative", width: "100%", maxWidth: 440, background: PAPER, borderRadius: 22, overflow: "hidden", border: "1px solid rgba(var(--ln-line-rgb),0.14)", boxShadow: "0 50px 110px -34px rgba(0,0,0,0.8)", animation: "ln-pop 0.3s cubic-bezier(.16,1,.3,1) both" }}>
         {/* garnet glow */}
         <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
-          <div style={{ position: "absolute", inset: 0, background: `radial-gradient(90% 50% at 50% -8%, #7a1d24 0%, #3a0f14 40%, ${PAPER} 72%)` }} />
+          <div style={{ position: "absolute", inset: 0, background: `radial-gradient(90% 50% at 50% -8%, #7a3a34 0%, #4a2120 40%, ${PAPER} 72%)` }} />
           <div style={{ position: "absolute", inset: 0, background: `radial-gradient(64% 32% at 50% 0%, ${gold}4d 0%, transparent 60%)` }} />
         </div>
 
@@ -118,7 +118,7 @@ function LoginForm() {
               )}
               <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required placeholder="you@email.com" inputMode="email" style={inputStyle} />
               <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" required minLength={6} placeholder="••••••••" style={inputStyle} />
-              <button type="submit" disabled={loading} className="ln-press" style={{ width: "100%", padding: "14px", borderRadius: 14, border: "none", cursor: loading ? "default" : "pointer", background: gold, color: "#1a0a04", fontFamily: "var(--ln-body)", fontSize: 15, fontWeight: 700, boxShadow: `0 12px 30px -10px ${gold}cc`, opacity: loading ? 0.6 : 1 }}>
+              <button type="submit" disabled={loading} className="ln-press" style={{ width: "100%", padding: "14px", borderRadius: 14, border: "none", cursor: loading ? "default" : "pointer", background: gold, color: "#2c1517", fontFamily: "var(--ln-body)", fontSize: 15, fontWeight: 700, boxShadow: `0 12px 30px -10px ${gold}cc`, opacity: loading ? 0.6 : 1 }}>
                 {loading ? "Please wait…" : isSignup ? "Sign up" : "Log in"}
               </button>
             </form>
@@ -144,7 +144,7 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0a0908", color: INK }}>
+        <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--ln-bg)", color: INK }}>
           <span style={{ fontFamily: "var(--ln-logo)", fontWeight: 800, fontSize: 26 }}>LinerNotes</span>
         </div>
       }

@@ -180,7 +180,7 @@ export default function FriendsPage() {
           {!loading && !session && (
             <div style={{ textAlign: "center", padding: "60px 24px", borderRadius: 18, background: "var(--ln-surface)", border: "1px solid rgba(var(--ln-line-rgb),0.08)" }}>
               <p style={{ margin: "0 0 18px", fontFamily: "var(--ln-preview)", fontStyle: "italic", fontSize: 20, color: "var(--ln-fg)" }}>Log in to find your people.</p>
-              <Link href="/login" className="ln-press" style={{ display: "inline-block", padding: "13px 26px", borderRadius: 999, textDecoration: "none", background: gold, color: "#1a0a04", fontFamily: "var(--ln-body)", fontSize: 15, fontWeight: 700 }}>Log in</Link>
+              <Link href="/login" className="ln-press" style={{ display: "inline-block", padding: "13px 26px", borderRadius: 999, textDecoration: "none", background: gold, color: "#2c1517", fontFamily: "var(--ln-body)", fontSize: 15, fontWeight: 700 }}>Log in</Link>
             </div>
           )}
 
@@ -205,7 +205,7 @@ export default function FriendsPage() {
                     spellCheck={false}
                     style={inputStyle}
                   />
-                  <button type="submit" disabled={adding} className="ln-press" style={{ flexShrink: 0, padding: "12px 18px", borderRadius: 12, border: "none", cursor: adding ? "default" : "pointer", background: gold, color: "#1a0a04", fontFamily: "var(--ln-body)", fontSize: 14, fontWeight: 700, opacity: adding ? 0.6 : 1 }}>
+                  <button type="submit" disabled={adding} className="ln-press" style={{ flexShrink: 0, padding: "12px 18px", borderRadius: 12, border: "none", cursor: adding ? "default" : "pointer", background: gold, color: "#2c1517", fontFamily: "var(--ln-body)", fontSize: 14, fontWeight: 700, opacity: adding ? 0.6 : 1 }}>
                     {adding ? "Sending…" : "Send request"}
                   </button>
                 </form>
@@ -233,7 +233,7 @@ export default function FriendsPage() {
                         user={r.requester}
                         right={
                           <div style={{ display: "flex", gap: 7, flexShrink: 0 }}>
-                            <button onClick={() => handleAccept(r.requester.id)} className="ln-press" style={{ padding: "7px 14px", borderRadius: 999, border: "none", cursor: "pointer", background: gold, color: "#1a0a04", fontFamily: "var(--ln-body)", fontSize: 12.5, fontWeight: 700 }}>Accept</button>
+                            <button onClick={() => handleAccept(r.requester.id)} className="ln-press" style={{ padding: "7px 14px", borderRadius: 999, border: "none", cursor: "pointer", background: gold, color: "#2c1517", fontFamily: "var(--ln-body)", fontSize: 12.5, fontWeight: 700 }}>Accept</button>
                             <button onClick={() => handleReject(r.requester.id)} className="ln-press" title="Decline" style={{ width: 32, height: 32, borderRadius: "50%", border: "1px solid rgba(var(--ln-line-rgb),0.18)", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>
                               <LNIcon name="close" size={14} color="rgba(var(--ln-fg-rgb),0.5)" />
                             </button>

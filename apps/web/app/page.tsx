@@ -169,7 +169,7 @@ export default function Home() {
               <p style={{ margin: "0 0 24px", fontFamily: "var(--ln-body)", fontSize: 15, lineHeight: 1.55, color: "var(--ln-muted)" }}>
                 Connect Last.fm to see prompts based on what you're actually listening to — tracks on repeat, songs you just heard, and moments worth logging.
               </p>
-              <Link href="/profile/edit" className="ln-press" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "13px 24px", borderRadius: 999, textDecoration: "none", background: "var(--ln-accent)", color: "#1a0a04", fontFamily: "var(--ln-body)", fontSize: 15, fontWeight: 700, boxShadow: "0 14px 32px -12px var(--ln-accent)" }}>
+              <Link href="/profile/edit" className="ln-press" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "13px 24px", borderRadius: 999, textDecoration: "none", background: "var(--ln-accent)", color: "#2c1517", fontFamily: "var(--ln-body)", fontSize: 15, fontWeight: 700, boxShadow: "0 14px 32px -12px var(--ln-accent)" }}>
                 Connect Last.fm
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                   <path d="M6 12l4-4-4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />

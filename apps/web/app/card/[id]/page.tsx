@@ -183,7 +183,7 @@ export default function CardPage() {
                   key={note.id}
                   onClick={() => handleSetFeaturedNote(note.id)}
                   className="ln-press"
-                  style={{ textAlign: "left", padding: "12px 14px", borderRadius: 12, cursor: "pointer", background: active ? "var(--ln-accent)" : "rgba(241,235,224,0.06)", color: active ? "#1a0a04" : "#f1ebe0", border: active ? "1px solid transparent" : "1px solid rgba(241,235,224,0.14)" }}
+                  style={{ textAlign: "left", padding: "12px 14px", borderRadius: 12, cursor: "pointer", background: active ? "var(--ln-accent)" : "rgba(241,235,224,0.06)", color: active ? "#2c1517" : "#f1ebe0", border: active ? "1px solid transparent" : "1px solid rgba(241,235,224,0.14)" }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: 7, fontFamily: "var(--ln-mono)", fontSize: 13, fontWeight: 600 }}>
                     {active && <span>★</span>}
@@ -215,7 +215,7 @@ export default function CardPage() {
 function Overlay({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 400, background: "rgba(6,4,4,0.66)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 20px", animation: "ln-fade 0.2s ease both" }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 420, background: "#1a0a0c", borderRadius: 20, border: "1px solid rgba(255,205,165,0.14)", boxShadow: "0 50px 110px -34px rgba(0,0,0,0.8)", padding: "26px 24px", animation: "ln-pop 0.3s cubic-bezier(.16,1,.3,1) both" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 420, background: "var(--ln-bg)", borderRadius: 20, border: "1px solid rgba(var(--ln-line-rgb),0.14)", boxShadow: "0 50px 110px -34px rgba(0,0,0,0.8)", padding: "26px 24px", animation: "ln-pop 0.3s cubic-bezier(.16,1,.3,1) both" }}>
         {children}
       </div>
     </div>

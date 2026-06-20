@@ -64,7 +64,7 @@ function FollowButton({ userId }: { userId: string }) {
       onClick={onClick}
       disabled={status === "loading" || status === "requested" || status === "friends"}
       className="ln-press"
-      style={{ padding: "7px 15px", borderRadius: 999, border: `1px solid ${gold}`, cursor: isAction ? "pointer" : "default", fontFamily: "var(--ln-body)", fontSize: 12.5, fontWeight: 600, background: isAction ? gold : "transparent", color: isAction ? "#1a0a04" : gold, opacity: status === "loading" ? 0.6 : 1, display: "inline-flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}
+      style={{ padding: "7px 15px", borderRadius: 999, border: `1px solid ${gold}`, cursor: isAction ? "pointer" : "default", fontFamily: "var(--ln-body)", fontSize: 12.5, fontWeight: 600, background: isAction ? gold : "transparent", color: isAction ? "#2c1517" : gold, opacity: status === "loading" ? 0.6 : 1, display: "inline-flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}
     >
       {status === "friends" && (
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke={gold} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
@@ -100,7 +100,7 @@ function SectionLabel({ children, gold }: { children: ReactNode; gold: string })
 function MomentLine({ m, gold, compact }: { m: MomentVM; gold: string; compact?: boolean }) {
   return (
     <div style={{ display: "flex", alignItems: "flex-start", gap: 11, padding: compact ? "9px 11px" : "12px 13px", borderRadius: 11, background: `${gold}0c`, border: `1px solid ${gold}2e` }}>
-      <span style={{ fontFamily: "var(--ln-mono)", fontSize: 12.5, color: "#1a0a04", background: gold, borderRadius: 6, padding: "3px 8px", flexShrink: 0, fontWeight: 600, letterSpacing: "-0.02em" }}>{lnFmt(m.sec)}</span>
+      <span style={{ fontFamily: "var(--ln-mono)", fontSize: 12.5, color: "#2c1517", background: gold, borderRadius: 6, padding: "3px 8px", flexShrink: 0, fontWeight: 600, letterSpacing: "-0.02em" }}>{lnFmt(m.sec)}</span>
       <span style={{ flex: 1, fontFamily: "var(--ln-body)", fontSize: compact ? 13.5 : 15, color: muted(0.88), lineHeight: 1.4, minWidth: 0 }}>{m.note || m.label}</span>
     </div>
   );
@@ -369,7 +369,7 @@ export function ImmersiveReview({
               Capture the exact second a song gets you, the moment you&apos;re still in it — and keep them somewhere that remembers.
             </p>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 13, marginTop: 26 }}>
-              <button onClick={() => router.push("/login")} className="ln-press" style={{ padding: "14px 24px", borderRadius: 999, border: "none", cursor: "pointer", background: gold, color: "#1a0a04", fontFamily: "var(--ln-body)", fontSize: 15, fontWeight: 700, boxShadow: `0 14px 32px -12px ${gold}` }}>
+              <button onClick={() => router.push("/login")} className="ln-press" style={{ padding: "14px 24px", borderRadius: 999, border: "none", cursor: "pointer", background: gold, color: "#2c1517", fontFamily: "var(--ln-body)", fontSize: 15, fontWeight: 700, boxShadow: `0 14px 32px -12px ${gold}` }}>
                 Sign up
               </button>
               <button onClick={() => router.push(`/profile/${vm.user.handle}`)} className="ln-press" style={{ padding: "14px 22px", borderRadius: 999, cursor: "pointer", border: "1px solid rgba(241,235,224,0.2)", background: "rgba(241,235,224,0.05)", color: INK, fontFamily: "var(--ln-body)", fontSize: 15, fontWeight: 600 }}>
@@ -440,8 +440,8 @@ export function ReviewActions({
   };
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 9, marginTop: 4 }}>
-      <button onClick={onCopy} className="ln-press" style={{ ...btn, background: copied ? "var(--ln-accent)" : btn.background, color: copied ? "#1a0a04" : INK, borderColor: copied ? "transparent" : "rgba(241,235,224,0.18)" }}>
-        <LNIcon name="share" size={15} color={copied ? "#1a0a04" : INK} />
+      <button onClick={onCopy} className="ln-press" style={{ ...btn, background: copied ? "var(--ln-accent)" : btn.background, color: copied ? "#2c1517" : INK, borderColor: copied ? "transparent" : "rgba(241,235,224,0.18)" }}>
+        <LNIcon name="share" size={15} color={copied ? "#2c1517" : INK} />
         {copied ? "Link copied" : "Copy link"}
       </button>
       {onShare && (

@@ -157,7 +157,7 @@ export function MomentsEditor({
         const hasLabel = !!mm.label && mm.label !== "moment";
         return (
           <div key={idx} style={{ display: "flex", alignItems: "center", gap: 9, padding: "9px 11px", borderRadius: 10, background: "rgba(var(--ln-fg-rgb),0.05)", border: "1px solid rgba(var(--ln-fg-rgb),0.08)" }}>
-            <span style={{ fontFamily: "var(--ln-mono)", fontSize: 12, color: "#1a0a04", background: GOLD, borderRadius: 6, padding: "2px 7px", flexShrink: 0, fontWeight: 600 }}>{lnFmt(mm.seconds)}</span>
+            <span style={{ fontFamily: "var(--ln-mono)", fontSize: 12, color: "#2c1517", background: GOLD, borderRadius: 6, padding: "2px 7px", flexShrink: 0, fontWeight: 600 }}>{lnFmt(mm.seconds)}</span>
             <span style={{ flex: 1, fontFamily: "var(--ln-body)", fontSize: 13.5, color: "rgba(var(--ln-fg-rgb),0.85)", minWidth: 0 }}>
               {hasLabel && <span style={{ color: GOLD, fontWeight: 600 }}>{mm.label}</span>}
               {hasLabel && mm.note ? " · " : ""}
@@ -176,7 +176,7 @@ export function MomentsEditor({
         <LabelPicker value={m.label} onChange={(v) => setM((s) => ({ ...s, label: v }))} />
         <input value={m.note} onChange={(e) => setM((s) => ({ ...s, note: e.target.value }))} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }} placeholder="What happens here?" style={{ ...cmpInput, flex: 1, minWidth: 120, padding: "10px 12px", fontSize: 13.5 }} />
         <button type="button" onClick={add} className="ln-press" style={{ width: 40, height: 40, flexShrink: 0, borderRadius: 10, border: "none", cursor: ready ? "pointer" : "default", background: ready ? GOLD : "rgba(var(--ln-fg-rgb),0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <svg width="17" height="17" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke={ready ? "#1a0a04" : "rgba(var(--ln-fg-rgb),0.4)"} strokeWidth="2.4" strokeLinecap="round" /></svg>
+          <svg width="17" height="17" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke={ready ? "#2c1517" : "rgba(var(--ln-fg-rgb),0.4)"} strokeWidth="2.4" strokeLinecap="round" /></svg>
         </button>
       </div>
       <div style={{ fontFamily: "var(--ln-mono)", fontSize: 9.5, letterSpacing: "0.04em", color: "rgba(var(--ln-fg-rgb),0.4)" }}>
@@ -253,7 +253,7 @@ export function ModeTabs({ active }: { active: "track" | "album" | "playlist" })
   return (
     <div style={{ display: "flex", gap: 4, padding: 4, borderRadius: 12, background: "rgba(var(--ln-fg-rgb),0.05)", border: "1px solid rgba(var(--ln-fg-rgb),0.09)" }}>
       {([["track", "Track", "/log"], ["album", "Album", "/log/album"], ["playlist", "Playlist", "/log/playlist"]] as const).map(([m, label, href]) => (
-        <a key={m} href={href} style={{ flex: 1, textAlign: "center", padding: "9px 0", borderRadius: 9, textDecoration: "none", fontFamily: "var(--ln-body)", fontSize: 13.5, fontWeight: 600, background: active === m ? GOLD : "transparent", color: active === m ? "#1a0a04" : "rgba(var(--ln-fg-rgb),0.65)" }}>{label}</a>
+        <a key={m} href={href} style={{ flex: 1, textAlign: "center", padding: "9px 0", borderRadius: 9, textDecoration: "none", fontFamily: "var(--ln-body)", fontSize: 13.5, fontWeight: 600, background: active === m ? GOLD : "transparent", color: active === m ? "#2c1517" : "rgba(var(--ln-fg-rgb),0.65)" }}>{label}</a>
       ))}
     </div>
   );
