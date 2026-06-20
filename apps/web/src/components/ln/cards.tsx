@@ -25,11 +25,13 @@ function featuredMoment(vm: ReviewVM): MomentVM | null {
   return null;
 }
 
-export function LNWCardStrip({ album, gold = GOLD, bare = false }: { album: AlbumVM; gold?: string; bare?: boolean }) {
+export function LNWCardStrip({ album, gold = GOLD, bare = false, limit }: { album: AlbumVM; gold?: string; bare?: boolean; limit?: number }) {
   const total = momentCount(album);
   const allAddressed = album.tracks.length > 0 && album.tracks.every((t) => t.reaction || (t.moments && t.moments.length) || t.review);
   const heading = album.kind === "playlist" || allAddressed ? null : "the ones that stuck";
   const showHeader = !!heading || total > 0;
+  const shown = typeof limit === "number" ? album.tracks.slice(0, limit) : album.tracks;
+  const hidden = album.tracks.length - shown.length;
   return (
     <div style={{ borderRadius: bare ? 0 : 12, border: bare ? "none" : "1px solid rgba(var(--ln-fg-rgb),0.09)", overflow: "hidden", background: bare ? "transparent" : "rgba(var(--ln-fg-rgb),0.02)" }}>
       {showHeader && (
@@ -43,7 +45,7 @@ export function LNWCardStrip({ album, gold = GOLD, bare = false }: { album: Albu
           )}
         </div>
       )}
-      {album.tracks.map((t) => {
+      {shown.map((t) => {
         const mc = t.moments?.length || 0;
         return (
           <div key={t.n} style={{ display: "flex", alignItems: "center", gap: 11, padding: "9px 13px", borderBottom: "1px solid rgba(var(--ln-fg-rgb),0.05)" }}>
@@ -59,6 +61,11 @@ export function LNWCardStrip({ album, gold = GOLD, bare = false }: { album: Albu
           </div>
         );
       })}
+      {hidden > 0 && (
+        <div style={{ padding: "8px 13px", fontFamily: "var(--ln-mono)", fontSize: 10, letterSpacing: "0.04em", color: "rgba(var(--ln-fg-rgb),0.45)" }}>
+          +{hidden} more track{hidden > 1 ? "s" : ""}
+        </div>
+      )}
     </div>
   );
 }
@@ -122,7 +129,7 @@ export function LNWFeedCard({ vm, accent = GOLD, onOpen }: { vm: ReviewVM; accen
   const hasTracks = isAlbum || album.kind === "playlist";
   const badgeLabel = album.kind === "playlist" ? "playlist" : isAlbum ? "album review" : null;
   const fm = featuredMoment(vm);
-  const hasMore = !!vm.body || (!!vm.take && vm.take.trim().includes("\n")) || (hasTracks && album.tracks.length > 8);
+  const hasMore = !!vm.body || (!!vm.take && vm.take.trim().includes("\n")) || (hasTracks && album.tracks.length > 6);
 
   return (
     <article
@@ -172,11 +179,8 @@ export function LNWFeedCard({ vm, accent = GOLD, onOpen }: { vm: ReviewVM; accen
       </div>
 
       {hasTracks && (
-        <div className="lnw-fcard-tracks" style={{ width: 280, flexShrink: 0, borderLeft: "1px solid rgba(var(--ln-fg-rgb),0.08)", alignSelf: "stretch", background: "rgba(var(--ln-fg-rgb),0.015)", maxHeight: 360, overflow: "hidden", position: "relative" }}>
-          <LNWCardStrip album={album} gold={gold} bare />
-          {album.tracks.length > 8 && (
-            <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 48, background: "linear-gradient(transparent, var(--ln-surface))", pointerEvents: "none" }} />
-          )}
+        <div className="lnw-fcard-tracks" style={{ width: 280, flexShrink: 0, borderLeft: "1px solid rgba(var(--ln-fg-rgb),0.08)", alignSelf: "stretch", background: "rgba(var(--ln-fg-rgb),0.015)" }}>
+          <LNWCardStrip album={album} gold={gold} bare limit={6} />
         </div>
       )}
     </article>
@@ -208,12 +212,6 @@ export function LNWCard({ vm, accent = GOLD, onOpen, showCounts = false, reposte
   const hasMore = overflowing || !!vm.body || (!!vm.take && vm.take.trim().includes("\n"));
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
-      {repostedBadge && (
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 6, alignSelf: "flex-start", fontFamily: "var(--ln-mono)", fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", color: gold }}>
-          <LNIcon name="repost" size={13} color={gold} /> You reposted this
-        </div>
-      )}
     <article
       onClick={onOpen}
       onMouseEnter={() => setHover(true)}
@@ -243,6 +241,11 @@ export function LNWCard({ vm, accent = GOLD, onOpen, showCounts = false, reposte
         {badgeLabel && (
           <div style={{ position: "absolute", top: 13, left: 13, padding: "5px 9px", borderRadius: 999, background: "rgba(8,7,6,0.5)", backdropFilter: "blur(8px)", border: "1px solid rgba(var(--ln-line-rgb),0.1)", fontFamily: "var(--ln-mono)", fontSize: 9.5, letterSpacing: "0.06em", textTransform: "uppercase", color: "#f1ebe0" }}>{badgeLabel}</div>
         )}
+        {repostedBadge && (
+          <div style={{ position: "absolute", bottom: 12, left: 12, display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 9px", borderRadius: 999, background: "rgba(8,7,6,0.62)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", border: "1px solid rgba(var(--ln-line-rgb),0.14)", fontFamily: "var(--ln-mono)", fontSize: 9, letterSpacing: "0.06em", textTransform: "uppercase", color: "#f1ebe0" }}>
+            <LNIcon name="repost" size={11} color="#f1ebe0" /> reposted
+          </div>
+        )}
       </LNArt>
 
       <div style={{ position: "relative", padding: "18px 19px 16px", display: "flex", flexDirection: "column", gap: 12, height: 224, boxSizing: "border-box" }}>
@@ -268,7 +271,7 @@ export function LNWCard({ vm, accent = GOLD, onOpen, showCounts = false, reposte
             </div>
           )}
 
-          {(isAlbum || album.kind === "playlist") && <LNWCardStrip album={album} gold={gold} />}
+          {(isAlbum || album.kind === "playlist") && <LNWCardStrip album={album} gold={gold} limit={2} />}
 
           {overflowing && (
             <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 44, background: "linear-gradient(transparent, var(--ln-surface))", pointerEvents: "none" }} />
@@ -305,7 +308,6 @@ export function LNWCard({ vm, accent = GOLD, onOpen, showCounts = false, reposte
         )}
       </div>
     </article>
-    </div>
   );
 }
 
