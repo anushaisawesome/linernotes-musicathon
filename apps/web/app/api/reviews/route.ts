@@ -69,6 +69,8 @@ export async function GET(request: NextRequest) {
         createdAt: review.createdAt.toISOString(),
         likeCount: review._count.likes,
         repostCount: review._count.reposts,
+        likedByMe: currentUserId ? review.likes.some((l) => l.userId === currentUserId) : false,
+        repostedByMe: currentUserId ? review.reposts.some((r) => r.userId === currentUserId) : false,
       }));
 
       return NextResponse.json({ reviews: transformedReviews });
@@ -127,6 +129,8 @@ export async function GET(request: NextRequest) {
         createdAt: review.createdAt.toISOString(),
         likeCount: review._count.likes,
         repostCount: review._count.reposts,
+        likedByMe: currentUserId ? review.likes.some((l) => l.userId === currentUserId) : false,
+        repostedByMe: currentUserId ? review.reposts.some((r) => r.userId === currentUserId) : false,
       }));
 
       return NextResponse.json({ reviews: transformedReviews });
@@ -185,6 +189,8 @@ export async function GET(request: NextRequest) {
         createdAt: review.createdAt.toISOString(),
         likeCount: review._count.likes,
         repostCount: review._count.reposts,
+        likedByMe: currentUserId ? review.likes.some((l) => l.userId === currentUserId) : false,
+        repostedByMe: currentUserId ? review.reposts.some((r) => r.userId === currentUserId) : false,
       }));
 
       return NextResponse.json({ reviews: transformedReviews });
@@ -238,6 +244,8 @@ export async function GET(request: NextRequest) {
         createdAt: review.createdAt.toISOString(),
         likeCount: review._count.likes,
         repostCount: review._count.reposts,
+        likedByMe: currentUserId ? review.likes.some((l) => l.userId === currentUserId) : false,
+        repostedByMe: currentUserId ? review.reposts.some((r) => r.userId === currentUserId) : false,
       }));
 
       return NextResponse.json({ reviews: transformedReviews });
@@ -294,6 +302,8 @@ export async function GET(request: NextRequest) {
       createdAt: review.createdAt.toISOString(),
       likeCount: review._count.likes,
       repostCount: review._count.reposts,
+      likedByMe: currentUserId ? review.likes.some((l) => l.userId === currentUserId) : false,
+      repostedByMe: currentUserId ? review.reposts.some((r) => r.userId === currentUserId) : false,
     }));
 
     return NextResponse.json({ reviews: transformedReviews });

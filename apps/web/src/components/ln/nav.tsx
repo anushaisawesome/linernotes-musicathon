@@ -232,7 +232,7 @@ export function Footer({ dark = true }: { dark?: boolean }) {
           <div style={{ marginTop: 16, fontFamily: "var(--ln-mono)", fontSize: 10.5, letterSpacing: "0.04em", color: muted }}>© 2026 LinerNotes · made for listeners</div>
         </div>
 
-        <div style={{ display: "flex", gap: 54, flexWrap: "wrap" }}>
+        <div style={{ flex: 1, display: "flex", gap: 54, flexWrap: "wrap", justifyContent: "center" }}>
           <FootCol head="Product" links={[["Explore", "/feed"], ["Log a note", "/log"]]} fg={fg} muted={muted} />
           <FootCol head="You" links={[["Friends", "/friends"], ["Profile", handle ? `/profile/${handle}` : "/login"]]} fg={fg} muted={muted} />
         </div>
