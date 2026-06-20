@@ -233,6 +233,13 @@ export async function GET() {
     for (const track of topTracks.slice(0, 10)) {
       const artistName = getArtistName(track.artist);
       const albumName = getAlbumName(track.album);
+
+      // Skip if missing essential metadata
+      if (!track.name || !artistName) {
+        console.log("[Last.fm Prompts] Skipping track with missing name/artist");
+        continue;
+      }
+
       const trackKey = `${artistName}::${track.name}`;
 
       if (seenTracks.has(trackKey)) continue;
@@ -281,6 +288,13 @@ export async function GET() {
     for (const track of tracks.slice(0, 20)) {
       const artistName = getArtistName(track.artist);
       const albumName = getAlbumName(track.album);
+
+      // Skip if missing essential metadata
+      if (!track.name || !artistName) {
+        console.log("[Last.fm Prompts] Skipping recent track with missing name/artist");
+        continue;
+      }
+
       const trackKey = `${artistName}::${track.name}`;
 
       if (seenTracks.has(trackKey)) continue;
@@ -324,6 +338,13 @@ export async function GET() {
     // Priority 3: Album spins - Limit to 2
     for (const album of topAlbums.slice(0, 10)) {
       const artistName = getArtistName(album.artist);
+
+      // Skip if missing essential metadata
+      if (!album.name || !artistName) {
+        console.log("[Last.fm Prompts] Skipping album with missing name/artist");
+        continue;
+      }
+
       const albumKey = `${artistName}::${album.name}`;
 
       if (seenAlbums.has(albumKey)) continue;
