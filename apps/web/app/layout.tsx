@@ -45,7 +45,7 @@ const syne = Syne({
 export const metadata: Metadata = {
   title: "LinerNotes",
   description:
-    "The moment a song hits you, kept while you're still in it. A listening journal — now in beta.",
+    "The moment a song hits you, kept while you're still in it. A listening journal for music lovers.",
 };
 
 export default function RootLayout({

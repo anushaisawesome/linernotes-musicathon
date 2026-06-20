@@ -57,7 +57,6 @@ export function TopBar({ transparent = false }: { transparent?: boolean }) {
       >
         <Link href="/" className="ln-press" style={{ display: "inline-flex", alignItems: "baseline", gap: 7, textDecoration: "none" }}>
           <span style={{ fontFamily: "var(--ln-logo)", fontWeight: 800, fontSize: 21, color: ink, letterSpacing: "-0.02em", lineHeight: 1 }}>LinerNotes</span>
-          <span style={{ fontFamily: "var(--ln-body)", fontSize: 8.5, letterSpacing: "0.14em", color: accent, textTransform: "uppercase", fontWeight: 700, border: `1px solid ${accent}66`, borderRadius: 999, padding: "2px 6px", position: "relative", top: -3 }}>beta</span>
         </Link>
 
         <nav className="lnw-nav-links" style={{ display: "flex", alignItems: "center", gap: 22 }}>
@@ -154,7 +153,7 @@ export function TopBar({ transparent = false }: { transparent?: boolean }) {
                 boxShadow: `0 8px 22px -10px ${accent}`,
               }}
             >
-              Join the beta
+              Sign up
             </Link>
           </>
         )}
@@ -239,11 +238,11 @@ export function Footer({ dark = true }: { dark?: boolean }) {
         </div>
 
         <div style={{ minWidth: 220 }}>
-          <div style={{ fontFamily: "var(--ln-label)", fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", fontWeight: 700, color: accent, marginBottom: 12 }}>get early access</div>
+          <div style={{ fontFamily: "var(--ln-label)", fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", fontWeight: 700, color: accent, marginBottom: 12 }}>get started</div>
           <Link href="/login" className="ln-press" style={{ display: "block", textAlign: "center", textDecoration: "none", width: "100%", boxSizing: "border-box", padding: "13px", borderRadius: 12, background: accent, color: "#1a0a04", fontFamily: "var(--ln-body)", fontSize: 14, fontWeight: 700, boxShadow: `0 10px 26px -12px ${accent}` }}>
-            Join the beta
+            Sign up
           </Link>
-          <p style={{ margin: "10px 0 0", fontFamily: "var(--ln-mono)", fontSize: 10, lineHeight: 1.5, color: muted, letterSpacing: "0.02em" }}>iOS &amp; Android · invites roll out weekly</p>
+          <p style={{ margin: "10px 0 0", fontFamily: "var(--ln-mono)", fontSize: 10, lineHeight: 1.5, color: muted, letterSpacing: "0.02em" }}>Start logging your listening moments</p>
         </div>
       </div>
     </footer>

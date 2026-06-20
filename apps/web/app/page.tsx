@@ -92,7 +92,7 @@ export default function Home() {
           <div style={{ maxWidth: 760, animation: "ln-rise 0.6s cubic-bezier(.2,.8,.2,1) both" }}>
             <div style={{ display: "inline-flex", alignItems: "center", gap: 8, fontFamily: "var(--ln-label)", fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", fontWeight: 700, color: "var(--ln-accent)", marginBottom: 18 }}>
               <span style={{ width: 22, height: 1, background: "var(--ln-accent)" }} />
-              A listening journal · now in beta
+              A listening journal
             </div>
             <h1 style={{ margin: 0, fontFamily: "var(--ln-display)", fontWeight: 700, fontSize: "clamp(40px, 5.4vw, 66px)", lineHeight: 1.02, letterSpacing: "-0.025em", color: "var(--ln-fg)" }}>
               The moment a song hits you, kept while you&apos;re still in it.
@@ -107,7 +107,7 @@ export default function Home() {
                 </Link>
               ) : (
                 <Link href="/login" className="ln-press" style={{ padding: "14px 24px", borderRadius: 999, textDecoration: "none", background: "var(--ln-accent)", color: "#1a0a04", fontFamily: "var(--ln-body)", fontSize: 15, fontWeight: 700, boxShadow: "0 14px 32px -12px var(--ln-accent)" }}>
-                  Join the beta
+                  Sign up
                 </Link>
               )}
               <Link href="/log" className="ln-press" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "14px 22px", borderRadius: 999, textDecoration: "none", border: "1px solid rgba(var(--ln-fg-rgb),0.2)", background: "rgba(var(--ln-fg-rgb),0.04)", color: "var(--ln-fg)", fontFamily: "var(--ln-body)", fontSize: 15, fontWeight: 600 }}>

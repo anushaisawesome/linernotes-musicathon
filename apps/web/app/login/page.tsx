@@ -78,15 +78,14 @@ function LoginForm() {
         <div style={{ position: "relative", padding: "44px 32px 32px" }}>
           <div style={{ display: "inline-flex", alignItems: "baseline", gap: 8 }}>
             <span style={{ fontFamily: "var(--ln-logo)", fontWeight: 800, fontSize: 26, color: INK, letterSpacing: "-0.02em" }}>LinerNotes</span>
-            <span style={{ fontFamily: "var(--ln-body)", fontSize: 9, letterSpacing: "0.14em", color: gold, textTransform: "uppercase", fontWeight: 700, border: `1px solid ${gold}66`, borderRadius: 999, padding: "2px 6px", position: "relative", top: -5 }}>beta</span>
           </div>
 
           <h2 style={{ margin: "20px 0 0", fontFamily: "var(--ln-syne)", fontWeight: 700, fontSize: 25, lineHeight: 1.16, color: INK, letterSpacing: "-0.01em" }}>
-            {isSignup ? "Get early access to the app." : "Welcome back."}
+            {isSignup ? "Join LinerNotes." : "Welcome back."}
           </h2>
           <p style={{ margin: "10px 0 0", fontFamily: "var(--ln-body)", fontSize: 14.5, lineHeight: 1.5, color: muted(0.64) }}>
             {isSignup
-              ? "LinerNotes for iOS & Android is rolling out in waves. Create your account to start logging."
+              ? "Create your account to start logging your listening moments."
               : "Pick up where you left off — your notes and the friends you'd tell."}
           </p>
 
@@ -120,14 +119,14 @@ function LoginForm() {
               <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required placeholder="you@email.com" inputMode="email" style={inputStyle} />
               <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" required minLength={6} placeholder="••••••••" style={inputStyle} />
               <button type="submit" disabled={loading} className="ln-press" style={{ width: "100%", padding: "14px", borderRadius: 14, border: "none", cursor: loading ? "default" : "pointer", background: gold, color: "#1a0a04", fontFamily: "var(--ln-body)", fontSize: 15, fontWeight: 700, boxShadow: `0 12px 30px -10px ${gold}cc`, opacity: loading ? 0.6 : 1 }}>
-                {loading ? "Please wait…" : isSignup ? "Join the beta" : "Log in"}
+                {loading ? "Please wait…" : isSignup ? "Sign up" : "Log in"}
               </button>
             </form>
 
             <div style={{ textAlign: "center", marginTop: 6, fontFamily: "var(--ln-body)", fontSize: 13, color: muted(0.64) }}>
               {isSignup ? "Already have an account?" : "New to LinerNotes?"}{" "}
               <button onClick={() => { setIsSignup(!isSignup); setError(""); }} style={{ background: "none", border: "none", cursor: "pointer", color: gold, fontFamily: "inherit", fontSize: 13, fontWeight: 700, padding: 0 }}>
-                {isSignup ? "Log in" : "Join the beta"}
+                {isSignup ? "Log in" : "Sign up"}
               </button>
             </div>
 

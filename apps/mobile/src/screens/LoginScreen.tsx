@@ -149,12 +149,7 @@ export function LoginScreen() {
         >
           {/* Brand + promise */}
           <View style={styles.brandContainer}>
-            <View style={styles.titleRow}>
-              <Text style={styles.brandTitle}>LinerNotes</Text>
-              <View style={styles.betaBadge}>
-                <Text style={styles.betaText}>BETA</Text>
-              </View>
-            </View>
+            <Text style={styles.brandTitle}>LinerNotes</Text>
             <Text style={styles.promise}>
               the moment a song hit you, captured while you're in it.
             </Text>
@@ -286,33 +281,12 @@ const styles = StyleSheet.create({
     paddingTop: 96,
     alignItems: 'center',
   },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 8,
-  },
   brandTitle: {
     fontFamily: 'System',
     fontWeight: '600',
     fontSize: 34,
     color: tokens.colors.fg,
     letterSpacing: -0.34,
-  },
-  betaBadge: {
-    borderWidth: 1,
-    borderColor: `${AUTH_COLORS.accent}55`,
-    borderRadius: 999,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    marginBottom: 4, // Raised up to match design
-  },
-  betaText: {
-    fontFamily: 'System',
-    fontSize: 11,
-    letterSpacing: 1.54,
-    color: AUTH_COLORS.accent,
-    textTransform: 'uppercase',
-    fontWeight: '700',
   },
   promise: {
     fontFamily: 'System',

@@ -131,12 +131,7 @@ function AppContent() {
         {/* Sticky header */}
         <View style={styles.header}>
           <View style={styles.headerContent}>
-            <View style={styles.branding}>
-              <Text style={styles.appTitle}>LinerNotes</Text>
-              <View style={styles.betaBadge}>
-                <Text style={styles.betaText}>beta</Text>
-              </View>
-            </View>
+            <Text style={styles.appTitle}>LinerNotes</Text>
 
             <TouchableOpacity style={styles.menuButton} onPress={() => setMenuOpen(true)}>
               <MenuIcon size={20} color={tokens.colors.fg} />
@@ -310,11 +305,6 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     justifyContent: 'space-between',
   },
-  branding: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 8,
-  },
   appTitle: {
     fontFamily: 'System',
     fontWeight: '600',
@@ -322,23 +312,6 @@ const styles = StyleSheet.create({
     color: tokens.colors.fg,
     letterSpacing: -0.2,
     lineHeight: 20,
-  },
-  betaBadge: {
-    borderWidth: 1,
-    borderColor: `${tokens.colors.gold}55`,
-    borderRadius: 999,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    position: 'relative',
-    top: -4,
-  },
-  betaText: {
-    fontFamily: 'System',
-    fontSize: 10,
-    letterSpacing: 1.4,
-    textTransform: 'uppercase',
-    fontWeight: '700',
-    color: tokens.colors.gold,
   },
   menuButton: {
     width: 38,
