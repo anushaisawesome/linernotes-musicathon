@@ -32,19 +32,24 @@ export function LyricsBrowser({ trackIsrc, trackName, artistName, onBookmark, bo
         const params = new URLSearchParams();
         if (trackIsrc) {
           params.set("isrc", trackIsrc);
+          console.log("[LyricsBrowser] Fetching lyrics by ISRC:", trackIsrc);
         } else {
           params.set("track", trackName);
           params.set("artist", artistName);
+          console.log("[LyricsBrowser] Fetching lyrics by track/artist:", trackName, "/", artistName);
         }
 
         const res = await fetch(`/api/lyrics?${params.toString()}`);
+        console.log("[LyricsBrowser] API response status:", res.status);
 
         if (!res.ok) {
           const errorData = await res.json().catch(() => ({}));
-          throw new Error(errorData.message || "No lyrics available");
+          console.error("[LyricsBrowser] API error:", errorData);
+          throw new Error(errorData.error || errorData.message || "No lyrics available");
         }
 
         const data = await res.json();
+        console.log("[LyricsBrowser] API response data:", data);
 
         if (data.lyrics && Array.isArray(data.lyrics)) {
           // Musixmatch subtitle format
@@ -53,7 +58,10 @@ export function LyricsBrowser({ trackIsrc, trackName, artistName, onBookmark, bo
             seconds: line.time?.total ? line.time.total / 1000 : 0,
           })).filter((line: LyricLine) => line.text.trim() !== "");
 
+          console.log("[LyricsBrowser] Parsed lyrics count:", parsedLyrics.length);
           setLyrics(parsedLyrics);
+        } else if (data.message) {
+          setError(data.message);
         } else {
           setError("No synced lyrics available");
         }
