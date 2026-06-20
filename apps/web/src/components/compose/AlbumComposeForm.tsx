@@ -194,7 +194,7 @@ export function AlbumComposeForm({ onSubmit, onSuccess, searchAPI }: AlbumCompos
       <div>
         <ModeTabs active="album" />
         <div style={{ marginTop: 18 }}>
-          <div style={{ fontFamily: "var(--ln-mono)", fontSize: 9.5, letterSpacing: "0.06em", color: gold, textTransform: "uppercase", marginBottom: 8 }}>which album needs finding?</div>
+          <div style={{ fontFamily: "var(--ln-body)", fontSize: 14.5, fontWeight: 600, letterSpacing: "0.01em", color: gold, marginBottom: 10 }}>which album needs finding?</div>
           <AlbumSearch onAlbumSelect={handleAlbumSelect} searchAPI={searchAPI} />
         </div>
       </div>

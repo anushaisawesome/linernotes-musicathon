@@ -37,9 +37,6 @@ export function PlaylistComposer() {
   const [editingNoteIndex, setEditingNoteIndex] = useState<number | null>(null);
   const [noteText, setNoteText] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [importUrl, setImportUrl] = useState("");
-  const [importing, setImporting] = useState(false);
-  const [importMsg, setImportMsg] = useState<{ text: string; ok: boolean } | null>(null);
 
   const gold = "var(--ln-accent)";
   const canPost = title.trim() && tracks.length > 0;
@@ -51,42 +48,6 @@ export function PlaylistComposer() {
       return;
     }
     setTracks([...tracks, { ...track, note: undefined }]);
-  };
-
-  // Pull a public Spotify playlist's tracks into the list (dedup against
-  // whatever's already there).
-  const handleImport = async () => {
-    const url = importUrl.trim();
-    if (!url) return;
-    setImporting(true);
-    setImportMsg(null);
-    try {
-      const res = await fetch(`/api/spotify/playlist?url=${encodeURIComponent(url)}`);
-      const data = await res.json();
-      if (!res.ok) {
-        setImportMsg({ text: data.error || "Couldn't import that playlist.", ok: false });
-        return;
-      }
-      const imported: Track[] = data.tracks || [];
-      let addedCount = 0;
-      setTracks((cur) => {
-        const seen = new Set(cur.map((t) => t.trackId));
-        const added = imported
-          .filter((t) => t.trackId && !seen.has(t.trackId))
-          .map((t) => ({ ...t, note: undefined }));
-        addedCount = added.length;
-        return [...cur, ...added];
-      });
-      setImportUrl("");
-      setImportMsg({
-        text: addedCount > 0 ? `Added ${addedCount} track${addedCount !== 1 ? "s" : ""} from Spotify.` : "No new tracks to add.",
-        ok: true,
-      });
-    } catch {
-      setImportMsg({ text: "Couldn't import that playlist.", ok: false });
-    } finally {
-      setImporting(false);
-    }
   };
 
   const handleRemoveTrack = (index: number) => {
@@ -195,28 +156,6 @@ export function PlaylistComposer() {
           <div style={{ textAlign: "right", fontFamily: "var(--ln-mono)", fontSize: 10, color: "rgba(var(--ln-fg-rgb),0.4)", marginTop: 6 }}>
             {description.length}/500
           </div>
-        </div>
-
-        <div>
-          <label style={{ display: "block", fontFamily: "var(--ln-mono)", fontSize: 10, letterSpacing: "0.08em", color: gold, textTransform: "uppercase", marginBottom: 8 }}>
-            Import from Spotify (optional)
-          </label>
-          <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
-            <input
-              type="url"
-              value={importUrl}
-              onChange={(e) => { setImportUrl(e.target.value); setImportMsg(null); }}
-              placeholder="Paste a Spotify playlist link…"
-              style={{ ...cmpInput, flex: 1, minWidth: 0 }}
-            />
-            <button type="button" onClick={handleImport} disabled={importing || !importUrl.trim()} className="ln-press" style={{ flexShrink: 0, padding: "0 18px", borderRadius: 13, border: "none", cursor: importing || !importUrl.trim() ? "default" : "pointer", background: importUrl.trim() ? gold : "rgba(var(--ln-fg-rgb),0.1)", color: importUrl.trim() ? "#2c1517" : "rgba(var(--ln-fg-rgb),0.4)", fontFamily: "var(--ln-body)", fontSize: 14, fontWeight: 700, whiteSpace: "nowrap" }}>
-              {importing ? "Importing…" : "Import"}
-            </button>
-          </div>
-          {importMsg && (
-            <div style={{ marginTop: 8, fontFamily: "var(--ln-body)", fontSize: 13, color: importMsg.ok ? "#7fcf9b" : "#ff8f8f" }}>{importMsg.text}</div>
-          )}
-          <p style={{ margin: "7px 0 0", fontFamily: "var(--ln-mono)", fontSize: 10, lineHeight: 1.5, color: "rgba(var(--ln-fg-rgb),0.4)" }}>Auto-fills the tracks below from a public Spotify playlist.</p>
         </div>
       </div>
 

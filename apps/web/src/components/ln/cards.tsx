@@ -223,10 +223,10 @@ export function LNWCard({ vm, accent = GOLD, onOpen, showCounts = false, reposte
         overflow: "hidden",
         cursor: onOpen ? "pointer" : "default",
         background: "var(--ln-surface)",
-        border: `1px solid rgba(var(--ln-line-rgb),${hover ? 0.16 : 0.08})`,
+        border: `1px solid rgba(var(--ln-line-rgb),${hover ? 0.24 : 0.14})`,
         boxShadow: hover
-          ? "0 8px 18px -6px rgba(0,0,0,0.34), 0 30px 60px -28px var(--ln-shadow)"
-          : "0 5px 14px -5px rgba(0,0,0,0.26), 0 20px 44px -24px var(--ln-shadow)",
+          ? "0 18px 34px -10px rgba(0,0,0,0.62), 0 4px 10px rgba(0,0,0,0.3)"
+          : "0 12px 26px -8px rgba(0,0,0,0.5), 0 3px 8px rgba(0,0,0,0.26)",
         transform: hover && onOpen ? "translateY(-3px)" : "none",
       }}
     >
