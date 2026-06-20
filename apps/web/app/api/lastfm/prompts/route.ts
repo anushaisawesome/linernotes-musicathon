@@ -75,8 +75,11 @@ async function fetchLastFmTrackInfo(track: string, artist: string, apiKey: strin
     const res = await fetch(url);
     if (res.ok) {
       const data = await res.json();
-      const albumName = data.track?.album?.title || "";
+      // Last.fm track.getinfo returns album.title OR album["#text"]
+      const albumName = data.track?.album?.title || data.track?.album?.["#text"] || "";
       const artwork = data.track?.album?.image?.find((img: any) => img.size === "extralarge" || img.size === "large" || img.size === "medium")?. ["#text"] || "";
+
+      console.log("[Last.fm Prompts] track.getinfo response for", track, ":", { albumName, hasArtwork: !!artwork });
 
       return {
         artwork: (artwork && !artwork.includes("2a96cbd8b46e442fc41c2b86b821562f")) ? artwork : "",
@@ -147,7 +150,7 @@ async function fetchFallbackArtwork(track: string, artist: string, album: string
 /**
  * GET /api/lastfm/prompts - Get "worth a note" prompts from Last.fm listening history
  */
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const user = await requireAuth();
 
@@ -284,8 +287,8 @@ export async function GET() {
     const seenTracks = new Set<string>();
     const seenAlbums = new Set<string>();
 
-    // Priority 1: Tracks on heavy repeat (from top tracks of the week) - Limit to 3
-    for (const track of topTracks.slice(0, 10)) {
+    // Priority 1: Tracks on heavy repeat (from top tracks of the week) - Limit to 5
+    for (const track of topTracks.slice(0, 15)) {
       const artistName = getArtistName(track.artist);
       let albumName = getAlbumName(track.album);
 
@@ -358,11 +361,11 @@ export async function GET() {
         palette,
       });
 
-      if (repeatCandidates.length >= 3) break; // Limit to 3 repeat prompts
+      if (repeatCandidates.length >= 5) break; // Limit to 5 repeat prompts
     }
 
-    // Priority 2: Recently played unique tracks - Limit to 3
-    for (const track of tracks.slice(0, 20)) {
+    // Priority 2: Recently played unique tracks - Limit to 5
+    for (const track of tracks.slice(0, 30)) {
       const artistName = getArtistName(track.artist);
       let albumName = getAlbumName(track.album);
 
@@ -431,11 +434,11 @@ export async function GET() {
         palette,
       });
 
-      if (recentCandidates.length >= 3) break; // Limit to 3 recent prompts
+      if (recentCandidates.length >= 5) break; // Limit to 5 recent prompts
     }
 
-    // Priority 3: Album spins - Limit to 2
-    for (const album of topAlbums.slice(0, 10)) {
+    // Priority 3: Album spins - Limit to 3
+    for (const album of topAlbums.slice(0, 15)) {
       const artistName = getArtistName(album.artist);
 
       // Skip only if missing album name or artist
@@ -495,7 +498,7 @@ export async function GET() {
         palette,
       });
 
-      if (albumCandidates.length >= 2) break; // Limit to 2 album prompts
+      if (albumCandidates.length >= 3) break; // Limit to 3 album prompts
     }
 
     // Shuffle each category to provide variety on refresh
@@ -527,7 +530,13 @@ export async function GET() {
       console.log("[Last.fm Prompts] Sample final prompt:", JSON.stringify(prompts[0], null, 2));
     }
 
-    return NextResponse.json({ prompts });
+    return NextResponse.json({ prompts }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      }
+    });
   } catch (error) {
     console.error("Last.fm prompts error:", error);
     if (error instanceof Error && error.message === "Unauthorized") {
