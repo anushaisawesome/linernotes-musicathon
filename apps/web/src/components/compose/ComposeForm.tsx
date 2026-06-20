@@ -124,7 +124,7 @@ export function ComposeForm({ onSubmit, onSuccess, searchAPI, initialTrack, init
 
       {!track ? (
         <div style={{ marginTop: 18 }}>
-          <div style={{ fontFamily: "var(--ln-body)", fontSize: 14.5, fontWeight: 600, letterSpacing: "0.01em", color: gold, marginBottom: 10 }}>what song is on your mind?</div>
+          <div style={{ fontFamily: "var(--ln-body)", fontSize: 14.5, fontWeight: 400, letterSpacing: "0.01em", color: gold, marginBottom: 10 }}>What song is on your mind?</div>
           <TrackSearch onTrackSelect={setTrack} searchAPI={searchAPI} />
         </div>
       ) : (
