@@ -165,6 +165,7 @@ model Note {
   seconds   Float    // Timestamp in seconds
   label     String   // Label for the moment (e.g., "best bit", "intro")
   note      String?  // Optional longer note/commentary
+  lyric     String?  // Optional lyric text from synced lyrics
 
   createdAt DateTime @default(now())
 

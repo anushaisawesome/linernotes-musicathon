@@ -455,9 +455,10 @@ export async function GET(request: Request) {
         // Don't use album name from track.getinfo - it can have corrupted/user-submitted metadata
       }
 
-      // Validate with Spotify if: (1) no artwork yet, OR (2) album name looks suspicious
+      // Validate with Spotify if: (1) no artwork yet, OR (2) album name looks suspicious, OR (3) artwork is low quality
       const suspiciousPattern = /\b(67|b4|days|before)\b/i;
-      const needsSpotifyValidation = !artworkUrl || (albumName && suspiciousPattern.test(albumName));
+      const isLowQualityArt = artworkUrl && (artworkUrl.includes('/64s/') || artworkUrl.includes('/174s/') || artworkUrl.includes('/300x300/'));
+      const needsSpotifyValidation = !artworkUrl || (albumName && suspiciousPattern.test(albumName)) || isLowQualityArt;
 
       if (needsSpotifyValidation) {
         if (!artworkUrl) {
@@ -557,9 +558,10 @@ export async function GET(request: Request) {
         // Don't use album name from track.getinfo - it can have corrupted/user-submitted metadata
       }
 
-      // Validate with Spotify if: (1) no artwork yet, OR (2) album name looks suspicious
+      // Validate with Spotify if: (1) no artwork yet, OR (2) album name looks suspicious, OR (3) artwork is low quality
       const suspiciousPattern = /\b(67|b4|days|before)\b/i;
-      const needsSpotifyValidation = !artworkUrl || (albumName && suspiciousPattern.test(albumName));
+      const isLowQualityArt = artworkUrl && (artworkUrl.includes('/64s/') || artworkUrl.includes('/174s/') || artworkUrl.includes('/300x300/'));
+      const needsSpotifyValidation = !artworkUrl || (albumName && suspiciousPattern.test(albumName)) || isLowQualityArt;
 
       if (needsSpotifyValidation) {
         if (!artworkUrl) {
@@ -635,8 +637,9 @@ export async function GET(request: Request) {
                        album.image?.find((img) => img.size === "large")?.["#text"] ||
                        album.image?.find((img) => img.size === "medium")?.["#text"] || "";
 
-      // Validate with Spotify if no artwork
-      if (!artworkUrl) {
+      // Validate with Spotify if no artwork or if artwork is low quality
+      const isLowQualityArt = artworkUrl && (artworkUrl.includes('/64s/') || artworkUrl.includes('/174s/') || artworkUrl.includes('/300x300/'));
+      if (!artworkUrl || isLowQualityArt) {
         const spotifyValidation = await validateWithSpotify("", artistName, album.name);
         if (spotifyValidation.artwork) {
           artworkUrl = spotifyValidation.artwork;
@@ -689,8 +692,9 @@ export async function GET(request: Request) {
                        albumPlay.image?.find((img) => img.size === "large")?.["#text"] ||
                        albumPlay.image?.find((img) => img.size === "medium")?.["#text"] || "";
 
-      // Validate with Spotify if no artwork
-      if (!artworkUrl) {
+      // Validate with Spotify if no artwork or if artwork is low quality
+      const isLowQualityArt = artworkUrl && (artworkUrl.includes('/64s/') || artworkUrl.includes('/174s/') || artworkUrl.includes('/300x300/'));
+      if (!artworkUrl || isLowQualityArt) {
         // Use first track from the album play for Spotify search
         const spotifyValidation = await validateWithSpotify(albumPlay.tracks[0], albumPlay.artist, albumPlay.album);
         if (spotifyValidation.artwork) {
