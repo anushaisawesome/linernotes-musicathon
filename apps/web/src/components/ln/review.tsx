@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { LNArt, LNStars, LNReact, LNIcon, LNAvatar, LNMoment, lnFmt, lnRel, LN_REACT } from "./atoms";
 import type { ReviewVM, TrackVM } from "@/lib/view-adapter";
+import type { Palette } from "@/lib/palette";
 
 // Follow = friend request. Reflects the real relationship: send a request, see
 // "requested" once sent, and "friends" once you're connected.
@@ -178,7 +179,10 @@ export function ImmersiveReview({
 }) {
   const router = useRouter();
   const { album } = vm;
-  const p = album.palette;
+  // Start from the deterministic palette, then upgrade to the cover's real colours
+  // once LNArt extracts them — so the flood matches the artwork.
+  const [coverPalette, setCoverPalette] = useState<Palette | null>(null);
+  const p = coverPalette || album.palette;
   const gold = "var(--ln-accent)";
   const isAlbum = album.kind === "album" && album.tracks.length > 0;
   const npTrack = (album.tracks || []).find((t) => t.moments && t.moments.length) || null;
@@ -233,7 +237,7 @@ export function ImmersiveReview({
         <div className="lnw-hero" style={{ display: "grid", gridTemplateColumns: "minmax(280px, 340px) 1fr", gap: 48, alignItems: "start" }}>
           <div className="lnw-hero-left" style={{ position: "sticky", top: 92, display: "flex", flexDirection: "column", gap: 18, animation: "ln-rise 0.6s cubic-bezier(.2,.8,.2,1) both" }}>
             <div onClick={openSpotify} style={{ cursor: "pointer", borderRadius: 16, overflow: "hidden", boxShadow: "0 36px 80px -30px rgba(0,0,0,0.9), 0 0 0 1px rgba(255,255,255,0.07)" }}>
-              <LNArt palette={p} src={album.artworkUrl} label={album.title.toLowerCase()} radius={16} noTag={album.kind === "playlist"} />
+              <LNArt palette={p} src={album.artworkUrl} label={album.title.toLowerCase()} radius={16} noTag={album.kind === "playlist"} onPaletteExtracted={setCoverPalette} />
             </div>
 
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
