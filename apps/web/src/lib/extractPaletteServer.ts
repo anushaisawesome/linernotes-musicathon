@@ -1,7 +1,7 @@
 // Server-side color extraction from album artwork using node-vibrant
 // Extracts real colors from Spotify/Last.fm images without CORS issues
 
-import Vibrant from 'node-vibrant';
+import { Vibrant } from 'node-vibrant/node';
 import type { Palette } from './palette';
 
 // Convert RGB to hex
