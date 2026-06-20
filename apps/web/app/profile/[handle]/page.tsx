@@ -122,7 +122,7 @@ export default function ProfilePage() {
   const [savedReviews, setSavedReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [tab, setTab] = useState<"notes" | "saved">("notes");
+  const [tab, setTab] = useState<"notes" | "reposts" | "saved">("notes");
 
   const [favs, setFavs] = useState<FavMeta[]>([]);
   const [savedFavs, setSavedFavs] = useState<FavMeta[]>([]);
@@ -307,8 +307,6 @@ export default function ProfilePage() {
       reposted: true,
     }))
     .sort((a, b) => new Date(b.vm.at).getTime() - new Date(a.vm.at).getTime());
-  const noteItems: { vm: ReviewVM; reposted: boolean }[] = [...repostNotes, ...ownNotes];
-
   // Saved reviews keep their original author (not the profile owner).
   const savedVms: ReviewVM[] = savedReviews.map((r) => toReviewVM(r));
 
@@ -436,18 +434,30 @@ export default function ProfilePage() {
 
         <div style={{ maxWidth: 1080, margin: "0 auto", padding: "44px 24px 96px" }}>
           <div style={{ display: "flex", gap: 26, borderBottom: "1px solid rgba(var(--ln-fg-rgb),0.1)", marginBottom: 26 }}>
-            {([["notes", `notes · ${noteItems.length}`], ["saved", `saved · ${savedVms.length}`]] as const).map(([id, label]) => (
+            {([["notes", `notes · ${ownNotes.length}`], ["reposts", `reposts · ${repostNotes.length}`], ["saved", `saved · ${savedVms.length}`]] as const).map(([id, label]) => (
               <button key={id} onClick={() => setTab(id)} style={{ background: "none", border: "none", cursor: "pointer", padding: "0 0 12px", fontFamily: "var(--ln-label)", fontSize: 12.5, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 700, color: tab === id ? "var(--ln-fg)" : "rgba(var(--ln-fg-rgb),0.4)", borderBottom: tab === id ? "2px solid var(--ln-accent)" : "2px solid transparent", marginBottom: -1 }}>{label}</button>
             ))}
           </div>
 
           {tab === "notes" && (
-            noteItems.length === 0 ? (
+            ownNotes.length === 0 ? (
               <div style={{ textAlign: "center", padding: "50px 0", fontFamily: "var(--ln-preview)", fontStyle: "italic", fontSize: 18, color: "var(--ln-muted)" }}>No notes yet.</div>
             ) : (
               <div className="lnw-note-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20, alignItems: "start" }}>
-                {noteItems.map(({ vm, reposted }) => (
-                  <LNWCard key={`${reposted ? "rp-" : ""}${vm.kind}-${vm.id}`} vm={vm} onOpen={() => router.push(vm.href)} showCounts repostedBadge={reposted} onToggleRepost={reposted && isOwnProfile ? () => handleUnrepost(vm) : undefined} />
+                {ownNotes.map(({ vm }) => (
+                  <LNWCard key={`${vm.kind}-${vm.id}`} vm={vm} onOpen={() => router.push(vm.href)} showCounts />
+                ))}
+              </div>
+            )
+          )}
+
+          {tab === "reposts" && (
+            repostNotes.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "50px 0", fontFamily: "var(--ln-preview)", fontStyle: "italic", fontSize: 18, color: "var(--ln-muted)" }}>No reposts yet.</div>
+            ) : (
+              <div className="lnw-note-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20, alignItems: "start" }}>
+                {repostNotes.map(({ vm }) => (
+                  <LNWCard key={`rp-${vm.kind}-${vm.id}`} vm={vm} onOpen={() => router.push(vm.href)} showCounts onToggleRepost={isOwnProfile ? () => handleUnrepost(vm) : undefined} />
                 ))}
               </div>
             )

@@ -1,7 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthSession } from "@/lib/auth-helpers";
+import { searchTracks as spotifySearchTracks } from "@/lib/spotify";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://beta-linernotes.vercel.app/api";
+
+// App-level Spotify token (client credentials — no user) used to pull the
+// highest-resolution cover art for track search. Cached until it expires.
+let spotifyAppToken: { token: string; expiresAt: number } | null = null;
+async function getSpotifyAppToken(): Promise<string | null> {
+  if (spotifyAppToken && spotifyAppToken.expiresAt > Date.now() + 5000) return spotifyAppToken.token;
+  const id = process.env.SPOTIFY_CLIENT_ID;
+  const secret = process.env.SPOTIFY_CLIENT_SECRET;
+  if (!id || !secret) return null;
+  try {
+    const res = await fetch("https://accounts.spotify.com/api/token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: `Basic ${Buffer.from(`${id}:${secret}`).toString("base64")}`,
+      },
+      body: new URLSearchParams({ grant_type: "client_credentials" }),
+    });
+    if (!res.ok) return null;
+    const d = await res.json();
+    if (!d.access_token) return null;
+    spotifyAppToken = { token: d.access_token, expiresAt: Date.now() + (d.expires_in || 3600) * 1000 };
+    return d.access_token;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * GET /api/search - Search for tracks or albums
@@ -31,7 +59,22 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Try backend first, fallback to iTunes API if backend not deployed yet
+    // Spotify first for tracks — highest-resolution cover art. Albums keep the
+    // backend/iTunes path because /api/albums/[id] only resolves MusicBrainz or
+    // iTunes IDs (a Spotify album ID couldn't load its tracklist).
+    if (type !== "album") {
+      try {
+        const spotifyToken = await getSpotifyAppToken();
+        if (spotifyToken) {
+          const tracks = await spotifySearchTracks(query, spotifyToken);
+          if (tracks.length > 0) return NextResponse.json({ tracks });
+        }
+      } catch (spotifyError) {
+        console.log("Spotify track search failed, falling back:", spotifyError);
+      }
+    }
+
+    // Try backend next, fallback to iTunes API if backend not deployed yet
     const endpoint = type === "album" ? "albums" : "tracks";
     const backendUrl = `${API_BASE_URL}/music/search/${endpoint}?q=${encodeURIComponent(query)}&limit=${limit}`;
 

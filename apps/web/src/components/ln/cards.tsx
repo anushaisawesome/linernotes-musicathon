@@ -225,8 +225,8 @@ export function LNWCard({ vm, accent = GOLD, onOpen, showCounts = false, reposte
         background: "var(--ln-surface)",
         border: `1px solid rgba(var(--ln-line-rgb),${hover ? 0.16 : 0.08})`,
         boxShadow: hover
-          ? "0 1px 2px rgba(var(--ln-line-rgb),0.05), 0 26px 56px -26px var(--ln-shadow)"
-          : "0 1px 2px rgba(var(--ln-line-rgb),0.05), 0 16px 38px -22px var(--ln-shadow)",
+          ? "0 8px 18px -6px rgba(0,0,0,0.34), 0 30px 60px -28px var(--ln-shadow)"
+          : "0 5px 14px -5px rgba(0,0,0,0.26), 0 20px 44px -24px var(--ln-shadow)",
         transform: hover && onOpen ? "translateY(-3px)" : "none",
       }}
     >
