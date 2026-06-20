@@ -80,8 +80,8 @@ export function getTrackNotes(review: Review | null): Array<{
   }
 
   return review.notes.map((note) => ({
-    timestampSeconds: note.timestampSeconds,
-    note: note.note,
+    timestampSeconds: note.seconds,
+    note: note.note || '',
     label: note.label,
   }));
 }

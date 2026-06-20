@@ -84,7 +84,7 @@ function ExperienceContent() {
 
     async function fetchLyrics() {
       try {
-        const res = await fetch(`/api/lyrics?isrc=${encodeURIComponent(playerState.isrc!)}`);
+        const res = await fetch(`/api/lyrics?isrc=${encodeURIComponent(playerState?.isrc || '')}`);
 
         // Graceful degradation: If Musixmatch key expired, show message but don't crash
         if (res.status === 401 || res.status === 403) {

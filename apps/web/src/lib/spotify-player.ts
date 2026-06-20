@@ -30,19 +30,6 @@ export interface SpotifyPlayer {
   previousTrack: () => Promise<void>;
 }
 
-declare global {
-  interface Window {
-    Spotify: {
-      Player: new (options: {
-        name: string;
-        getOAuthToken: (cb: (token: string) => void) => void;
-        volume: number;
-      }) => SpotifyPlayer;
-    };
-    onSpotifyWebPlaybackSDKReady: () => void;
-  }
-}
-
 export class WebPlaybackSDK {
   private player: SpotifyPlayer | null = null;
   private deviceId: string | null = null;
@@ -87,7 +74,7 @@ export class WebPlaybackSDK {
 
     this.player = new window.Spotify.Player({
       name: "LinerNotes Experience",
-      getOAuthToken: (cb) => {
+      getOAuthToken: (cb: (token: string) => void) => {
         if (this.accessToken) {
           cb(this.accessToken);
         }
@@ -96,22 +83,22 @@ export class WebPlaybackSDK {
     });
 
     // Set up event listeners
-    this.player.addListener("ready", ({ device_id }: { device_id: string }) => {
+    this.player!.addListener("ready", ({ device_id }: { device_id: string }) => {
       console.log("[Spotify Player] Ready with Device ID:", device_id);
       this.deviceId = device_id;
     });
 
-    this.player.addListener("not_ready", ({ device_id }: { device_id: string }) => {
+    this.player!.addListener("not_ready", ({ device_id }: { device_id: string }) => {
       console.log("[Spotify Player] Device ID has gone offline:", device_id);
     });
 
-    this.player.addListener("player_state_changed", (state: Spotify.PlaybackState | null) => {
+    this.player!.addListener("player_state_changed", (state: Spotify.PlaybackState | null) => {
       if (!state) return;
       this.handleStateChange(state);
     });
 
     // Connect to Spotify
-    const connected = await this.player.connect();
+    const connected = await this.player!.connect();
     if (!connected) {
       throw new Error("Failed to connect to Spotify");
     }
