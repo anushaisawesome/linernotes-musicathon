@@ -182,6 +182,24 @@ export class WebPlaybackSDK {
   }
 
   /**
+   * Next track
+   */
+  async nextTrack(): Promise<void> {
+    if (this.player) {
+      await this.player.nextTrack();
+    }
+  }
+
+  /**
+   * Previous track
+   */
+  async previousTrack(): Promise<void> {
+    if (this.player) {
+      await this.player.previousTrack();
+    }
+  }
+
+  /**
    * Get current state
    */
   async getCurrentState(): Promise<PlayerState | null> {
