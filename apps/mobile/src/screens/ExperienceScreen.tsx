@@ -875,6 +875,23 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 12,
   },
+  lyricsHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  translationToggle: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  translationToggleText: {
+    fontFamily: 'Menlo',
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+  },
   musixmatchAttr: {
     fontFamily: 'Menlo',
     fontSize: 9.5,
