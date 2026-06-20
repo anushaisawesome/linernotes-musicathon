@@ -58,10 +58,9 @@ function ExperienceContent() {
 
         setPlayer(sdk);
 
-        // Play the track if we have a Spotify URI
-        if (review?.track?.spotifyUri) {
-          await sdk.playTrack(review.track.spotifyUri);
-        }
+        // Note: Auto-play requires user to manually select track in Spotify
+        // For demo, user will need to start playback from Spotify app
+        // Then transfer to this Web Playback device
 
         setLoading(false);
       } catch (err) {
