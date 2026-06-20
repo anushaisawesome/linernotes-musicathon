@@ -364,12 +364,20 @@ export async function GET(request: Request) {
         // Don't use album name from track.getinfo - it can have corrupted/user-submitted metadata
       }
 
-      // Only validate with Spotify if album name looks suspicious (contains "67", "b4", "days", etc.)
+      // Validate with Spotify if: (1) no artwork yet, OR (2) album name looks suspicious
       const suspiciousPattern = /\b(67|b4|days|before)\b/i;
-      if (albumName && suspiciousPattern.test(albumName)) {
-        console.log(`[Last.fm Prompts] Suspicious album name detected: "${albumName}", validating with Spotify...`);
+      const needsSpotifyValidation = !artworkUrl || (albumName && suspiciousPattern.test(albumName));
+
+      if (needsSpotifyValidation) {
+        if (!artworkUrl) {
+          console.log(`[Last.fm Prompts] No artwork for "${track.name}", checking Spotify...`);
+        }
+        if (albumName && suspiciousPattern.test(albumName)) {
+          console.log(`[Last.fm Prompts] Suspicious album name detected: "${albumName}", validating with Spotify...`);
+        }
+
         const spotifyValidation = await validateWithSpotify(track.name, artistName, albumName);
-        if (spotifyValidation.album) {
+        if (spotifyValidation.album && albumName && suspiciousPattern.test(albumName)) {
           albumName = spotifyValidation.album;
         }
         if (spotifyValidation.artwork && !artworkUrl) {
@@ -377,15 +385,7 @@ export async function GET(request: Request) {
         }
       }
 
-      // If still no artwork and we have an album, try Last.fm album.getinfo
-      if (!artworkUrl && albumName) {
-        artworkUrl = await fetchLastFmAlbumInfo(albumName, artistName, apiKey);
-      }
-
-      // Finally fall back to MusicBrainz/iTunes
-      if (!artworkUrl) {
-        artworkUrl = await fetchFallbackArtwork(track.name, artistName, albumName);
-      }
+      // Spotify validation above handles artwork fallback, no need for additional fallbacks
 
       const palette = paletteFromString(albumName || track.name);
 
@@ -450,12 +450,20 @@ export async function GET(request: Request) {
         // Don't use album name from track.getinfo - it can have corrupted/user-submitted metadata
       }
 
-      // Only validate with Spotify if album name looks suspicious (contains "67", "b4", "days", etc.)
+      // Validate with Spotify if: (1) no artwork yet, OR (2) album name looks suspicious
       const suspiciousPattern = /\b(67|b4|days|before)\b/i;
-      if (albumName && suspiciousPattern.test(albumName)) {
-        console.log(`[Last.fm Prompts] Suspicious album name detected: "${albumName}", validating with Spotify...`);
+      const needsSpotifyValidation = !artworkUrl || (albumName && suspiciousPattern.test(albumName));
+
+      if (needsSpotifyValidation) {
+        if (!artworkUrl) {
+          console.log(`[Last.fm Prompts] No artwork for "${track.name}", checking Spotify...`);
+        }
+        if (albumName && suspiciousPattern.test(albumName)) {
+          console.log(`[Last.fm Prompts] Suspicious album name detected: "${albumName}", validating with Spotify...`);
+        }
+
         const spotifyValidation = await validateWithSpotify(track.name, artistName, albumName);
-        if (spotifyValidation.album) {
+        if (spotifyValidation.album && albumName && suspiciousPattern.test(albumName)) {
           albumName = spotifyValidation.album;
         }
         if (spotifyValidation.artwork && !artworkUrl) {
@@ -463,15 +471,7 @@ export async function GET(request: Request) {
         }
       }
 
-      // If still no artwork and we have an album, try Last.fm album.getinfo
-      if (!artworkUrl && albumName) {
-        artworkUrl = await fetchLastFmAlbumInfo(albumName, artistName, apiKey);
-      }
-
-      // Finally fall back to MusicBrainz/iTunes
-      if (!artworkUrl) {
-        artworkUrl = await fetchFallbackArtwork(track.name, artistName, albumName);
-      }
+      // Spotify validation above handles artwork fallback, no need for additional fallbacks
 
       const palette = paletteFromString(albumName || track.name);
 
