@@ -4,10 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import type { User, Review, AlbumReview } from "@/lib/types";
+import type { User, Review, AlbumReview, Album } from "@/lib/types";
 import { TopBar, Footer } from "@/components/ln/nav";
 import { LNArt, LNStars, LNIcon } from "@/components/ln/atoms";
 import { LNWCard } from "@/components/ln/cards";
+import { AlbumSearch } from "@/components/compose/AlbumSearch";
 import { toReviewVM, toAlbumReviewVM, type ReviewVM } from "@/lib/view-adapter";
 import { paletteFromString, tintFromString } from "@/lib/palette";
 
@@ -220,6 +221,26 @@ export default function ProfilePage() {
     }
   };
 
+  // Add a searched album straight into the Top 4 (dedup + cap at 4).
+  const addAlbumFav = (album: Album) => {
+    setFavs((cur) => {
+      const id = String(album.albumId);
+      if (cur.some((f) => f.kind === "album" && f.id === id)) return cur;
+      if (cur.length >= 4) return cur;
+      return [...cur, { kind: "album", id, name: album.name, artist: album.artist, artworkUrl: album.artworkUrl }];
+    });
+  };
+
+  // Unsave from the Saved tab: toggle the save off and drop it from the list.
+  const handleUnsave = async (vm: ReviewVM) => {
+    setSavedReviews((arr) => arr.filter((r) => r.id !== vm.id));
+    try {
+      if (vm.kind === "track") await fetch(`/api/reviews/${vm.id}/save`, { method: "POST" });
+    } catch {
+      /* best-effort; resyncs on reload */
+    }
+  };
+
   if (loading) {
     return (
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--ln-bg)" }}>
@@ -244,13 +265,14 @@ export default function ProfilePage() {
   }
 
   const tint = tintFromString(user.id || user.handle);
-  // Every review this user has made — track + album — newest first, no cap.
+  // The 8 most recent reviews (track + album) this user posted.
   const reviewTime = (x: { createdAt?: string }) => new Date(x.createdAt || 0).getTime();
-  const allReviewItems = [
+  const recentReviewItems = [
     ...reviews.map((r) => ({ t: reviewTime(r), fav: trackToFav(r) })),
     ...albumReviews.map((a) => ({ t: reviewTime(a as { createdAt?: string }), fav: albumToFav(a) })),
   ]
     .sort((a, b) => b.t - a.t)
+    .slice(0, 8)
     .map((o) => o.fav);
   const momentCount =
     reviews.reduce((s, r) => s + (r.notes?.length || 0), 0) +
@@ -353,9 +375,13 @@ export default function ProfilePage() {
                         );
                       })}
                     </div>
+                    <div style={{ marginTop: 18 }}>
+                      <div style={{ fontFamily: "var(--ln-mono)", fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", color: "rgba(var(--ln-fg-rgb),0.5)", marginBottom: 8 }}>search albums to add</div>
+                      <AlbumSearch onAlbumSelect={addAlbumFav} />
+                    </div>
                     <div style={{ marginTop: 22 }}>
                       <div style={{ display: "flex", alignItems: "baseline", gap: 9, marginBottom: 4 }}>
-                        <span style={{ fontFamily: "var(--ln-mono)", fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", color: "rgba(var(--ln-fg-rgb),0.5)" }}>your ratings — tap to choose</span>
+                        <span style={{ fontFamily: "var(--ln-mono)", fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", color: "rgba(var(--ln-fg-rgb),0.5)" }}>your reviews — tap to choose</span>
                         <span style={{ fontFamily: "var(--ln-mono)", fontSize: 10, color: "var(--ln-accent)" }}>{favs.length}/4</span>
                       </div>
                       {pool.length === 0 ? (
@@ -379,11 +405,11 @@ export default function ProfilePage() {
               </div>
             )}
 
-            {allReviewItems.length > 0 && (
+            {recentReviewItems.length > 0 && (
               <div style={{ marginTop: 40 }}>
-                <SectionLabel>all reviews</SectionLabel>
+                <SectionLabel>recent reviews</SectionLabel>
                 <div className="ln-scroll" style={{ display: "flex", gap: 16, overflowX: "auto", paddingBottom: 6 }}>
-                  {allReviewItems.map((it) => (
+                  {recentReviewItems.map((it) => (
                     <div key={it.key} style={{ width: 150, flexShrink: 0 }}>
                       <FavTile item={it} onOpen={() => it.href && router.push(it.href)} />
                     </div>
@@ -405,7 +431,7 @@ export default function ProfilePage() {
             noteItems.length === 0 ? (
               <div style={{ textAlign: "center", padding: "50px 0", fontFamily: "var(--ln-preview)", fontStyle: "italic", fontSize: 18, color: "var(--ln-muted)" }}>No notes yet.</div>
             ) : (
-              <div className="lnw-note-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 28, alignItems: "start" }}>
+              <div className="lnw-note-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20, alignItems: "start" }}>
                 {noteItems.map(({ vm, reposted }) => (
                   <LNWCard key={`${reposted ? "rp-" : ""}${vm.kind}-${vm.id}`} vm={vm} onOpen={() => router.push(vm.href)} showCounts repostedBadge={reposted} />
                 ))}
@@ -417,9 +443,9 @@ export default function ProfilePage() {
             savedVms.length === 0 ? (
               <div style={{ textAlign: "center", padding: "50px 0", fontFamily: "var(--ln-mono)", fontSize: 12, color: "rgba(var(--ln-fg-rgb),0.4)" }}>Nothing saved yet</div>
             ) : (
-              <div className="lnw-note-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 28, alignItems: "start" }}>
+              <div className="lnw-note-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20, alignItems: "start" }}>
                 {savedVms.map((vm) => (
-                  <LNWCard key={`sv-${vm.kind}-${vm.id}`} vm={vm} onOpen={() => router.push(vm.href)} showCounts />
+                  <LNWCard key={`sv-${vm.kind}-${vm.id}`} vm={vm} onOpen={() => router.push(vm.href)} showCounts onToggleSave={() => handleUnsave(vm)} />
                 ))}
               </div>
             )
@@ -430,8 +456,11 @@ export default function ProfilePage() {
       <Footer />
 
       <style>{`
-        @media (max-width: 860px) {
+        @media (max-width: 900px) {
           .lnw-fav-grid { grid-template-columns: repeat(2, 1fr) !important; }
+          .lnw-note-grid { grid-template-columns: repeat(2, 1fr) !important; }
+        }
+        @media (max-width: 560px) {
           .lnw-note-grid { grid-template-columns: 1fr !important; }
         }
       `}</style>

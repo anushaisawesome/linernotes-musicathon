@@ -6,6 +6,7 @@
 
 import { useState, useEffect, type MouseEvent } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { LNArt, LNStars, LNReact, LNIcon, LNAvatar, LNMoment, lnRel } from "./atoms";
 import type { ReviewVM, AlbumVM, MomentVM } from "@/lib/view-adapter";
 import type { Palette } from "@/lib/palette";
@@ -180,7 +181,7 @@ export function LNWFeedCard({ vm, accent = GOLD, onOpen }: { vm: ReviewVM; accen
 }
 
 // Vertical card (profile grids / compact lists).
-export function LNWCard({ vm, accent = GOLD, onOpen, showCounts = false, repostedBadge = false }: { vm: ReviewVM; accent?: string; onOpen?: () => void; showCounts?: boolean; repostedBadge?: boolean }) {
+export function LNWCard({ vm, accent = GOLD, onOpen, showCounts = false, repostedBadge = false, onToggleSave }: { vm: ReviewVM; accent?: string; onOpen?: () => void; showCounts?: boolean; repostedBadge?: boolean; onToggleSave?: () => void }) {
   const { album } = vm;
   const [palette, setPalette] = useState<Palette>(album.palette);
   const p = palette;
@@ -227,6 +228,11 @@ export function LNWCard({ vm, accent = GOLD, onOpen, showCounts = false, reposte
         )}
         {badgeLabel && (
           <div style={{ position: "absolute", top: 13, left: 13, padding: "5px 9px", borderRadius: 999, background: "rgba(8,7,6,0.5)", backdropFilter: "blur(8px)", border: "1px solid rgba(var(--ln-line-rgb),0.1)", fontFamily: "var(--ln-mono)", fontSize: 9.5, letterSpacing: "0.06em", textTransform: "uppercase", color: "#f1ebe0" }}>{badgeLabel}</div>
+        )}
+        {onToggleSave && (
+          <button onClick={(e) => { e.stopPropagation(); onToggleSave(); }} title="Remove from saved" className="ln-press" style={{ position: "absolute", bottom: 11, right: 11, width: 34, height: 34, borderRadius: 999, background: "rgba(8,7,6,0.62)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", border: "1px solid rgba(var(--ln-line-rgb),0.16)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, zIndex: 3 }}>
+            <LNIcon name="save" size={16} filled color="var(--ln-save)" />
+          </button>
         )}
       </LNArt>
 
@@ -287,6 +293,9 @@ export function FeedItem({
   onSave?: () => void;
 }) {
   const router = useRouter();
+  const { data: session } = useSession();
+  // You can't repost/save/like your own review.
+  const isOwn = !!session?.user?.handle && session.user.handle === vm.user.handle;
   const gold = accent;
   const [like, setLike] = useState({ on: !!vm.likedByMe, n: vm.likeCount });
   const [save, setSave] = useState(!!vm.saved);
@@ -330,6 +339,7 @@ export function FeedItem({
 
       <LNWFeedCard vm={vm} accent={gold} onOpen={() => router.push(vm.href)} />
 
+      {!isOwn && (
       <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "0 4px" }}>
         <LNWActionBtn
           onClick={stop(async () => {
@@ -398,6 +408,7 @@ export function FeedItem({
           count={like.n}
         />
       </div>
+      )}
     </div>
   );
 }
