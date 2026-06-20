@@ -4,7 +4,7 @@
 // the vertical card (profile grid), the per-track strip, and the action row. All
 // consume the ReviewVM produced by view-adapter.ts.
 
-import { useState, useEffect, type MouseEvent } from "react";
+import { useState, useEffect, useRef, type MouseEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { LNArt, LNStars, LNReact, LNIcon, LNAvatar, LNMoment, lnRel } from "./atoms";
@@ -122,7 +122,7 @@ export function LNWFeedCard({ vm, accent = GOLD, onOpen }: { vm: ReviewVM; accen
   const hasTracks = isAlbum || album.kind === "playlist";
   const badgeLabel = album.kind === "playlist" ? "playlist" : isAlbum ? "album review" : null;
   const fm = featuredMoment(vm);
-  const hasFullReview = !!vm.body;
+  const hasMore = !!vm.body || (!!vm.take && vm.take.trim().includes("\n"));
 
   return (
     <article
@@ -163,9 +163,9 @@ export function LNWFeedCard({ vm, accent = GOLD, onOpen }: { vm: ReviewVM; accen
           </div>
         )}
 
-        {hasFullReview && (
+        {hasMore && (
           <div style={{ position: "relative", marginTop: 2, display: "inline-flex", alignItems: "center", gap: 6, alignSelf: "flex-start", fontFamily: "var(--ln-body)", fontSize: 12.5, fontWeight: 600, color: gold }}>
-            Read the full review
+            Tap to view full review
             <span style={{ fontSize: 14, lineHeight: 1, transform: hover ? "translateX(3px)" : "none", transition: "transform 0.18s" }}>→</span>
           </div>
         )}
@@ -192,6 +192,14 @@ export function LNWCard({ vm, accent = GOLD, onOpen, showCounts = false, reposte
   const fm = featuredMoment(vm);
   const depth = !vm.take ? "floor" : vm.body ? "full" : "caption";
   const showPill = vm.rating > 0 && album.kind !== "playlist";
+  // Uniform card size: the body is clipped to a fixed height; if the review
+  // overflows it, surface a "Tap to view full review" hint.
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const [overflowing, setOverflowing] = useState(false);
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (el) setOverflowing(el.scrollHeight > el.clientHeight + 4);
+  }, [vm]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
@@ -229,45 +237,59 @@ export function LNWCard({ vm, accent = GOLD, onOpen, showCounts = false, reposte
         {badgeLabel && (
           <div style={{ position: "absolute", top: 13, left: 13, padding: "5px 9px", borderRadius: 999, background: "rgba(8,7,6,0.5)", backdropFilter: "blur(8px)", border: "1px solid rgba(var(--ln-line-rgb),0.1)", fontFamily: "var(--ln-mono)", fontSize: 9.5, letterSpacing: "0.06em", textTransform: "uppercase", color: "#f1ebe0" }}>{badgeLabel}</div>
         )}
-        {onToggleSave && (
-          <button onClick={(e) => { e.stopPropagation(); onToggleSave(); }} title="Remove from saved" className="ln-press" style={{ position: "absolute", bottom: 11, right: 11, width: 34, height: 34, borderRadius: 999, background: "rgba(8,7,6,0.62)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", border: "1px solid rgba(var(--ln-line-rgb),0.16)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, zIndex: 3 }}>
-            <LNIcon name="save" size={16} filled color="var(--ln-save)" />
-          </button>
-        )}
       </LNArt>
 
-      <div style={{ position: "relative", padding: "18px 19px 16px", display: "flex", flexDirection: "column", gap: 13 }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          <h3 style={{ margin: 0, fontFamily: "var(--ln-album)", fontWeight: 600, fontSize: 23, lineHeight: 1.12, color: "var(--ln-fg)", letterSpacing: "-0.01em" }}>{album.title}</h3>
-          <span style={{ fontFamily: "var(--ln-body)", fontSize: 14, color: "var(--ln-muted)" }}>{album.artist}</span>
+      <div style={{ position: "relative", padding: "18px 19px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
+        <div ref={bodyRef} style={{ position: "relative", height: 142, overflow: "hidden", display: "flex", flexDirection: "column", gap: 13 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <h3 style={{ margin: 0, fontFamily: "var(--ln-album)", fontWeight: 600, fontSize: 23, lineHeight: 1.12, color: "var(--ln-fg)", letterSpacing: "-0.01em" }}>{album.title}</h3>
+            <span style={{ fontFamily: "var(--ln-body)", fontSize: 14, color: "var(--ln-muted)" }}>{album.artist}</span>
+          </div>
+
+          {vm.take && <p style={{ margin: 0, fontFamily: "var(--ln-preview)", fontStyle: "italic", fontWeight: 500, fontSize: 18.5, lineHeight: 1.4, color: "var(--ln-fg)" }}>{vm.take.split("\n")[0]}</p>}
+
+          {depth === "floor" && album.kind !== "playlist" && vm.rating > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, paddingTop: 1 }}>
+              <LNStars rating={vm.rating} size={18} color={gold} showNum={false} />
+              <span style={{ fontFamily: "var(--ln-mono)", fontSize: 15, color: gold, letterSpacing: "-0.02em" }}>{vm.rating.toFixed(1)}</span>
+              <span style={{ fontFamily: "var(--ln-mono)", fontSize: 10, letterSpacing: "0.08em", color: "rgba(var(--ln-fg-rgb),0.38)", textTransform: "uppercase", marginLeft: 2 }}>rated</span>
+            </div>
+          )}
+
+          {depth !== "floor" && fm && (
+            <div style={{ paddingTop: 1 }}>
+              <LNMoment note={fm} accent={gold} />
+            </div>
+          )}
+
+          {(isAlbum || album.kind === "playlist") && <LNWCardStrip album={album} gold={gold} />}
+
+          {overflowing && (
+            <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 44, background: "linear-gradient(transparent, var(--ln-surface))", pointerEvents: "none" }} />
+          )}
         </div>
 
-        {vm.take && <p style={{ margin: 0, fontFamily: "var(--ln-preview)", fontStyle: "italic", fontWeight: 500, fontSize: 18.5, lineHeight: 1.4, color: "var(--ln-fg)" }}>{vm.take.split("\n")[0]}</p>}
-
-        {depth === "floor" && album.kind !== "playlist" && vm.rating > 0 && (
-          <div style={{ display: "flex", alignItems: "center", gap: 10, paddingTop: 1 }}>
-            <LNStars rating={vm.rating} size={18} color={gold} showNum={false} />
-            <span style={{ fontFamily: "var(--ln-mono)", fontSize: 15, color: gold, letterSpacing: "-0.02em" }}>{vm.rating.toFixed(1)}</span>
-            <span style={{ fontFamily: "var(--ln-mono)", fontSize: 10, letterSpacing: "0.08em", color: "rgba(var(--ln-fg-rgb),0.38)", textTransform: "uppercase", marginLeft: 2 }}>rated</span>
-          </div>
+        {overflowing && (
+          <div style={{ fontFamily: "var(--ln-body)", fontSize: 12.5, fontWeight: 600, color: gold }}>Tap to view full review →</div>
         )}
 
-        {depth !== "floor" && fm && (
-          <div style={{ paddingTop: 1 }}>
-            <LNMoment note={fm} accent={gold} />
-          </div>
-        )}
-
-        {(isAlbum || album.kind === "playlist") && <LNWCardStrip album={album} gold={gold} />}
-
-        {showCounts && (
-          <div style={{ display: "flex", alignItems: "center", gap: 18, paddingTop: 12, marginTop: 2, borderTop: "1px solid rgba(var(--ln-fg-rgb),0.08)" }}>
-            {([["like", vm.likeCount], ["repost", vm.repostCount], ["save", vm.saveCount ?? 0]] as const).map(([icon, n]) => (
-              <span key={icon} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "var(--ln-mono)", fontSize: 12.5, color: "rgba(var(--ln-fg-rgb),0.6)" }}>
-                <LNIcon name={icon} size={17} color="rgba(var(--ln-fg-rgb),0.6)" />
-                {n}
-              </span>
-            ))}
+        {(showCounts || onToggleSave) && (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, paddingTop: 12, borderTop: "1px solid rgba(var(--ln-fg-rgb),0.08)" }}>
+            {showCounts ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                {([["like", vm.likeCount], ["repost", vm.repostCount], ["save", vm.saveCount ?? 0]] as const).map(([icon, n]) => (
+                  <span key={icon} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "var(--ln-mono)", fontSize: 12.5, color: "rgba(var(--ln-fg-rgb),0.6)" }}>
+                    <LNIcon name={icon} size={17} color="rgba(var(--ln-fg-rgb),0.6)" />
+                    {n}
+                  </span>
+                ))}
+              </div>
+            ) : <span />}
+            {onToggleSave && (
+              <button onClick={(e) => { e.stopPropagation(); onToggleSave(); }} className="ln-press" style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 999, cursor: "pointer", background: `${gold}1a`, border: `1px solid ${gold}55`, color: gold, fontFamily: "var(--ln-body)", fontSize: 12, fontWeight: 600 }}>
+                <LNIcon name="save" size={14} filled color={gold} /> Unsave
+              </button>
+            )}
           </div>
         )}
       </div>

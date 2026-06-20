@@ -25,6 +25,7 @@ const GOLD = "var(--ln-accent)";
 
 // Quick ideas for a moment's label — tap to fill the label field.
 const LABEL_IDEAS = [
+  "the intro",
   "the drop",
   "beat switch",
   "the build",
