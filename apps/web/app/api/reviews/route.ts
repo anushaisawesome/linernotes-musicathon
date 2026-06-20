@@ -377,6 +377,7 @@ export async function POST(request: NextRequest) {
             seconds: note.seconds,
             label: note.label,
             note: note.note || null,
+            lyric: note.lyric || null,
           })),
         } : undefined,
       },

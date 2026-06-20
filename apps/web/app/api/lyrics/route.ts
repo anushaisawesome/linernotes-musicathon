@@ -103,22 +103,33 @@ export async function GET(request: NextRequest) {
     }
 
     console.log("[Musixmatch] Subtitle body type:", typeof subtitle.subtitle_body);
-    console.log("[Musixmatch] Subtitle body preview:", JSON.stringify(subtitle.subtitle_body).substring(0, 200));
+    console.log("[Musixmatch] Subtitle body preview:", JSON.stringify(subtitle.subtitle_body).substring(0, 300));
 
     // Parse subtitle format (JSON string with timing data)
     let parsedLyrics;
     try {
       // Check if subtitle_body is already an object or a string
       if (typeof subtitle.subtitle_body === 'string') {
+        if (subtitle.subtitle_body.trim() === '') {
+          throw new Error("Subtitle body is empty string");
+        }
         parsedLyrics = JSON.parse(subtitle.subtitle_body);
-      } else {
+      } else if (typeof subtitle.subtitle_body === 'object') {
         parsedLyrics = subtitle.subtitle_body;
+      } else {
+        throw new Error(`Unexpected subtitle_body type: ${typeof subtitle.subtitle_body}`);
+      }
+
+      // Validate parsed lyrics structure
+      if (!Array.isArray(parsedLyrics)) {
+        console.error("[Musixmatch] Parsed lyrics is not an array:", parsedLyrics);
+        throw new Error("Lyrics data is not in expected array format");
       }
     } catch (error) {
       console.error("[Musixmatch] Failed to parse lyrics:", error);
       console.error("[Musixmatch] Subtitle body was:", subtitle.subtitle_body);
       return NextResponse.json(
-        { error: "Invalid lyrics format" },
+        { error: `Invalid lyrics format: ${error instanceof Error ? error.message : 'Unknown error'}` },
         { status: 500 }
       );
     }

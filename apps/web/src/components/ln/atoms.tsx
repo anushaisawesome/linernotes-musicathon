@@ -345,11 +345,13 @@ export function LNMoment({
   note,
   accent,
 }: {
-  note: { sec: number; label?: string; note: string };
+  note: { sec: number; label?: string; note: string; lyric?: string };
   accent?: string;
 }) {
   const gold = accent || "var(--ln-accent)";
   const ts = lnFmt(note.sec);
+  const isLyric = !!note.lyric;
+
   return (
     <div style={{ display: "flex", gap: 12, alignItems: "stretch" }}>
       <div
@@ -365,8 +367,21 @@ export function LNMoment({
         <span style={{ fontFamily: "var(--ln-mono)", fontSize: 12.5, color: gold, letterSpacing: "0.02em" }}>
           {ts}
           {note.label ? <span style={{ opacity: 0.6 }}> · {note.label}</span> : null}
+          {isLyric && <span style={{ opacity: 0.7, marginLeft: 4 }}>♪</span>}
         </span>
-        {note.note && (
+        {isLyric ? (
+          <span style={{
+            fontFamily: "var(--ln-preview)",
+            fontStyle: "italic",
+            fontSize: 14.5,
+            lineHeight: 1.5,
+            color: "rgba(var(--ln-fg-rgb),0.85)",
+            borderLeft: `2px solid ${gold}33`,
+            paddingLeft: 10,
+          }}>
+            "{note.lyric}"
+          </span>
+        ) : note.note && (
           <span style={{ fontFamily: "var(--ln-body)", fontSize: 13.5, lineHeight: 1.4, color: "rgba(var(--ln-fg-rgb),0.82)" }}>
             {note.note}
           </span>
