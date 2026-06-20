@@ -78,7 +78,7 @@ async function fetchLastFmTrackInfo(track: string, artist: string, apiKey: strin
       const data = await res.json();
       // Last.fm track.getinfo returns album.title OR album["#text"]
       const albumName = data.track?.album?.title || data.track?.album?.["#text"] || "";
-      const artwork = data.track?.album?.image?.find((img: any) => img.size === "extralarge" || img.size === "large" || img.size === "medium")?. ["#text"] || "";
+      const artwork = data.track?.album?.image?.find((img: any) => img.size === "mega" || img.size === "extralarge" || img.size === "large" || img.size === "medium")?. ["#text"] || "";
 
       console.log("[Last.fm Prompts] track.getinfo response for", track, ":", { albumName, hasArtwork: !!artwork });
 
@@ -103,7 +103,7 @@ async function fetchLastFmAlbumInfo(album: string, artist: string, apiKey: strin
     if (res.ok) {
       const data = await res.json();
       if (data.album?.image) {
-        const artwork = data.album.image.find((img: any) => img.size === "extralarge" || img.size === "large" || img.size === "medium")?. ["#text"];
+        const artwork = data.album.image.find((img: any) => img.size === "mega" || img.size === "extralarge" || img.size === "large" || img.size === "medium")?. ["#text"];
         if (artwork && !artwork.includes("2a96cbd8b46e442fc41c2b86b821562f")) {
           return artwork;
         }
@@ -113,6 +113,41 @@ async function fetchLastFmAlbumInfo(album: string, artist: string, apiKey: strin
     console.error("[Last.fm Prompts] album.getinfo error:", error);
   }
   return "";
+}
+
+/**
+ * Validate album name against Spotify and get correct metadata
+ * Returns { album: string; artwork: string }
+ */
+async function validateWithSpotify(track: string, artist: string, lastfmAlbum: string): Promise<{ album: string; artwork: string }> {
+  try {
+    // Search Spotify for this track
+    const trackSearchUrl = `${process.env.NEXTAUTH_URL}/api/music/search/tracks?q=${encodeURIComponent(`${track} ${artist}`)}&limit=1`;
+    const res = await fetch(trackSearchUrl);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.tracks?.[0]) {
+        const spotifyTrack = data.tracks[0];
+        const spotifyAlbum = spotifyTrack.album?.name || "";
+        const spotifyArtwork = spotifyTrack.album?.artworkUrl || "";
+
+        // If Spotify has the track, use Spotify's album name and artwork
+        if (spotifyAlbum) {
+          console.log(`[Last.fm Prompts] Spotify validation for "${track}":`, {
+            lastfmAlbum,
+            spotifyAlbum,
+            using: spotifyAlbum,
+          });
+          return { album: spotifyAlbum, artwork: spotifyArtwork };
+        }
+      }
+    }
+  } catch (error) {
+    console.error("[Last.fm Prompts] Spotify validation error:", error);
+  }
+
+  // If Spotify doesn't have it, fall back to Last.fm data
+  return { album: lastfmAlbum, artwork: "" };
 }
 
 /**
@@ -177,8 +212,8 @@ export async function GET(request: Request) {
       );
     }
 
-    // Fetch recent tracks from Last.fm
-    const recentTracksUrl = `https://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=${connection.serviceUsername}&api_key=${apiKey}&format=json&limit=50`;
+    // Fetch recent tracks from Last.fm (increased to 200 for more variety)
+    const recentTracksUrl = `https://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=${connection.serviceUsername}&api_key=${apiKey}&format=json&limit=200`;
 
     const recentResponse = await fetch(recentTracksUrl);
     if (!recentResponse.ok) {
@@ -189,6 +224,33 @@ export async function GET(request: Request) {
     const tracks: LastFmTrack[] = recentData.recenttracks?.track || [];
 
     console.log("[Last.fm Prompts] Recent tracks count:", tracks.length);
+
+    // Fetch user's existing reviews to filter out already-logged tracks/albums
+    const existingReviews = await prisma.review.findMany({
+      where: { userId: user.id },
+      select: {
+        trackName: true,
+        trackArtist: true,
+        trackAlbum: true,
+      },
+    });
+
+    const existingAlbumReviews = await prisma.albumReview.findMany({
+      where: { userId: user.id },
+      select: {
+        albumName: true,
+        albumArtist: true,
+      },
+    });
+
+    const reviewedTracks = new Set(
+      existingReviews.map(r => `${r.trackArtist}::${r.trackName}`.toLowerCase())
+    );
+    const reviewedAlbums = new Set(
+      existingAlbumReviews.map(r => `${r.albumArtist}::${r.albumName}`.toLowerCase())
+    );
+
+    console.log("[Last.fm Prompts] Already reviewed:", reviewedTracks.size, "tracks,", reviewedAlbums.size, "albums");
     if (tracks.length > 0) {
       console.log("[Last.fm Prompts] Sample recent track structure:");
       console.log("  name:", tracks[0].name);
@@ -219,18 +281,50 @@ export async function GET(request: Request) {
       }
     }
 
-    // Fetch top albums to identify album spins
-    const topAlbumsUrl = `https://ws.audioscrobbler.com/2.0/?method=user.gettopalbums&user=${connection.serviceUsername}&api_key=${apiKey}&format=json&limit=10&period=7day`;
+    // Detect recent album plays (consecutive tracks from same album = intentional album listen)
+    const recentAlbumPlays: Array<{ album: string; artist: string; trackCount: number; tracks: string[]; image?: Array<{ "#text": string; size: string }> }> = [];
+    const albumPlayMap = new Map<string, { count: number; artist: string; tracks: Set<string>; lastIndex: number; image?: Array<{ "#text": string; size: string }> }>();
 
-    const albumsResponse = await fetch(topAlbumsUrl);
-    let topAlbums: Array<{ name: string; artist: { "#text": string } | string; playcount: string; image: Array<{ "#text": string; size: string }> }> = [];
-    if (albumsResponse.ok) {
-      const albumsData = await albumsResponse.json();
-      topAlbums = albumsData.topalbums?.album || [];
-      console.log("[Last.fm Prompts] Top albums count:", topAlbums.length);
-      if (topAlbums.length > 0) {
-        console.log("[Last.fm Prompts] Sample top album:", JSON.stringify(topAlbums[0], null, 2));
+    tracks.forEach((track, index) => {
+      const albumName = getAlbumName(track.album);
+      const artistName = getArtistName(track.artist);
+      if (!albumName || !artistName) return;
+
+      const albumKey = `${artistName}::${albumName}`;
+      const existing = albumPlayMap.get(albumKey);
+
+      // Count as album play if: (1) new album OR (2) within 10 tracks of last play (consecutive-ish)
+      if (!existing || index - existing.lastIndex <= 10) {
+        albumPlayMap.set(albumKey, {
+          count: (existing?.count || 0) + 1,
+          artist: artistName,
+          tracks: existing?.tracks ? new Set([...existing.tracks, track.name]) : new Set([track.name]),
+          lastIndex: index,
+          image: track.image || existing?.image,
+        });
       }
+    });
+
+    // Filter for albums with 3+ tracks played (indicates full album listen)
+    albumPlayMap.forEach((data, albumKey) => {
+      if (data.tracks.size >= 3) {
+        const [artist, album] = albumKey.split("::");
+        recentAlbumPlays.push({
+          album,
+          artist: data.artist,
+          trackCount: data.tracks.size,
+          tracks: Array.from(data.tracks),
+          image: data.image,
+        });
+      }
+    });
+
+    // Sort by track count (more tracks = more complete album listen)
+    recentAlbumPlays.sort((a, b) => b.trackCount - a.trackCount);
+
+    console.log("[Last.fm Prompts] Recent album plays detected:", recentAlbumPlays.length);
+    if (recentAlbumPlays.length > 0) {
+      console.log("[Last.fm Prompts] Sample recent album play:", JSON.stringify(recentAlbumPlays[0], null, 2));
     }
 
     // Prompt variations for variety
@@ -291,9 +385,12 @@ export async function GET(request: Request) {
     const albumCandidates: Prompt[] = [];
     const seenTracks = new Set<string>();
     const seenAlbums = new Set<string>();
+    const albumsInPrompts = new Set<string>(); // Track which albums already have prompts to avoid duplicates
 
     // Priority 1: Tracks on heavy repeat (from top tracks of the week) - Limit to 5
-    for (const track of topTracks.slice(0, 15)) {
+    // Shuffle top tracks to get variety instead of always showing the same top 5
+    const shuffledTopTracks = [...topTracks].sort(() => Math.random() - 0.5);
+    for (const track of shuffledTopTracks.slice(0, 20)) {
       const artistName = getArtistName(track.artist);
       let albumName = getAlbumName(track.album);
 
@@ -305,40 +402,68 @@ export async function GET(request: Request) {
 
       const trackKey = `${artistName}::${track.name}`;
 
+      // Skip if already reviewed
+      if (reviewedTracks.has(trackKey.toLowerCase())) {
+        console.log(`[Last.fm Prompts] Skipping already-reviewed track: ${trackKey}`);
+        continue;
+      }
+
       if (seenTracks.has(trackKey)) continue;
       seenTracks.add(trackKey);
 
       const playCount = track.playcount ? parseInt(track.playcount) : 0;
       if (playCount < 3) continue; // Only show if played 3+ times
 
-      // Try to get artwork from Last.fm first
-      let artworkUrl = track.image?.find((img) => img.size === "extralarge")?.["#text"] ||
+      // Skip if we already have a prompt for this album (one prompt per album in carousel)
+      const albumKey = `${artistName}::${albumName}`.toLowerCase();
+      if (albumName && albumsInPrompts.has(albumKey)) {
+        console.log(`[Last.fm Prompts] Skipping track - already have prompt for album: ${albumName}`);
+        continue;
+      }
+      if (albumName) {
+        albumsInPrompts.add(albumKey);
+      }
+
+      // Try to get artwork from Last.fm first (prefer highest quality)
+      let artworkUrl = track.image?.find((img) => img.size === "mega")?.["#text"] ||
+                       track.image?.find((img) => img.size === "extralarge")?.["#text"] ||
                        track.image?.find((img) => img.size === "large")?.["#text"] ||
                        track.image?.find((img) => img.size === "medium")?.["#text"] || "";
 
       // Check if Last.fm actually has valid artwork (not just empty/placeholder)
       const hasValidLastFmArt = artworkUrl && artworkUrl !== "" && !artworkUrl.includes("2a96cbd8b46e442fc41c2b86b821562f");
 
-      // If no valid artwork or missing album, try Last.fm track.getinfo API
-      if (!hasValidLastFmArt || !albumName) {
+      // If no valid artwork, try Last.fm track.getinfo API (but don't use album name from it - it can have bad user-submitted data)
+      if (!hasValidLastFmArt) {
         const trackInfo = await fetchLastFmTrackInfo(track.name, artistName, apiKey);
         if (trackInfo.artwork) {
           artworkUrl = trackInfo.artwork;
         }
-        if (!albumName && trackInfo.album) {
-          albumName = trackInfo.album;
+        // Don't use album name from track.getinfo - it can have corrupted/user-submitted metadata
+      }
+
+      // Validate with Spotify if: (1) no artwork yet, OR (2) album name looks suspicious
+      const suspiciousPattern = /\b(67|b4|days|before)\b/i;
+      const needsSpotifyValidation = !artworkUrl || (albumName && suspiciousPattern.test(albumName));
+
+      if (needsSpotifyValidation) {
+        if (!artworkUrl) {
+          console.log(`[Last.fm Prompts] No artwork for "${track.name}", checking Spotify...`);
+        }
+        if (albumName && suspiciousPattern.test(albumName)) {
+          console.log(`[Last.fm Prompts] Suspicious album name detected: "${albumName}", validating with Spotify...`);
+        }
+
+        const spotifyValidation = await validateWithSpotify(track.name, artistName, albumName);
+        if (spotifyValidation.album && albumName && suspiciousPattern.test(albumName)) {
+          albumName = spotifyValidation.album;
+        }
+        if (spotifyValidation.artwork && !artworkUrl) {
+          artworkUrl = spotifyValidation.artwork;
         }
       }
 
-      // If still no artwork and we have an album, try Last.fm album.getinfo
-      if (!artworkUrl && albumName) {
-        artworkUrl = await fetchLastFmAlbumInfo(albumName, artistName, apiKey);
-      }
-
-      // Finally fall back to MusicBrainz/iTunes
-      if (!artworkUrl) {
-        artworkUrl = await fetchFallbackArtwork(track.name, artistName, albumName);
-      }
+      // Spotify validation above handles artwork fallback, no need for additional fallbacks
 
       const palette = paletteFromString(albumName || track.name);
 
@@ -361,7 +486,7 @@ export async function GET(request: Request) {
         album: albumName,
         playCount,
         prompt: promptVariation(playCount),
-        tag: playCount >= 15 ? "HEAVY ROTATION" : playCount >= 10 ? "ON HEAVY PLAY" : "ON REPEAT",
+        tag: playCount >= 15 ? `HEAVY ROTATION ×${playCount}` : playCount >= 10 ? `ON HEAVY PLAY ×${playCount}` : `ON REPEAT ×${playCount}`,
         artworkUrl,
         palette,
       });
@@ -370,7 +495,9 @@ export async function GET(request: Request) {
     }
 
     // Priority 2: Recently played unique tracks - Limit to 5
-    for (const track of tracks.slice(0, 30)) {
+    // Sample from wider range (0-100) for more variety on refresh
+    const recentSample = tracks.slice(0, 100).sort(() => Math.random() - 0.5);
+    for (const track of recentSample.slice(0, 30)) {
       const artistName = getArtistName(track.artist);
       let albumName = getAlbumName(track.album);
 
@@ -382,37 +509,63 @@ export async function GET(request: Request) {
 
       const trackKey = `${artistName}::${track.name}`;
 
+      // Skip if already reviewed
+      if (reviewedTracks.has(trackKey.toLowerCase())) {
+        continue;
+      }
+
       if (seenTracks.has(trackKey)) continue;
       seenTracks.add(trackKey);
 
-      // Try to get artwork from Last.fm first
-      let artworkUrl = track.image?.find((img) => img.size === "extralarge")?.["#text"] ||
+      // Skip if we already have a prompt for this album (one prompt per album in carousel)
+      const albumKey = `${artistName}::${albumName}`.toLowerCase();
+      if (albumName && albumsInPrompts.has(albumKey)) {
+        continue;
+      }
+      if (albumName) {
+        albumsInPrompts.add(albumKey);
+      }
+
+      // Try to get artwork from Last.fm first (prefer highest quality)
+      let artworkUrl = track.image?.find((img) => img.size === "mega")?.["#text"] ||
+                       track.image?.find((img) => img.size === "extralarge")?.["#text"] ||
                        track.image?.find((img) => img.size === "large")?.["#text"] ||
                        track.image?.find((img) => img.size === "medium")?.["#text"] || "";
 
       // Check if Last.fm actually has valid artwork (not just empty/placeholder)
       const hasValidLastFmArt = artworkUrl && artworkUrl !== "" && !artworkUrl.includes("2a96cbd8b46e442fc41c2b86b821562f");
 
-      // If no valid artwork or missing album, try Last.fm track.getinfo API
-      if (!hasValidLastFmArt || !albumName) {
+      // If no valid artwork, try Last.fm track.getinfo API (but don't use album name from it - it can have bad user-submitted data)
+      if (!hasValidLastFmArt) {
         const trackInfo = await fetchLastFmTrackInfo(track.name, artistName, apiKey);
         if (trackInfo.artwork) {
           artworkUrl = trackInfo.artwork;
         }
-        if (!albumName && trackInfo.album) {
-          albumName = trackInfo.album;
+        // Don't use album name from track.getinfo - it can have corrupted/user-submitted metadata
+      }
+
+      // Validate with Spotify if: (1) no artwork yet, OR (2) album name looks suspicious
+      const suspiciousPattern = /\b(67|b4|days|before)\b/i;
+      const needsSpotifyValidation = !artworkUrl || (albumName && suspiciousPattern.test(albumName));
+
+      if (needsSpotifyValidation) {
+        if (!artworkUrl) {
+          console.log(`[Last.fm Prompts] No artwork for "${track.name}", checking Spotify...`);
+        }
+        if (albumName && suspiciousPattern.test(albumName)) {
+          console.log(`[Last.fm Prompts] Suspicious album name detected: "${albumName}", validating with Spotify...`);
+        }
+
+        const spotifyValidation = await validateWithSpotify(track.name, artistName, albumName);
+        if (spotifyValidation.album && albumName && suspiciousPattern.test(albumName)) {
+          albumName = spotifyValidation.album;
+        }
+        if (spotifyValidation.artwork && !artworkUrl) {
+          artworkUrl = spotifyValidation.artwork;
         }
       }
 
-      // If still no artwork and we have an album, try Last.fm album.getinfo
-      if (!artworkUrl && albumName) {
-        artworkUrl = await fetchLastFmAlbumInfo(albumName, artistName, apiKey);
-      }
-
-      // Finally fall back to MusicBrainz/iTunes
-      if (!artworkUrl) {
-        artworkUrl = await fetchFallbackArtwork(track.name, artistName, albumName);
-      }
+      // Spotify validation above handles artwork fallback, no need for additional fallbacks
 
       const palette = paletteFromString(albumName || track.name);
 
@@ -442,68 +595,60 @@ export async function GET(request: Request) {
       if (recentCandidates.length >= 5) break; // Limit to 5 recent prompts
     }
 
-    // Priority 3: Album spins - Limit to 3
-    for (const album of topAlbums.slice(0, 15)) {
-      const artistName = getArtistName(album.artist);
+    // Priority 3: Recent album plays (full album listens) - Limit to 1 for variety on refresh
+    for (const albumPlay of recentAlbumPlays.slice(0, 10)) {
+      const albumKey = `${albumPlay.artist}::${albumPlay.album}`;
 
-      // Skip only if missing album name or artist
-      if (!album.name || !artistName || album.name.trim() === "" || artistName.trim() === "") {
-        console.log("[Last.fm Prompts] Skipping album - name:", album.name, "artist:", artistName);
+      // Skip if already reviewed
+      if (reviewedAlbums.has(albumKey.toLowerCase())) {
+        console.log(`[Last.fm Prompts] Skipping already-reviewed album: ${albumKey}`);
         continue;
       }
-
-      const albumKey = `${artistName}::${album.name}`;
 
       if (seenAlbums.has(albumKey)) continue;
       seenAlbums.add(albumKey);
 
-      const playCount = parseInt(album.playcount) || 0;
-      if (playCount < 3) continue; // Only show if played 3+ times
-
       // Try to get artwork from Last.fm first
-      let artworkUrl = album.image?.find((img) => img.size === "extralarge")?.["#text"] ||
-                       album.image?.find((img) => img.size === "large")?.["#text"] ||
-                       album.image?.find((img) => img.size === "medium")?.["#text"] || "";
+      let artworkUrl = albumPlay.image?.find((img) => img.size === "mega")?.["#text"] ||
+                       albumPlay.image?.find((img) => img.size === "extralarge")?.["#text"] ||
+                       albumPlay.image?.find((img) => img.size === "large")?.["#text"] ||
+                       albumPlay.image?.find((img) => img.size === "medium")?.["#text"] || "";
 
-      // Check if Last.fm actually has valid artwork (not just empty/placeholder)
-      const hasValidLastFmArt = artworkUrl && artworkUrl !== "" && !artworkUrl.includes("2a96cbd8b46e442fc41c2b86b821562f");
-
-      // If no valid artwork, try Last.fm album.getinfo API (often has better artwork)
-      if (!hasValidLastFmArt) {
-        artworkUrl = await fetchLastFmAlbumInfo(album.name, artistName, apiKey);
-      }
-
-      // Finally fall back to MusicBrainz/iTunes
+      // Validate with Spotify if no artwork
       if (!artworkUrl) {
-        artworkUrl = await fetchFallbackArtwork("", artistName, album.name);
+        // Use first track from the album play for Spotify search
+        const spotifyValidation = await validateWithSpotify(albumPlay.tracks[0], albumPlay.artist, albumPlay.album);
+        if (spotifyValidation.artwork) {
+          artworkUrl = spotifyValidation.artwork;
+        }
       }
 
-      const palette = paletteFromString(album.name);
+      const palette = paletteFromString(albumPlay.album);
 
       console.log("[Last.fm Prompts] Creating album prompt:", {
-        album: album.name,
-        artist: artistName,
+        album: albumPlay.album,
+        artist: albumPlay.artist,
+        trackCount: albumPlay.trackCount,
         artworkUrl,
-        playCount,
       });
 
-      // Use varied prompt
+      // Use varied prompt based on track count
       const promptVariation = albumPrompts[albumCandidates.length % albumPrompts.length];
 
       albumCandidates.push({
         id: `album-${albumKey}`,
         type: "album",
         track: "", // For albums, track is empty
-        artist: artistName,
-        album: album.name,
-        playCount,
-        prompt: promptVariation(playCount),
-        tag: playCount >= 20 ? "ALBUM ON REPEAT" : playCount >= 10 ? "HEAVY ALBUM PLAY" : "ALBUM SPIN",
+        artist: albumPlay.artist,
+        album: albumPlay.album,
+        playCount: albumPlay.trackCount, // Use track count instead of total plays
+        prompt: promptVariation(albumPlay.trackCount),
+        tag: albumPlay.trackCount >= 8 ? `FULL ALBUM LISTEN · ${albumPlay.trackCount} TRACKS` : albumPlay.trackCount >= 5 ? `ALBUM SESSION · ${albumPlay.trackCount} TRACKS` : `ALBUM SPIN · ${albumPlay.trackCount} TRACKS`,
         artworkUrl,
         palette,
       });
 
-      if (albumCandidates.length >= 3) break; // Limit to 3 album prompts
+      if (albumCandidates.length >= 1) break; // Limit to 1 album prompt for variety on refresh
     }
 
     // Shuffle each category to provide variety on refresh

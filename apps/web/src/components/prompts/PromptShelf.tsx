@@ -247,7 +247,16 @@ function PromptCard({
 
         {/* Track/album info */}
         <div style={{ fontFamily: "var(--ln-body)", fontSize: 12, color: "rgba(var(--ln-fg-rgb),0.55)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {prompt.track} · {prompt.artist}
+          {prompt.type === "album" ? (
+            <>
+              {prompt.album} · {prompt.artist}
+            </>
+          ) : (
+            <>
+              {prompt.track} · {prompt.artist}
+              {prompt.album && <> · {prompt.album}</>}
+            </>
+          )}
         </div>
 
         {/* Quick-rate + Note button */}

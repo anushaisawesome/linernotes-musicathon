@@ -369,19 +369,27 @@ export function LNMoment({
           {note.label ? <span style={{ opacity: 0.6 }}> · {note.label}</span> : null}
           {isLyric && <span style={{ opacity: 0.7, marginLeft: 4 }}>♪</span>}
         </span>
-        {isLyric ? (
-          <span style={{
-            fontFamily: "var(--ln-preview)",
-            fontStyle: "italic",
-            fontSize: 14.5,
-            lineHeight: 1.5,
-            color: "rgba(var(--ln-fg-rgb),0.85)",
-            borderLeft: `2px solid ${gold}33`,
-            paddingLeft: 10,
-          }}>
-            "{note.lyric}"
-          </span>
-        ) : note.note && (
+        {isLyric && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <span style={{
+              fontFamily: "var(--ln-preview)",
+              fontStyle: "italic",
+              fontSize: 14.5,
+              lineHeight: 1.5,
+              color: "rgba(var(--ln-fg-rgb),0.85)",
+              borderLeft: `2px solid ${gold}33`,
+              paddingLeft: 10,
+            }}>
+              "{note.lyric}"
+            </span>
+            {note.note && (
+              <span style={{ fontFamily: "var(--ln-body)", fontSize: 13.5, lineHeight: 1.4, color: "rgba(var(--ln-fg-rgb),0.82)" }}>
+                {note.note}
+              </span>
+            )}
+          </div>
+        )}
+        {!isLyric && note.note && (
           <span style={{ fontFamily: "var(--ln-body)", fontSize: 13.5, lineHeight: 1.4, color: "rgba(var(--ln-fg-rgb),0.82)" }}>
             {note.note}
           </span>
