@@ -595,7 +595,7 @@ export async function GET(request: Request) {
       if (recentCandidates.length >= 5) break; // Limit to 5 recent prompts
     }
 
-    // Priority 3: Recent album plays (full album listens) - Limit to 3
+    // Priority 3: Recent album plays (full album listens) - Limit to 1 for variety on refresh
     for (const albumPlay of recentAlbumPlays.slice(0, 10)) {
       const albumKey = `${albumPlay.artist}::${albumPlay.album}`;
 
@@ -648,7 +648,7 @@ export async function GET(request: Request) {
         palette,
       });
 
-      if (albumCandidates.length >= 3) break; // Limit to 3 album prompts
+      if (albumCandidates.length >= 1) break; // Limit to 1 album prompt for variety on refresh
     }
 
     // Shuffle each category to provide variety on refresh
