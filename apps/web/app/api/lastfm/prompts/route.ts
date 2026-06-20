@@ -320,15 +320,13 @@ export async function GET(request: Request) {
       // Check if Last.fm actually has valid artwork (not just empty/placeholder)
       const hasValidLastFmArt = artworkUrl && artworkUrl !== "" && !artworkUrl.includes("2a96cbd8b46e442fc41c2b86b821562f");
 
-      // If no valid artwork or missing album, try Last.fm track.getinfo API
-      if (!hasValidLastFmArt || !albumName) {
+      // If no valid artwork, try Last.fm track.getinfo API (but don't use album name from it - it can have bad user-submitted data)
+      if (!hasValidLastFmArt) {
         const trackInfo = await fetchLastFmTrackInfo(track.name, artistName, apiKey);
         if (trackInfo.artwork) {
           artworkUrl = trackInfo.artwork;
         }
-        if (!albumName && trackInfo.album) {
-          albumName = trackInfo.album;
-        }
+        // Don't use album name from track.getinfo - it can have corrupted/user-submitted metadata
       }
 
       // If still no artwork and we have an album, try Last.fm album.getinfo
@@ -395,15 +393,13 @@ export async function GET(request: Request) {
       // Check if Last.fm actually has valid artwork (not just empty/placeholder)
       const hasValidLastFmArt = artworkUrl && artworkUrl !== "" && !artworkUrl.includes("2a96cbd8b46e442fc41c2b86b821562f");
 
-      // If no valid artwork or missing album, try Last.fm track.getinfo API
-      if (!hasValidLastFmArt || !albumName) {
+      // If no valid artwork, try Last.fm track.getinfo API (but don't use album name from it - it can have bad user-submitted data)
+      if (!hasValidLastFmArt) {
         const trackInfo = await fetchLastFmTrackInfo(track.name, artistName, apiKey);
         if (trackInfo.artwork) {
           artworkUrl = trackInfo.artwork;
         }
-        if (!albumName && trackInfo.album) {
-          albumName = trackInfo.album;
-        }
+        // Don't use album name from track.getinfo - it can have corrupted/user-submitted metadata
       }
 
       // If still no artwork and we have an album, try Last.fm album.getinfo
