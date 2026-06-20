@@ -197,7 +197,6 @@ export function ComposeForm({ onSubmit, onSuccess, searchAPI, initialTrack, init
                   <span style={{ fontFamily: "var(--ln-mono)", fontSize: 11, letterSpacing: "0.06em", color: gold, textTransform: "uppercase" }}>Bookmark favorite lyrics</span>
                 </div>
                 <LyricsBrowser
-                  trackIsrc={track?.trackId?.startsWith("spotify:") || track?.trackId?.startsWith("lastfm-") ? undefined : track?.trackId}
                   trackName={track?.name || ""}
                   artistName={track?.artist || ""}
                   onBookmark={(m) => setMoments((a) => [...a, m].sort((x, y) => x.seconds - y.seconds))}
