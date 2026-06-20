@@ -44,7 +44,7 @@ function ExperienceContent() {
         // Load SDK
         await WebPlaybackSDK.loadSDK();
 
-        // Get access token (you'll need to implement this)
+        // Get access token
         const tokenRes = await fetch("/api/spotify/token");
         if (!tokenRes.ok) throw new Error("Failed to get Spotify token");
 
@@ -58,8 +58,8 @@ function ExperienceContent() {
 
         setPlayer(sdk);
 
-        // Play the track
-        if (review.track.spotifyUri) {
+        // Play the track if we have a Spotify URI
+        if (review?.track?.spotifyUri) {
           await sdk.playTrack(review.track.spotifyUri);
         }
 
@@ -77,7 +77,7 @@ function ExperienceContent() {
         player.disconnect();
       }
     };
-  }, [review]);
+  }, [review, player]);
 
   // Fetch lyrics when track changes
   useEffect(() => {
