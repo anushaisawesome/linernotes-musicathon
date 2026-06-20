@@ -122,7 +122,7 @@ export function LNWFeedCard({ vm, accent = GOLD, onOpen }: { vm: ReviewVM; accen
   const hasTracks = isAlbum || album.kind === "playlist";
   const badgeLabel = album.kind === "playlist" ? "playlist" : isAlbum ? "album review" : null;
   const fm = featuredMoment(vm);
-  const hasMore = !!vm.body || (!!vm.take && vm.take.trim().includes("\n"));
+  const hasMore = !!vm.body || (!!vm.take && vm.take.trim().includes("\n")) || (hasTracks && album.tracks.length > 8);
 
   return (
     <article
@@ -172,8 +172,11 @@ export function LNWFeedCard({ vm, accent = GOLD, onOpen }: { vm: ReviewVM; accen
       </div>
 
       {hasTracks && (
-        <div className="lnw-fcard-tracks" style={{ width: 280, flexShrink: 0, borderLeft: "1px solid rgba(var(--ln-fg-rgb),0.08)", alignSelf: "stretch", background: "rgba(var(--ln-fg-rgb),0.015)" }}>
+        <div className="lnw-fcard-tracks" style={{ width: 280, flexShrink: 0, borderLeft: "1px solid rgba(var(--ln-fg-rgb),0.08)", alignSelf: "stretch", background: "rgba(var(--ln-fg-rgb),0.015)", maxHeight: 360, overflow: "hidden", position: "relative" }}>
           <LNWCardStrip album={album} gold={gold} bare />
+          {album.tracks.length > 8 && (
+            <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 48, background: "linear-gradient(transparent, var(--ln-surface))", pointerEvents: "none" }} />
+          )}
         </div>
       )}
     </article>
@@ -181,7 +184,7 @@ export function LNWFeedCard({ vm, accent = GOLD, onOpen }: { vm: ReviewVM; accen
 }
 
 // Vertical card (profile grids / compact lists).
-export function LNWCard({ vm, accent = GOLD, onOpen, showCounts = false, repostedBadge = false, onToggleSave }: { vm: ReviewVM; accent?: string; onOpen?: () => void; showCounts?: boolean; repostedBadge?: boolean; onToggleSave?: () => void }) {
+export function LNWCard({ vm, accent = GOLD, onOpen, showCounts = false, repostedBadge = false, onToggleSave, onToggleRepost }: { vm: ReviewVM; accent?: string; onOpen?: () => void; showCounts?: boolean; repostedBadge?: boolean; onToggleSave?: () => void; onToggleRepost?: () => void }) {
   const { album } = vm;
   const [palette, setPalette] = useState<Palette>(album.palette);
   const p = palette;
@@ -200,6 +203,9 @@ export function LNWCard({ vm, accent = GOLD, onOpen, showCounts = false, reposte
     const el = bodyRef.current;
     if (el) setOverflowing(el.scrollHeight > el.clientHeight + 4);
   }, [vm]);
+  // The card only renders the first line of the take, so also flag "more" when
+  // there's a full body or a multi-line take that the card can't show inline.
+  const hasMore = overflowing || !!vm.body || (!!vm.take && vm.take.trim().includes("\n"));
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
@@ -239,8 +245,8 @@ export function LNWCard({ vm, accent = GOLD, onOpen, showCounts = false, reposte
         )}
       </LNArt>
 
-      <div style={{ position: "relative", padding: "18px 19px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
-        <div ref={bodyRef} style={{ position: "relative", height: 142, overflow: "hidden", display: "flex", flexDirection: "column", gap: 13 }}>
+      <div style={{ position: "relative", padding: "18px 19px 16px", display: "flex", flexDirection: "column", gap: 12, height: 224, boxSizing: "border-box" }}>
+        <div ref={bodyRef} style={{ position: "relative", flex: 1, minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column", gap: 13 }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
             <h3 style={{ margin: 0, fontFamily: "var(--ln-album)", fontWeight: 600, fontSize: 23, lineHeight: 1.12, color: "var(--ln-fg)", letterSpacing: "-0.01em" }}>{album.title}</h3>
             <span style={{ fontFamily: "var(--ln-body)", fontSize: 14, color: "var(--ln-muted)" }}>{album.artist}</span>
@@ -269,11 +275,11 @@ export function LNWCard({ vm, accent = GOLD, onOpen, showCounts = false, reposte
           )}
         </div>
 
-        {overflowing && (
+        {hasMore && (
           <div style={{ fontFamily: "var(--ln-body)", fontSize: 12.5, fontWeight: 600, color: gold }}>Tap to view full review →</div>
         )}
 
-        {(showCounts || onToggleSave) && (
+        {(showCounts || onToggleSave || onToggleRepost) && (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, paddingTop: 12, borderTop: "1px solid rgba(var(--ln-fg-rgb),0.08)" }}>
             {showCounts ? (
               <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
@@ -285,6 +291,11 @@ export function LNWCard({ vm, accent = GOLD, onOpen, showCounts = false, reposte
                 ))}
               </div>
             ) : <span />}
+            {onToggleRepost && (
+              <button onClick={(e) => { e.stopPropagation(); onToggleRepost(); }} className="ln-press" style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 999, cursor: "pointer", background: `${gold}1a`, border: `1px solid ${gold}55`, color: gold, fontFamily: "var(--ln-body)", fontSize: 12, fontWeight: 600 }}>
+                <LNIcon name="repost" size={14} color={gold} /> Unrepost
+              </button>
+            )}
             {onToggleSave && (
               <button onClick={(e) => { e.stopPropagation(); onToggleSave(); }} className="ln-press" style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 999, cursor: "pointer", background: `${gold}1a`, border: `1px solid ${gold}55`, color: gold, fontFamily: "var(--ln-body)", fontSize: 12, fontWeight: 600 }}>
                 <LNIcon name="save" size={14} filled color={gold} /> Unsave

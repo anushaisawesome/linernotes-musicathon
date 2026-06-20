@@ -308,7 +308,7 @@ export function ImmersiveReview({
               </div>
             )}
 
-            {!vm.body && !vm.take && (
+            {!vm.body && !vm.take && !(vm.notes && vm.notes.length > 0) && !(isAlbum && album.tracks.length > 0) && (
               <div style={{ marginTop: 30, display: "flex", alignItems: "center", gap: 12 }}>
                 <span style={{ width: 30, height: 1, background: `${gold}99` }} />
                 <span style={{ fontFamily: "var(--ln-body)", fontSize: 17, color: muted(0.72) }}>A quiet rating. Sometimes the stars say it.</span>
@@ -325,19 +325,19 @@ export function ImmersiveReview({
                 </div>
               </div>
             )}
+
+            {isAlbum && (
+              <div style={{ marginTop: 34 }}>
+                <SectionLabel gold={gold}>tracks &amp; moments</SectionLabel>
+                <div className="lnw-track-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16, marginTop: 16 }}>
+                  {album.tracks.map((tr) => (
+                    <TrackCard key={tr.n} t={tr} gold={gold} np={!!npTrack && tr.n === npTrack.n} />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
-
-        {isAlbum && (
-          <section style={{ marginTop: 72 }}>
-            <SectionLabel gold={gold}>tracks &amp; moments</SectionLabel>
-            <div className="lnw-track-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16, marginTop: 20 }}>
-              {album.tracks.map((tr) => (
-                <TrackCard key={tr.n} t={tr} gold={gold} np={!!npTrack && tr.n === npTrack.n} />
-              ))}
-            </div>
-          </section>
-        )}
       </div>
 
       {related.length > 0 && (

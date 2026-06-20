@@ -241,6 +241,16 @@ export default function ProfilePage() {
     }
   };
 
+  // Unrepost from your profile: toggle the repost off and drop it from notes.
+  const handleUnrepost = async (vm: ReviewVM) => {
+    setRepostedReviews((arr) => arr.filter((r) => r.id !== vm.id));
+    try {
+      if (vm.kind === "track") await fetch(`/api/reviews/${vm.id}/repost`, { method: "POST" });
+    } catch {
+      /* best-effort; resyncs on reload */
+    }
+  };
+
   if (loading) {
     return (
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--ln-bg)" }}>
@@ -280,10 +290,13 @@ export default function ProfilePage() {
 
   const favsToShow = favs.length > 0 ? favs.map(metaToTile) : [...pool].sort((a, b) => b.rating - a.rating).slice(0, 4);
 
-  const noteItems: { vm: ReviewVM; reposted: boolean }[] = [
+  // Reposts sit at the top of your notes; your own notes follow, newest first.
+  const ownNotes = [
     ...reviews.map((r) => ({ vm: toReviewVM({ ...r, user: r.user || user }), reposted: false })),
     ...albumReviews.map((ar) => ({ vm: toAlbumReviewVM({ ...ar, user: ar.user || user }), reposted: false })),
-    ...repostedReviews.map((r) => ({
+  ].sort((a, b) => new Date(b.vm.at).getTime() - new Date(a.vm.at).getTime());
+  const repostNotes = repostedReviews
+    .map((r) => ({
       vm: toReviewVM(
         { ...r, user: r.user || user },
         {
@@ -292,8 +305,9 @@ export default function ProfilePage() {
         }
       ),
       reposted: true,
-    })),
-  ].sort((a, b) => new Date(b.vm.at).getTime() - new Date(a.vm.at).getTime());
+    }))
+    .sort((a, b) => new Date(b.vm.at).getTime() - new Date(a.vm.at).getTime());
+  const noteItems: { vm: ReviewVM; reposted: boolean }[] = [...repostNotes, ...ownNotes];
 
   // Saved reviews keep their original author (not the profile owner).
   const savedVms: ReviewVM[] = savedReviews.map((r) => toReviewVM(r));
@@ -433,7 +447,7 @@ export default function ProfilePage() {
             ) : (
               <div className="lnw-note-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20, alignItems: "start" }}>
                 {noteItems.map(({ vm, reposted }) => (
-                  <LNWCard key={`${reposted ? "rp-" : ""}${vm.kind}-${vm.id}`} vm={vm} onOpen={() => router.push(vm.href)} showCounts repostedBadge={reposted} />
+                  <LNWCard key={`${reposted ? "rp-" : ""}${vm.kind}-${vm.id}`} vm={vm} onOpen={() => router.push(vm.href)} showCounts repostedBadge={reposted} onToggleRepost={reposted && isOwnProfile ? () => handleUnrepost(vm) : undefined} />
                 ))}
               </div>
             )
