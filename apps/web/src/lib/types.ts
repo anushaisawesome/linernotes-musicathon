@@ -62,6 +62,8 @@ export type Review = {
   repostCount: number;
   likedByMe?: boolean;
   repostedByMe?: boolean;
+  saveCount?: number;
+  saved?: boolean;
 };
 
 export type AlbumReview = {
@@ -77,6 +79,8 @@ export type AlbumReview = {
   repostCount: number;
   likedByMe?: boolean;
   repostedByMe?: boolean;
+  saveCount?: number;
+  saved?: boolean;
 };
 
 export type PlaylistTrack = {
@@ -101,6 +105,8 @@ export type Playlist = {
   repostCount: number;
   likedByMe?: boolean;
   repostedByMe?: boolean;
+  saveCount?: number;
+  saved?: boolean;
 };
 
 export type FeedItem = {

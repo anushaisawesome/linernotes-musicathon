@@ -45,6 +45,7 @@ export type ReviewVM = {
   via?: { name: string; handle: string } | null;
   likeCount: number;
   repostCount: number;
+  saveCount?: number;
   likedByMe?: boolean;
   repostedByMe?: boolean;
   saved?: boolean;
@@ -114,8 +115,10 @@ export function toReviewVM(review: Review, via?: { name: string; handle: string 
     via: via ?? null,
     likeCount: review.likeCount ?? 0,
     repostCount: review.repostCount ?? 0,
+    saveCount: review.saveCount ?? 0,
     likedByMe: review.likedByMe,
     repostedByMe: review.repostedByMe,
+    saved: review.saved,
     at: review.createdAt,
   };
 }
@@ -157,8 +160,10 @@ export function toAlbumReviewVM(
     via: via ?? null,
     likeCount: ar.likeCount ?? 0,
     repostCount: ar.repostCount ?? 0,
+    saveCount: ar.saveCount ?? 0,
     likedByMe: ar.likedByMe,
     repostedByMe: ar.repostedByMe,
+    saved: ar.saved,
     at: ar.createdAt,
   };
 }
@@ -197,8 +202,10 @@ export function toPlaylistVM(
     via: via ?? null,
     likeCount: pl.likeCount ?? 0,
     repostCount: pl.repostCount ?? 0,
+    saveCount: pl.saveCount ?? 0,
     likedByMe: pl.likedByMe,
     repostedByMe: pl.repostedByMe,
+    saved: pl.saved,
     at: pl.createdAt,
   };
 }

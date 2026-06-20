@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
         include: {
           user: true,
           likes: true,
+          saves: true,
           reposts: {
             include: { user: true },
           },
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest) {
             orderBy: { createdAt: 'asc' },
           },
           _count: {
-            select: { likes: true, reposts: true },
+            select: { likes: true, reposts: true, saves: true },
           },
         },
         orderBy: { createdAt: "desc" },
@@ -71,6 +72,8 @@ export async function GET(request: NextRequest) {
         repostCount: review._count.reposts,
         likedByMe: currentUserId ? review.likes.some((l) => l.userId === currentUserId) : false,
         repostedByMe: currentUserId ? review.reposts.some((r) => r.userId === currentUserId) : false,
+        saveCount: review._count.saves,
+        saved: currentUserId ? review.saves.some((s) => s.userId === currentUserId) : false,
       }));
 
       return NextResponse.json({ reviews: transformedReviews });
@@ -96,7 +99,7 @@ export async function GET(request: NextRequest) {
                 orderBy: { createdAt: 'asc' },
               },
               _count: {
-                select: { likes: true, reposts: true },
+                select: { likes: true, reposts: true, saves: true },
               },
             },
           },
@@ -131,6 +134,7 @@ export async function GET(request: NextRequest) {
         repostCount: review._count.reposts,
         likedByMe: currentUserId ? review.likes.some((l) => l.userId === currentUserId) : false,
         repostedByMe: currentUserId ? review.reposts.some((r) => r.userId === currentUserId) : false,
+        saveCount: review._count.saves,
       }));
 
       return NextResponse.json({ reviews: transformedReviews });
@@ -156,7 +160,7 @@ export async function GET(request: NextRequest) {
                 orderBy: { createdAt: 'asc' },
               },
               _count: {
-                select: { likes: true, reposts: true },
+                select: { likes: true, reposts: true, saves: true },
               },
             },
           },
@@ -191,6 +195,7 @@ export async function GET(request: NextRequest) {
         repostCount: review._count.reposts,
         likedByMe: currentUserId ? review.likes.some((l) => l.userId === currentUserId) : false,
         repostedByMe: currentUserId ? review.reposts.some((r) => r.userId === currentUserId) : false,
+        saveCount: review._count.saves,
       }));
 
       return NextResponse.json({ reviews: transformedReviews });
@@ -208,7 +213,7 @@ export async function GET(request: NextRequest) {
             orderBy: { createdAt: 'asc' },
           },
           _count: {
-            select: { likes: true, reposts: true },
+            select: { likes: true, reposts: true, saves: true },
           },
         },
         orderBy: { createdAt: "desc" },
@@ -246,6 +251,7 @@ export async function GET(request: NextRequest) {
         repostCount: review._count.reposts,
         likedByMe: currentUserId ? review.likes.some((l) => l.userId === currentUserId) : false,
         repostedByMe: currentUserId ? review.reposts.some((r) => r.userId === currentUserId) : false,
+        saveCount: review._count.saves,
       }));
 
       return NextResponse.json({ reviews: transformedReviews });
@@ -266,7 +272,7 @@ export async function GET(request: NextRequest) {
           orderBy: { createdAt: 'asc' },
         },
         _count: {
-          select: { likes: true, reposts: true },
+          select: { likes: true, reposts: true, saves: true },
         },
       },
       orderBy: { createdAt: "desc" },
@@ -304,6 +310,7 @@ export async function GET(request: NextRequest) {
       repostCount: review._count.reposts,
       likedByMe: currentUserId ? review.likes.some((l) => l.userId === currentUserId) : false,
       repostedByMe: currentUserId ? review.reposts.some((r) => r.userId === currentUserId) : false,
+      saveCount: review._count.saves,
     }));
 
     return NextResponse.json({ reviews: transformedReviews });
@@ -395,7 +402,7 @@ export async function POST(request: NextRequest) {
         user: true,
         notes: true,
         _count: {
-          select: { likes: true, reposts: true },
+          select: { likes: true, reposts: true, saves: true },
         },
       },
     });

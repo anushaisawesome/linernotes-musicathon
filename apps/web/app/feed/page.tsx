@@ -49,6 +49,9 @@ export default function FeedPage() {
     if (vm.kind === "track") toggleRepost(vm.id).catch(() => {});
     else if (vm.kind === "album") fetch(`/api/album-reviews/${vm.id}/repost`, { method: "POST" }).catch(() => {});
   };
+  const onSave = (vm: ReviewVM) => {
+    if (vm.kind === "track") fetch(`/api/reviews/${vm.id}/save`, { method: "POST" }).catch(() => {});
+  };
 
   return (
     <div style={{ background: "var(--ln-bg)", color: "var(--ln-fg)", minHeight: "100vh", position: "relative", display: "flex", flexDirection: "column", flex: 1 }}>
@@ -77,7 +80,7 @@ export default function FeedPage() {
           {!loading && items.length > 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 34, containerType: "inline-size" }}>
               {items.map((vm) => (
-                <FeedItem key={`${vm.kind}-${vm.id}`} vm={vm} onLike={() => onLike(vm)} onRepost={() => onRepost(vm)} />
+                <FeedItem key={`${vm.kind}-${vm.id}`} vm={vm} onLike={() => onLike(vm)} onRepost={() => onRepost(vm)} onSave={() => onSave(vm)} />
               ))}
               <div style={{ textAlign: "center", marginTop: 10, fontFamily: "var(--ln-mono)", fontSize: 10.5, letterSpacing: "0.06em", color: "rgba(var(--ln-fg-rgb),0.3)" }}>You&apos;re all caught up · breathe</div>
             </div>

@@ -194,6 +194,7 @@ export default function Home() {
                   vm={vm}
                   onLike={() => vm.kind === "track" && toggleLike(vm.id).catch(() => {})}
                   onRepost={() => vm.kind === "track" && toggleRepost(vm.id).catch(() => {})}
+                  onSave={() => { if (vm.kind === "track") fetch(`/api/reviews/${vm.id}/save`, { method: "POST" }).catch(() => {}); }}
                 />
               ))}
             </div>

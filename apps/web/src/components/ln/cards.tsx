@@ -180,7 +180,7 @@ export function LNWFeedCard({ vm, accent = GOLD, onOpen }: { vm: ReviewVM; accen
 }
 
 // Vertical card (profile grids / compact lists).
-export function LNWCard({ vm, accent = GOLD, onOpen }: { vm: ReviewVM; accent?: string; onOpen?: () => void }) {
+export function LNWCard({ vm, accent = GOLD, onOpen, showCounts = false, repostedBadge = false }: { vm: ReviewVM; accent?: string; onOpen?: () => void; showCounts?: boolean; repostedBadge?: boolean }) {
   const { album } = vm;
   const [palette, setPalette] = useState<Palette>(album.palette);
   const p = palette;
@@ -193,6 +193,12 @@ export function LNWCard({ vm, accent = GOLD, onOpen }: { vm: ReviewVM; accent?: 
   const showPill = vm.rating > 0 && album.kind !== "playlist";
 
   return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+      {repostedBadge && (
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 6, alignSelf: "flex-start", fontFamily: "var(--ln-mono)", fontSize: 10, letterSpacing: "0.06em", textTransform: "uppercase", color: gold }}>
+          <LNIcon name="repost" size={13} color={gold} /> You reposted this
+        </div>
+      )}
     <article
       onClick={onOpen}
       onMouseEnter={() => setHover(true)}
@@ -247,8 +253,20 @@ export function LNWCard({ vm, accent = GOLD, onOpen }: { vm: ReviewVM; accent?: 
         )}
 
         {(isAlbum || album.kind === "playlist") && <LNWCardStrip album={album} gold={gold} />}
+
+        {showCounts && (
+          <div style={{ display: "flex", alignItems: "center", gap: 18, paddingTop: 12, marginTop: 2, borderTop: "1px solid rgba(var(--ln-fg-rgb),0.08)" }}>
+            {([["like", vm.likeCount], ["repost", vm.repostCount], ["save", vm.saveCount ?? 0]] as const).map(([icon, n]) => (
+              <span key={icon} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "var(--ln-mono)", fontSize: 12.5, color: "rgba(var(--ln-fg-rgb),0.6)" }}>
+                <LNIcon name={icon} size={17} color="rgba(var(--ln-fg-rgb),0.6)" />
+                {n}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     </article>
+    </div>
   );
 }
 

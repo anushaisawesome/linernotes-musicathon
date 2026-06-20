@@ -118,6 +118,7 @@ export default function ProfilePage() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [albumReviews, setAlbumReviews] = useState<AlbumReview[]>([]);
   const [repostedReviews, setRepostedReviews] = useState<Review[]>([]);
+  const [savedReviews, setSavedReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [tab, setTab] = useState<"notes" | "saved">("notes");
@@ -156,10 +157,19 @@ export default function ProfilePage() {
           setAlbumReviews(albumReviewsData.albumReviews || []);
         }
 
-        const repostsResponse = await fetch(`/api/reviews?type=reposts`);
-        if (repostsResponse.ok) {
-          const repostsData = await repostsResponse.json();
-          setRepostedReviews(repostsData.reviews || []);
+        // Reposts + saved are the *current user's* own collections (the API keys
+        // them off the session), so only load them when viewing your own profile.
+        if (isOwnProfile) {
+          const repostsResponse = await fetch(`/api/reviews?type=reposts`, { cache: "no-store" });
+          if (repostsResponse.ok) {
+            const repostsData = await repostsResponse.json();
+            setRepostedReviews(repostsData.reviews || []);
+          }
+          const savedResponse = await fetch(`/api/reviews?type=saved`, { cache: "no-store" });
+          if (savedResponse.ok) {
+            const savedData = await savedResponse.json();
+            setSavedReviews(savedData.reviews || []);
+          }
         }
       } catch (err) {
         console.error("Failed to load profile:", err);
@@ -248,19 +258,23 @@ export default function ProfilePage() {
 
   const favsToShow = favs.length > 0 ? favs.map(metaToTile) : [...pool].sort((a, b) => b.rating - a.rating).slice(0, 4);
 
-  const noteVms: ReviewVM[] = [
-    ...reviews.map((r) => toReviewVM({ ...r, user: r.user || user })),
-    ...albumReviews.map((ar) => toAlbumReviewVM({ ...ar, user: ar.user || user })),
-    ...repostedReviews.map((r) =>
-      toReviewVM(
+  const noteItems: { vm: ReviewVM; reposted: boolean }[] = [
+    ...reviews.map((r) => ({ vm: toReviewVM({ ...r, user: r.user || user }), reposted: false })),
+    ...albumReviews.map((ar) => ({ vm: toAlbumReviewVM({ ...ar, user: ar.user || user }), reposted: false })),
+    ...repostedReviews.map((r) => ({
+      vm: toReviewVM(
         { ...r, user: r.user || user },
         {
           name: (r.user as any)?.displayName || (r.user as any)?.name || 'User',
           handle: (r.user as any)?.handle || '',
         }
-      )
-    ),
-  ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+      ),
+      reposted: true,
+    })),
+  ].sort((a, b) => new Date(b.vm.at).getTime() - new Date(a.vm.at).getTime());
+
+  // Saved reviews keep their original author (not the profile owner).
+  const savedVms: ReviewVM[] = savedReviews.map((r) => toReviewVM(r));
 
   const ghostBtn: React.CSSProperties = { padding: "6px 14px", borderRadius: 999, cursor: "pointer", background: "rgba(var(--ln-fg-rgb),0.05)", color: "rgba(var(--ln-fg-rgb),0.75)", border: "1px solid rgba(var(--ln-fg-rgb),0.18)", fontFamily: "var(--ln-body)", fontSize: 12.5, fontWeight: 600 };
   const goldBtn: React.CSSProperties = { padding: "6px 16px", borderRadius: 999, cursor: "pointer", background: "var(--ln-accent)", color: "#2c1517", border: "none", fontFamily: "var(--ln-body)", fontSize: 12.5, fontWeight: 700 };
@@ -382,25 +396,33 @@ export default function ProfilePage() {
 
         <div style={{ maxWidth: 1080, margin: "0 auto", padding: "44px 24px 96px" }}>
           <div style={{ display: "flex", gap: 26, borderBottom: "1px solid rgba(var(--ln-fg-rgb),0.1)", marginBottom: 26 }}>
-            {([["notes", `notes · ${noteVms.length}`], ["saved", "saved · 0"]] as const).map(([id, label]) => (
+            {([["notes", `notes · ${noteItems.length}`], ["saved", `saved · ${savedVms.length}`]] as const).map(([id, label]) => (
               <button key={id} onClick={() => setTab(id)} style={{ background: "none", border: "none", cursor: "pointer", padding: "0 0 12px", fontFamily: "var(--ln-label)", fontSize: 12.5, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 700, color: tab === id ? "var(--ln-fg)" : "rgba(var(--ln-fg-rgb),0.4)", borderBottom: tab === id ? "2px solid var(--ln-accent)" : "2px solid transparent", marginBottom: -1 }}>{label}</button>
             ))}
           </div>
 
           {tab === "notes" && (
-            noteVms.length === 0 ? (
+            noteItems.length === 0 ? (
               <div style={{ textAlign: "center", padding: "50px 0", fontFamily: "var(--ln-preview)", fontStyle: "italic", fontSize: 18, color: "var(--ln-muted)" }}>No notes yet.</div>
             ) : (
               <div className="lnw-note-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 28, alignItems: "start" }}>
-                {noteVms.map((vm) => (
-                  <LNWCard key={`${vm.kind}-${vm.id}`} vm={vm} onOpen={() => router.push(vm.href)} />
+                {noteItems.map(({ vm, reposted }) => (
+                  <LNWCard key={`${reposted ? "rp-" : ""}${vm.kind}-${vm.id}`} vm={vm} onOpen={() => router.push(vm.href)} showCounts repostedBadge={reposted} />
                 ))}
               </div>
             )
           )}
 
           {tab === "saved" && (
-            <div style={{ textAlign: "center", padding: "50px 0", fontFamily: "var(--ln-mono)", fontSize: 12, color: "rgba(var(--ln-fg-rgb),0.4)" }}>Nothing saved yet</div>
+            savedVms.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "50px 0", fontFamily: "var(--ln-mono)", fontSize: 12, color: "rgba(var(--ln-fg-rgb),0.4)" }}>Nothing saved yet</div>
+            ) : (
+              <div className="lnw-note-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 28, alignItems: "start" }}>
+                {savedVms.map((vm) => (
+                  <LNWCard key={`sv-${vm.kind}-${vm.id}`} vm={vm} onOpen={() => router.push(vm.href)} showCounts />
+                ))}
+              </div>
+            )
           )}
         </div>
       </main>
