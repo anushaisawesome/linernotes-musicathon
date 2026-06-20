@@ -327,6 +327,19 @@ export async function GET(request: Request) {
       console.log("[Last.fm Prompts] Sample recent album play:", JSON.stringify(recentAlbumPlays[0], null, 2));
     }
 
+    // Fetch top albums for heavily-played albums (separate from recent plays)
+    const topAlbumsUrl = `https://ws.audioscrobbler.com/2.0/?method=user.gettopalbums&user=${connection.serviceUsername}&api_key=${apiKey}&format=json&limit=20&period=7day`;
+
+    const albumsResponse = await fetch(topAlbumsUrl);
+    let topAlbums: Array<{ name: string; artist: { "#text": string } | string; playcount: string; image: Array<{ "#text": string; size: string }> }> = [];
+    if (albumsResponse.ok) {
+      const albumsData = await albumsResponse.json();
+      topAlbums = albumsData.topalbums?.album || [];
+      // Shuffle for variety
+      topAlbums.sort(() => Math.random() - 0.5);
+      console.log("[Last.fm Prompts] Top albums count:", topAlbums.length);
+    }
+
     // Prompt variations for variety
     const repeatPrompts = [
       (pc: number) => pc >= 15
@@ -595,7 +608,69 @@ export async function GET(request: Request) {
       if (recentCandidates.length >= 5) break; // Limit to 5 recent prompts
     }
 
-    // Priority 3: Recent album plays (full album listens) - Limit to 1 for variety on refresh
+    // Priority 3: Top albums (heavily played) - Limit to 1
+    for (const album of topAlbums) {
+      const artistName = getArtistName(album.artist);
+
+      if (!album.name || !artistName || album.name.trim() === "" || artistName.trim() === "") {
+        continue;
+      }
+
+      const albumKey = `${artistName}::${album.name}`;
+
+      // Skip if already reviewed
+      if (reviewedAlbums.has(albumKey.toLowerCase())) {
+        continue;
+      }
+
+      if (seenAlbums.has(albumKey)) continue;
+      seenAlbums.add(albumKey);
+
+      const playCount = parseInt(album.playcount) || 0;
+      if (playCount < 15) continue; // Only show heavily-played albums (15+)
+
+      // Try to get artwork from Last.fm first
+      let artworkUrl = album.image?.find((img) => img.size === "mega")?.["#text"] ||
+                       album.image?.find((img) => img.size === "extralarge")?.["#text"] ||
+                       album.image?.find((img) => img.size === "large")?.["#text"] ||
+                       album.image?.find((img) => img.size === "medium")?.["#text"] || "";
+
+      // Validate with Spotify if no artwork
+      if (!artworkUrl) {
+        const spotifyValidation = await validateWithSpotify("", artistName, album.name);
+        if (spotifyValidation.artwork) {
+          artworkUrl = spotifyValidation.artwork;
+        }
+      }
+
+      const palette = paletteFromString(album.name);
+
+      console.log("[Last.fm Prompts] Creating top album prompt:", {
+        album: album.name,
+        artist: artistName,
+        playCount,
+        artworkUrl,
+      });
+
+      const promptVariation = albumPrompts[0]; // Use first variation
+
+      albumCandidates.push({
+        id: `album-top-${albumKey}`,
+        type: "album",
+        track: "",
+        artist: artistName,
+        album: album.name,
+        playCount,
+        prompt: promptVariation(playCount),
+        tag: `HEAVY ROTATION · ${playCount} PLAYS`,
+        artworkUrl,
+        palette,
+      });
+
+      break; // Only 1 top album
+    }
+
+    // Priority 4: Recent album plays (full album listens) - Limit to 2
     for (const albumPlay of recentAlbumPlays.slice(0, 10)) {
       const albumKey = `${albumPlay.artist}::${albumPlay.album}`;
 
@@ -648,7 +723,7 @@ export async function GET(request: Request) {
         palette,
       });
 
-      if (albumCandidates.length >= 1) break; // Limit to 1 album prompt for variety on refresh
+      if (albumCandidates.length >= 3) break; // Already have 1 top album, limit to 2 more recent album plays
     }
 
     // Shuffle each category to provide variety on refresh
