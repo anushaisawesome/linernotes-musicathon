@@ -8,7 +8,7 @@
 import { useState, useEffect, useCallback, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { LNArt, LNStars, LNReact, LNIcon, LNAvatar, lnFmt, lnRel, LN_REACT } from "./atoms";
+import { LNArt, LNStars, LNReact, LNIcon, LNAvatar, LNMoment, lnFmt, lnRel, LN_REACT } from "./atoms";
 import type { ReviewVM, MomentVM, TrackVM } from "@/lib/view-adapter";
 
 // Follow = friend request. Reflects the real relationship: send a request, see
@@ -97,14 +97,6 @@ function SectionLabel({ children, gold }: { children: ReactNode; gold: string })
   );
 }
 
-function MomentLine({ m, gold, compact }: { m: MomentVM; gold: string; compact?: boolean }) {
-  return (
-    <div style={{ display: "flex", alignItems: "flex-start", gap: 11, padding: compact ? "9px 11px" : "12px 13px", borderRadius: 11, background: `${gold}0c`, border: `1px solid ${gold}2e` }}>
-      <span style={{ fontFamily: "var(--ln-mono)", fontSize: 12.5, color: "#1a0a04", background: gold, borderRadius: 6, padding: "3px 8px", flexShrink: 0, fontWeight: 600, letterSpacing: "-0.02em" }}>{lnFmt(m.sec)}</span>
-      <span style={{ flex: 1, fontFamily: "var(--ln-body)", fontSize: compact ? 13.5 : 15, color: muted(0.88), lineHeight: 1.4, minWidth: 0 }}>{m.note || m.label}</span>
-    </div>
-  );
-}
 
 function TrackCard({ t, gold, np }: { t: TrackVM; gold: string; np: boolean }) {
   const mc = t.moments?.length || 0;
@@ -129,7 +121,7 @@ function TrackCard({ t, gold, np }: { t: TrackVM; gold: string; np: boolean }) {
       {mc > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {t.moments.map((m, i) => (
-            <MomentLine key={i} m={{ ...m, label: m.label || t.name }} gold={gold} compact />
+            <LNMoment key={i} note={{ sec: m.sec, label: m.label || t.name, note: m.note || "", lyric: m.lyric }} accent={gold} />
           ))}
         </div>
       )}
@@ -325,7 +317,7 @@ export function ImmersiveReview({
                 <SectionLabel gold={gold}>the moment{vm.notes.length > 1 ? "s" : ""}</SectionLabel>
                 <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 16, maxWidth: 620 }}>
                   {vm.notes.map((m, i) => (
-                    <MomentLine key={i} m={m} gold={gold} />
+                    <LNMoment key={i} note={{ sec: m.sec, label: m.label, note: m.note || "", lyric: m.lyric }} accent={gold} />
                   ))}
                 </div>
               </div>
