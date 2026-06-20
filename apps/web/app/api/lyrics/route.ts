@@ -82,6 +82,8 @@ export async function GET(request: NextRequest) {
     }
 
     const lyricsData = await lyricsRes.json();
+    console.log("[Musixmatch] Lyrics response structure:", JSON.stringify(lyricsData, null, 2).substring(0, 500));
+
     const subtitle = lyricsData.message?.body?.subtitle;
 
     if (!subtitle || !subtitle.subtitle_body) {
@@ -100,12 +102,21 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    console.log("[Musixmatch] Subtitle body type:", typeof subtitle.subtitle_body);
+    console.log("[Musixmatch] Subtitle body preview:", JSON.stringify(subtitle.subtitle_body).substring(0, 200));
+
     // Parse subtitle format (JSON string with timing data)
     let parsedLyrics;
     try {
-      parsedLyrics = JSON.parse(subtitle.subtitle_body);
+      // Check if subtitle_body is already an object or a string
+      if (typeof subtitle.subtitle_body === 'string') {
+        parsedLyrics = JSON.parse(subtitle.subtitle_body);
+      } else {
+        parsedLyrics = subtitle.subtitle_body;
+      }
     } catch (error) {
       console.error("[Musixmatch] Failed to parse lyrics:", error);
+      console.error("[Musixmatch] Subtitle body was:", subtitle.subtitle_body);
       return NextResponse.json(
         { error: "Invalid lyrics format" },
         { status: 500 }

@@ -42,6 +42,7 @@ function getArtistName(artist: any): string {
 function getAlbumName(album: any): string {
   if (!album) return "";
   if (typeof album === "string") return album;
+  if (album.title) return album.title; // track.getinfo uses this
   if (album.name) return album.name; // Some API responses use this
   if (album["#text"]) return album["#text"]; // Most common format
   return "";
@@ -189,11 +190,11 @@ export async function GET(request: Request) {
 
     console.log("[Last.fm Prompts] Recent tracks count:", tracks.length);
     if (tracks.length > 0) {
-      console.log("[Last.fm Prompts] Sample track structure:");
+      console.log("[Last.fm Prompts] Sample recent track structure:");
       console.log("  name:", tracks[0].name);
       console.log("  artist:", JSON.stringify(tracks[0].artist));
       console.log("  album:", JSON.stringify(tracks[0].album));
-      console.log("  image:", JSON.stringify(tracks[0].image));
+      console.log("  album extracted:", getAlbumName(tracks[0].album));
     }
 
     if (tracks.length === 0) {
@@ -210,7 +211,11 @@ export async function GET(request: Request) {
       topTracks = topData.toptracks?.track || [];
       console.log("[Last.fm Prompts] Top tracks count:", topTracks.length);
       if (topTracks.length > 0) {
-        console.log("[Last.fm Prompts] Sample top track:", JSON.stringify(topTracks[0], null, 2));
+        console.log("[Last.fm Prompts] Sample top track structure:");
+        console.log("  name:", topTracks[0].name);
+        console.log("  artist:", JSON.stringify(topTracks[0].artist));
+        console.log("  album:", JSON.stringify(topTracks[0].album));
+        console.log("  album extracted:", getAlbumName(topTracks[0].album));
       }
     }
 
@@ -341,8 +346,8 @@ export async function GET(request: Request) {
         track: track.name,
         artist: artistName,
         album: albumName,
+        albumFromInitial: getAlbumName(track.album),
         artworkUrl,
-        imageArray: track.image,
       });
 
       // Use varied prompt
