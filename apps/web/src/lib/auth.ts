@@ -22,6 +22,7 @@ function generateHandle(input: string): string {
 export const authOptions: NextAuthConfig = {
   adapter: PrismaAdapter(prisma) as any,
   debug: process.env.NODE_ENV === 'development',
+  secret: process.env.NEXTAUTH_SECRET,
   providers: [
     SpotifyProvider({
       clientId: process.env.SPOTIFY_CLIENT_ID as string,
@@ -31,6 +32,7 @@ export const authOptions: NextAuthConfig = {
           scope: "user-read-email user-read-private",
         },
       },
+      allowDangerousEmailAccountLinking: true,
     }),
     CredentialsProvider({
       name: "Email",
