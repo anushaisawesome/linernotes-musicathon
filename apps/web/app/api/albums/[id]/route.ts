@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getSpotifyAppToken, getAlbum } from "@/lib/spotify";
 
 /**
  * GET /api/albums/[id] - Get album details with full tracklist
- * Supports both MusicBrainz (UUID) and iTunes (numeric) IDs
+ * Supports Spotify (base62), MusicBrainz (UUID), and iTunes (numeric) IDs
  */
 export async function GET(
   request: NextRequest,
@@ -17,10 +18,24 @@ export async function GET(
     );
   }
 
-  // Determine if ID is MusicBrainz (UUID format) or iTunes (numeric)
+  // ID type: MusicBrainz (UUID), iTunes (numeric), else Spotify (base62).
   const isMusicBrainz = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(albumId);
+  const isNumeric = /^\d+$/.test(albumId);
 
   try {
+    // Spotify album ID — fetch the full tracklist + high-res cover art.
+    if (!isMusicBrainz && !isNumeric) {
+      const token = await getSpotifyAppToken();
+      if (token) {
+        try {
+          const album = await getAlbum(albumId, token);
+          return NextResponse.json({ album: { ...album, tracks: album.tracks || [] } });
+        } catch (e) {
+          console.log("Spotify album lookup failed, falling back to iTunes:", e);
+        }
+      }
+    }
+
     if (isMusicBrainz) {
       // Fetch from MusicBrainz
       // Step 1: Get release-group to find the primary release

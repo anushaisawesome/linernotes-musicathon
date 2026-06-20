@@ -73,6 +73,33 @@ function convertSpotifyAlbum(spotifyAlbum: SpotifyAlbum): Album {
   };
 }
 
+// App-level (client-credentials) Spotify token — no user required. Used for
+// search and album lookups so we get Spotify's high-res cover art. Cached.
+let appTokenCache: { token: string; expiresAt: number } | null = null;
+export async function getSpotifyAppToken(): Promise<string | null> {
+  if (appTokenCache && appTokenCache.expiresAt > Date.now() + 5000) return appTokenCache.token;
+  const id = process.env.SPOTIFY_CLIENT_ID;
+  const secret = process.env.SPOTIFY_CLIENT_SECRET;
+  if (!id || !secret) return null;
+  try {
+    const res = await fetch("https://accounts.spotify.com/api/token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: `Basic ${Buffer.from(`${id}:${secret}`).toString("base64")}`,
+      },
+      body: new URLSearchParams({ grant_type: "client_credentials" }),
+    });
+    if (!res.ok) return null;
+    const d = await res.json();
+    if (!d.access_token) return null;
+    appTokenCache = { token: d.access_token, expiresAt: Date.now() + (d.expires_in || 3600) * 1000 };
+    return d.access_token;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Refresh access token using refresh token
  */
