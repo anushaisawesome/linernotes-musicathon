@@ -364,13 +364,17 @@ export async function GET(request: Request) {
         // Don't use album name from track.getinfo - it can have corrupted/user-submitted metadata
       }
 
-      // Validate album name with Spotify to avoid user-corrupted Last.fm data
-      const spotifyValidation = await validateWithSpotify(track.name, artistName, albumName);
-      if (spotifyValidation.album) {
-        albumName = spotifyValidation.album;
-      }
-      if (spotifyValidation.artwork && !artworkUrl) {
-        artworkUrl = spotifyValidation.artwork;
+      // Only validate with Spotify if album name looks suspicious (contains "67", "b4", "days", etc.)
+      const suspiciousPattern = /\b(67|b4|days|before)\b/i;
+      if (albumName && suspiciousPattern.test(albumName)) {
+        console.log(`[Last.fm Prompts] Suspicious album name detected: "${albumName}", validating with Spotify...`);
+        const spotifyValidation = await validateWithSpotify(track.name, artistName, albumName);
+        if (spotifyValidation.album) {
+          albumName = spotifyValidation.album;
+        }
+        if (spotifyValidation.artwork && !artworkUrl) {
+          artworkUrl = spotifyValidation.artwork;
+        }
       }
 
       // If still no artwork and we have an album, try Last.fm album.getinfo
@@ -446,13 +450,17 @@ export async function GET(request: Request) {
         // Don't use album name from track.getinfo - it can have corrupted/user-submitted metadata
       }
 
-      // Validate album name with Spotify to avoid user-corrupted Last.fm data
-      const spotifyValidation = await validateWithSpotify(track.name, artistName, albumName);
-      if (spotifyValidation.album) {
-        albumName = spotifyValidation.album;
-      }
-      if (spotifyValidation.artwork && !artworkUrl) {
-        artworkUrl = spotifyValidation.artwork;
+      // Only validate with Spotify if album name looks suspicious (contains "67", "b4", "days", etc.)
+      const suspiciousPattern = /\b(67|b4|days|before)\b/i;
+      if (albumName && suspiciousPattern.test(albumName)) {
+        console.log(`[Last.fm Prompts] Suspicious album name detected: "${albumName}", validating with Spotify...`);
+        const spotifyValidation = await validateWithSpotify(track.name, artistName, albumName);
+        if (spotifyValidation.album) {
+          albumName = spotifyValidation.album;
+        }
+        if (spotifyValidation.artwork && !artworkUrl) {
+          artworkUrl = spotifyValidation.artwork;
+        }
       }
 
       // If still no artwork and we have an album, try Last.fm album.getinfo
