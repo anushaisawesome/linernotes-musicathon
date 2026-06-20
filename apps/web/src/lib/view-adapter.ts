@@ -4,7 +4,7 @@
 import type { Review, AlbumReview, User, Playlist } from "@/lib/types";
 import { paletteFromString, tintFromString, type Palette } from "@/lib/palette";
 
-export type MomentVM = { sec: number; label: string; note: string };
+export type MomentVM = { sec: number; label: string; note: string; lyric?: string };
 
 export type TrackVM = {
   n: number;
@@ -79,6 +79,7 @@ function notesToMoments(
     sec: Math.round(n.seconds),
     label: n.label || "moment",
     note: n.note || n.label || "",
+    lyric: n.lyric,
   }));
   if (featuredNoteId) {
     const idx = notes.findIndex((n) => n.id === featuredNoteId);
