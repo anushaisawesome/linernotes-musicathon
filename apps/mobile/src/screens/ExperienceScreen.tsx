@@ -59,7 +59,6 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
   const [playbackPosition, setPlaybackPosition] = useState(0); // seconds
   const [lyrics, setLyrics] = useState<SyncedLyrics | null>(null);
   const [lyricsError, setLyricsError] = useState<string | null>(null);
-  const [showTranslation, setShowTranslation] = useState(false);
   const lyricListRef = useRef<FlatList>(null);
 
   const isAlbum = !!(album.tracks && album.tracks.length > 0);
@@ -161,11 +160,10 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
     return () => clearInterval(interval);
   }, [album.artist, album.title, isAlbum]);
 
-  // Find active lyric line based on playback position
-  const displayLyrics = (lyrics && showTranslation && lyrics.translation) ? lyrics.translation : lyrics?.lines;
-  const activeLineIndex = displayLyrics?.findIndex((line, i) => {
+  // Find active lyric line based on playback position (always use original lines for timing)
+  const activeLineIndex = lyrics?.lines.findIndex((line, i) => {
     const currentTime = playbackPosition * 1000;
-    const nextLine = displayLyrics[i + 1];
+    const nextLine = lyrics.lines[i + 1];
     return line.time.total <= currentTime && (!nextLine || nextLine.time.total > currentTime);
   }) ?? -1;
 
@@ -279,6 +277,7 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
     const isActive = index === activeLineIndex;
     const passed = activeLineIndex >= 0 && index < activeLineIndex;
     const distance = Math.abs(index - activeLineIndex);
+    const hasTranslation = lyrics?.translation && lyrics.translation[index];
 
     return (
       <TouchableOpacity
@@ -293,18 +292,36 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
         {isActive && (
           <View style={[styles.lyricIndicator, { backgroundColor: gold }]} />
         )}
-        <Text
-          style={[
-            styles.lyricText,
-            {
-              fontSize: isActive ? 24 : 18,
-              fontWeight: isActive ? '600' : '500',
-              color: isActive ? '#f1ebe0' : passed ? 'rgba(241,235,224,0.35)' : 'rgba(241,235,224,0.55)',
-            },
-          ]}
-        >
-          {item.text}
-        </Text>
+        <View style={styles.lyricTextContainer}>
+          <Text
+            style={[
+              styles.lyricText,
+              {
+                fontSize: isActive ? 24 : 18,
+                fontWeight: isActive ? '600' : '500',
+                color: isActive ? '#f1ebe0' : passed ? 'rgba(241,235,224,0.35)' : 'rgba(241,235,224,0.55)',
+              },
+            ]}
+          >
+            {item.text}
+          </Text>
+          {hasTranslation && (
+            <View style={styles.translationLine}>
+              <Text style={styles.translationArrow}>↳</Text>
+              <Text
+                style={[
+                  styles.translationText,
+                  {
+                    fontSize: isActive ? 16 : 13,
+                    color: isActive ? 'rgba(241,235,224,0.75)' : passed ? 'rgba(241,235,224,0.25)' : 'rgba(241,235,224,0.4)',
+                  },
+                ]}
+              >
+                {lyrics.translation[index].text}
+              </Text>
+            </View>
+          )}
+        </View>
       </TouchableOpacity>
     );
   };
@@ -423,19 +440,7 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
           {lyrics && lyrics.lines.length > 0 && (
             <View style={styles.section}>
               <View style={styles.lyricsHeader}>
-                <View style={styles.lyricsHeaderLeft}>
-                  <Text style={[styles.sectionLabel, { color: gold }]}>lyrics</Text>
-                  {lyrics.translation && (
-                    <TouchableOpacity
-                      onPress={() => setShowTranslation(!showTranslation)}
-                      style={[styles.translationToggle, { borderColor: `${gold}40`, backgroundColor: showTranslation ? `${gold}18` : 'rgba(241,235,224,0.06)' }]}
-                    >
-                      <Text style={[styles.translationToggleText, { color: showTranslation ? gold : 'rgba(241,235,224,0.65)' }]}>
-                        {showTranslation ? 'EN' : lyrics.language?.toUpperCase() || 'ORIG'}
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
+                <Text style={[styles.sectionLabel, { color: gold }]}>lyrics</Text>
                 <Text style={styles.musixmatchAttr}>
                   synced{lyrics.translation ? ' + translated' : ''} · Musixmatch
                 </Text>
@@ -443,9 +448,9 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
               <View style={styles.lyricsContainer}>
                 <FlatList
                   ref={lyricListRef}
-                  data={displayLyrics}
+                  data={lyrics.lines}
                   renderItem={renderLyricLine}
-                  keyExtractor={(_, i) => `lyric-${showTranslation ? 'trans' : 'orig'}-${i}`}
+                  keyExtractor={(_, i) => `lyric-${i}`}
                   showsVerticalScrollIndicator={false}
                   contentContainerStyle={styles.lyricsList}
                   onScrollToIndexFailed={() => {}}
@@ -875,23 +880,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 12,
   },
-  lyricsHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  translationToggle: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    borderWidth: 1,
-  },
-  translationToggleText: {
-    fontFamily: 'Menlo',
-    fontSize: 9,
-    fontWeight: '700',
-    letterSpacing: 0.6,
-  },
   musixmatchAttr: {
     fontFamily: 'Menlo',
     fontSize: 9.5,
@@ -907,22 +895,45 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
   },
   lyricLine: {
-    paddingVertical: 8,
+    paddingVertical: 10,
     paddingHorizontal: 4,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 12,
   },
   lyricIndicator: {
     width: 8,
     height: 8,
     borderRadius: 4,
+    marginTop: 10,
+  },
+  lyricTextContainer: {
+    flex: 1,
+    gap: 6,
   },
   lyricText: {
-    flex: 1,
     fontFamily: 'System',
     lineHeight: 28,
     letterSpacing: -0.2,
+  },
+  translationLine: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    paddingLeft: 4,
+  },
+  translationArrow: {
+    fontFamily: 'System',
+    fontSize: 14,
+    color: 'rgba(241,235,224,0.3)',
+    marginTop: -2,
+  },
+  translationText: {
+    flex: 1,
+    fontFamily: 'System',
+    fontStyle: 'italic',
+    lineHeight: 20,
+    letterSpacing: -0.1,
   },
   lyricsError: {
     marginTop: 20,
