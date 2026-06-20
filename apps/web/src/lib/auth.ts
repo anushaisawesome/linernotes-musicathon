@@ -116,27 +116,7 @@ export const authOptions: NextAuthConfig = {
   callbacks: {
     async signIn({ user, account, profile }) {
       try {
-        // For Spotify OAuth, ensure user has a handle
-        if (account?.provider === "spotify") {
-          const existingUser = await prisma.user.findUnique({
-            where: { email: user.email! },
-          });
-
-          if (existingUser && !existingUser.handle) {
-            // Update user with generated handle if missing
-            const handle = generateHandle(user.name || user.email!);
-            const displayName = user.name || user.email!.split('@')[0];
-
-            await prisma.user.update({
-              where: { id: existingUser.id },
-              data: {
-                handle,
-                displayName,
-              },
-            });
-          }
-        }
-
+        // Allow sign in - onboarding will handle missing handle/displayName
         return true;
       } catch (error) {
         console.error("SignIn callback error:", error);
@@ -176,23 +156,9 @@ export const authOptions: NextAuthConfig = {
   events: {
     async createUser({ user }) {
       try {
-        // Ensure new Spotify users have a handle and displayName
-        const dbUser = await prisma.user.findUnique({
-          where: { id: user.id },
-        });
-
-        if (dbUser && (!dbUser.handle || !dbUser.displayName)) {
-          const handle = generateHandle(user.name || user.email!);
-          const displayName = user.name || user.email!.split('@')[0];
-
-          await prisma.user.update({
-            where: { id: user.id },
-            data: {
-              handle: dbUser.handle || handle,
-              displayName: dbUser.displayName || displayName,
-            },
-          });
-        }
+        // New Spotify users will complete onboarding to set their handle
+        // Don't auto-generate handle here - let them choose in onboarding
+        console.log("New user created:", user.id);
       } catch (error) {
         console.error("CreateUser event error:", error);
       }
