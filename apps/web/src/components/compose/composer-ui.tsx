@@ -131,7 +131,7 @@ function LabelPicker({ value, onChange }: { value: string; onChange: (v: string)
   );
 }
 
-export type DraftMoment = { seconds: number; label: string; note: string };
+export type DraftMoment = { seconds: number; label: string; note: string; lyric?: string };
 
 // ── mm:ss moments editor (with optional label; defaults to "moment") ──
 export function MomentsEditor({

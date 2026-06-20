@@ -5,6 +5,7 @@ export type Note = {
   seconds: number;
   label: string;
   note?: string; // Optional longer commentary
+  lyric?: string; // Bookmarked lyric line (if this note is a lyric annotation)
   createdAt: string;
 };
 

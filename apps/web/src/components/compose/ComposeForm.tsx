@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import type { Track, Review } from "@/lib/types";
 import { TrackSearch } from "./TrackSearch";
 import { StarsInput, MomentsEditor, CaptionPicker, Chip, DepthMeter, ModeTabs, PreviewShell, cmpInput, type DraftMoment, type Depth } from "./composer-ui";
+import { LyricsBrowser } from "./LyricsBrowser";
 import { LNArt, LNIcon } from "@/components/ln/atoms";
 import { LNWCard } from "@/components/ln/cards";
 import { paletteFromString } from "@/lib/palette";
@@ -25,6 +26,7 @@ export function ComposeForm({ onSubmit, onSuccess, searchAPI, initialTrack, init
   const [showLine, setShowLine] = useState(false);
   const [line, setLine] = useState("");
   const [showMoments, setShowMoments] = useState(false);
+  const [showLyrics, setShowLyrics] = useState(false);
   const [moments, setMoments] = useState<DraftMoment[]>([]);
   const [captionIdx, setCaptionIdx] = useState(0);
   const [submitting, setSubmitting] = useState(false);
@@ -81,7 +83,7 @@ export function ComposeForm({ onSubmit, onSuccess, searchAPI, initialTrack, init
         previewUrl: track.previewUrl,
         rating,
         take: take || undefined,
-        notes: moments.length > 0 ? moments.map((m) => ({ seconds: m.seconds, label: m.label || "moment", note: m.note || undefined })) : undefined,
+        notes: moments.length > 0 ? moments.map((m) => ({ seconds: m.seconds, label: m.label || "moment", note: m.note || undefined, lyric: m.lyric || undefined })) : undefined,
       };
 
       if (onSubmit) {
@@ -160,6 +162,11 @@ export function ComposeForm({ onSubmit, onSuccess, searchAPI, initialTrack, init
             <div style={{ marginTop: 16, display: "flex", flexWrap: "wrap", gap: 8 }}>
               <Chip label="Write a note" on={showLine} onToggle={() => setShowLine((v) => !v)} />
               <Chip label={`Mark moments${moments.length ? ` · ${moments.length}` : ""}`} on={showMoments} onToggle={() => setShowMoments((v) => !v)} />
+              <Chip
+                label={`Bookmark lyrics${moments.filter(m => m.lyric).length ? ` · ${moments.filter(m => m.lyric).length}` : ""}`}
+                on={showLyrics}
+                onToggle={() => setShowLyrics((v) => !v)}
+              />
             </div>
 
             {showLine && (
@@ -179,6 +186,22 @@ export function ComposeForm({ onSubmit, onSuccess, searchAPI, initialTrack, init
                   moments={moments}
                   onAdd={(m) => setMoments((a) => [...a, m].sort((x, y) => x.seconds - y.seconds))}
                   onRemove={(idx) => setMoments((a) => a.filter((_, i) => i !== idx))}
+                />
+              </div>
+            )}
+
+            {showLyrics && (
+              <div style={{ marginTop: 13, padding: 14, borderRadius: 14, border: `1px solid ${gold}33`, background: `${gold}0a` }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 14 }}>
+                  <LNIcon name="save" size={16} color={gold} />
+                  <span style={{ fontFamily: "var(--ln-mono)", fontSize: 11, letterSpacing: "0.06em", color: gold, textTransform: "uppercase" }}>Bookmark favorite lyrics</span>
+                </div>
+                <LyricsBrowser
+                  trackIsrc={track?.trackId?.startsWith("spotify:") ? undefined : track?.trackId}
+                  trackName={track?.name || ""}
+                  artistName={track?.artist || ""}
+                  onBookmark={(m) => setMoments((a) => [...a, m].sort((x, y) => x.seconds - y.seconds))}
+                  bookmarkedLines={new Set(moments.filter(m => m.lyric).map(m => m.lyric!))}
                 />
               </div>
             )}
