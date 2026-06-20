@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import { getFriends, sendFriendRequest, updateFriendRequest } from "@/lib/api";
+import { getFriends, sendFriendRequest, updateFriendRequest, removeFriend } from "@/lib/api";
 import type { User } from "@/lib/types";
 import { TopBar, Footer } from "@/components/ln/nav";
 import { LNAvatar, LNIcon } from "@/components/ln/atoms";
@@ -62,6 +62,7 @@ export default function FriendsPage() {
   const [friends, setFriends] = useState<User[]>([]);
   const [incoming, setIncoming] = useState<Incoming[]>([]);
   const [sent, setSent] = useState<Sent[]>([]);
+  const [reqTab, setReqTab] = useState<"incoming" | "sent">("incoming");
   const [loading, setLoading] = useState(true);
 
   const [addHandle, setAddHandle] = useState("");
@@ -110,6 +111,17 @@ export default function FriendsPage() {
       setIncoming((arr) => arr.filter((r) => r.requester.id !== userId));
     } catch (error) {
       console.error("Failed to reject:", error);
+    }
+  };
+
+  // Cancel an outgoing request: deletes the pending friendship (DELETE works at
+  // any status, so it withdraws the request the current user sent).
+  const handleCancel = async (addresseeId: string) => {
+    try {
+      await removeFriend(addresseeId);
+      setSent((arr) => arr.filter((s) => s.addressee.id !== addresseeId));
+    } catch (error) {
+      console.error("Failed to cancel request:", error);
     }
   };
 
@@ -241,35 +253,56 @@ export default function FriendsPage() {
                 )}
               </div>
 
-              {/* Pending requests */}
+              {/* Requests — toggle between incoming (friend requests) and outgoing (pending) */}
               <div style={{ marginTop: 34 }}>
-                <SectionLabel count={incoming.length}>pending requests</SectionLabel>
-                {incoming.length === 0 && sent.length === 0 ? (
-                  <div style={{ padding: "14px 2px", fontFamily: "var(--ln-body)", fontSize: 13.5, color: "rgba(var(--ln-fg-rgb),0.45)" }}>No pending requests.</div>
+                <div style={{ display: "inline-flex", gap: 4, padding: 4, borderRadius: 999, background: "rgba(var(--ln-fg-rgb),0.05)", border: "1px solid rgba(var(--ln-line-rgb),0.1)", marginBottom: 18 }}>
+                  {([["incoming", "Friend requests", incoming.length], ["sent", "Pending requests", sent.length]] as const).map(([id, label, n]) => {
+                    const on = reqTab === id;
+                    return (
+                      <button key={id} onClick={() => setReqTab(id)} className="ln-press" style={{ padding: "8px 16px", borderRadius: 999, border: "none", cursor: "pointer", background: on ? gold : "transparent", color: on ? "#2c1517" : "rgba(var(--ln-fg-rgb),0.7)", fontFamily: "var(--ln-body)", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap" }}>
+                        {label}{n > 0 ? ` · ${n}` : ""}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {reqTab === "incoming" ? (
+                  incoming.length === 0 ? (
+                    <div style={{ padding: "14px 2px", fontFamily: "var(--ln-body)", fontSize: 13.5, color: "rgba(var(--ln-fg-rgb),0.45)" }}>No friend requests right now.</div>
+                  ) : (
+                    <div>
+                      {incoming.map((r) => (
+                        <PersonRow
+                          key={r.id}
+                          user={r.requester}
+                          right={
+                            <div style={{ display: "flex", gap: 7, flexShrink: 0 }}>
+                              <button onClick={() => handleAccept(r.requester.id)} className="ln-press" style={{ padding: "7px 14px", borderRadius: 999, border: "none", cursor: "pointer", background: gold, color: "#2c1517", fontFamily: "var(--ln-body)", fontSize: 12.5, fontWeight: 700 }}>Accept</button>
+                              <button onClick={() => handleReject(r.requester.id)} className="ln-press" title="Decline" style={{ width: 32, height: 32, borderRadius: "50%", border: "1px solid rgba(var(--ln-line-rgb),0.18)", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>
+                                <LNIcon name="close" size={14} color="rgba(var(--ln-fg-rgb),0.5)" />
+                              </button>
+                            </div>
+                          }
+                        />
+                      ))}
+                    </div>
+                  )
                 ) : (
-                  <div>
-                    {incoming.map((r) => (
-                      <PersonRow
-                        key={r.id}
-                        user={r.requester}
-                        right={
-                          <div style={{ display: "flex", gap: 7, flexShrink: 0 }}>
-                            <button onClick={() => handleAccept(r.requester.id)} className="ln-press" style={{ padding: "7px 14px", borderRadius: 999, border: "none", cursor: "pointer", background: gold, color: "#2c1517", fontFamily: "var(--ln-body)", fontSize: 12.5, fontWeight: 700 }}>Accept</button>
-                            <button onClick={() => handleReject(r.requester.id)} className="ln-press" title="Decline" style={{ width: 32, height: 32, borderRadius: "50%", border: "1px solid rgba(var(--ln-line-rgb),0.18)", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>
-                              <LNIcon name="close" size={14} color="rgba(var(--ln-fg-rgb),0.5)" />
-                            </button>
-                          </div>
-                        }
-                      />
-                    ))}
-                    {sent.map((s) => (
-                      <PersonRow
-                        key={s.id}
-                        user={s.addressee}
-                        right={<span style={{ flexShrink: 0, fontFamily: "var(--ln-mono)", fontSize: 11, color: "rgba(var(--ln-fg-rgb),0.45)", padding: "0 6px" }}>requested</span>}
-                      />
-                    ))}
-                  </div>
+                  sent.length === 0 ? (
+                    <div style={{ padding: "14px 2px", fontFamily: "var(--ln-body)", fontSize: 13.5, color: "rgba(var(--ln-fg-rgb),0.45)" }}>No pending requests — you haven&apos;t asked anyone yet.</div>
+                  ) : (
+                    <div>
+                      {sent.map((s) => (
+                        <PersonRow
+                          key={s.id}
+                          user={s.addressee}
+                          right={
+                            <button onClick={() => handleCancel(s.addressee.id)} className="ln-press" style={{ flexShrink: 0, padding: "7px 14px", borderRadius: 999, border: "1px solid rgba(var(--ln-line-rgb),0.2)", background: "transparent", cursor: "pointer", color: "rgba(var(--ln-fg-rgb),0.7)", fontFamily: "var(--ln-body)", fontSize: 12.5, fontWeight: 600 }}>Cancel request</button>
+                          }
+                        />
+                      ))}
+                    </div>
+                  )
                 )}
               </div>
 

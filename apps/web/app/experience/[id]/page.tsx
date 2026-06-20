@@ -5,6 +5,8 @@ import { useParams } from "next/navigation";
 import { WebPlaybackSDK, type PlayerState } from "@/lib/spotify-player";
 import { getActiveAnnotations, type SyncedLyrics, type ActiveAnnotations } from "@/lib/sync-engine";
 import type { Review } from "@/lib/types";
+import { paletteFromString, type Palette } from "@/lib/palette";
+import { LNArt } from "@/components/ln/atoms";
 
 function ExperienceContent() {
   const params = useParams();
@@ -17,6 +19,8 @@ function ExperienceContent() {
   const [player, setPlayer] = useState<WebPlaybackSDK | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Real colours pulled from the cover art (falls back to a deterministic palette).
+  const [coverPalette, setCoverPalette] = useState<Palette | null>(null);
 
   // Fetch review data
   useEffect(() => {
@@ -134,10 +138,13 @@ function ExperienceContent() {
     );
   }
 
+  // Flood the screen with the cover's colours; a dark overlay keeps text legible.
+  const p = coverPalette || paletteFromString(review.track.trackId || review.track.album || review.track.name);
+
   return (
     <div style={{
       minHeight: "100vh",
-      background: "var(--ln-bg)",
+      background: `linear-gradient(rgba(8,7,6,0.42), rgba(8,7,6,0.62)), radial-gradient(120% 90% at 30% 12%, ${p.mid}, ${p.deep} 50%, ${p.lo})`,
       color: "var(--ln-fg)",
       display: "flex",
       flexDirection: "column",
@@ -165,18 +172,8 @@ function ExperienceContent() {
       }}>
         {/* Album art */}
         {review.track.artworkUrl && (
-          <div style={{
-            width: "200px",
-            height: "200px",
-            margin: "0 auto 40px",
-            borderRadius: "8px",
-            overflow: "hidden",
-          }}>
-            <img
-              src={review.track.artworkUrl}
-              alt={review.track.album}
-              style={{ width: "100%", height: "100%", objectFit: "cover" }}
-            />
+          <div style={{ width: 200, margin: "0 auto 40px", boxShadow: "0 24px 60px -24px rgba(0,0,0,0.8)", borderRadius: 8 }}>
+            <LNArt palette={p} src={review.track.artworkUrl} radius={8} noTag onPaletteExtracted={setCoverPalette} />
           </div>
         )}
 
@@ -185,15 +182,16 @@ function ExperienceContent() {
           <div style={{
             padding: "24px",
             marginBottom: "40px",
-            background: "rgba(var(--ln-accent-rgb), 0.1)",
-            border: "2px solid var(--ln-accent)",
+            background: "rgba(8,7,6,0.4)",
+            backdropFilter: "blur(6px)",
+            border: `1.5px solid ${p.accent}`,
             borderRadius: "12px",
             animation: "fadeIn 0.3s ease-in",
           }}>
             <div style={{
               fontSize: "12px",
               fontWeight: 600,
-              color: "var(--ln-accent)",
+              color: p.accent,
               marginBottom: "8px",
               textTransform: "uppercase",
               letterSpacing: "0.05em",
@@ -231,8 +229,8 @@ function ExperienceContent() {
                     fontWeight: isActive ? 600 : 400,
                     opacity: isActive ? 1 : 0.4,
                     transition: "all 0.3s ease",
-                    color: hasMoment ? "var(--ln-accent)" : "inherit",
-                    borderLeft: hasMoment ? "4px solid var(--ln-accent)" : "none",
+                    color: hasMoment ? p.accent : "inherit",
+                    borderLeft: hasMoment ? `4px solid ${p.accent}` : "none",
                     paddingLeft: hasMoment ? "20px" : "24px",
                   }}
                 >
@@ -258,8 +256,9 @@ function ExperienceContent() {
       {player && playerState && (
         <footer style={{
           padding: "20px",
-          borderTop: "1px solid rgba(var(--ln-line-rgb), 0.1)",
-          background: "var(--ln-surface)",
+          borderTop: "1px solid rgba(255,255,255,0.1)",
+          background: "rgba(8,7,6,0.55)",
+          backdropFilter: "blur(10px)",
         }}>
           <div style={{
             maxWidth: "800px",
@@ -272,8 +271,8 @@ function ExperienceContent() {
               onClick={() => player.togglePlay()}
               style={{
                 padding: "12px 24px",
-                background: "var(--ln-accent)",
-                color: "var(--ln-bg)",
+                background: p.accent,
+                color: "#161013",
                 border: "none",
                 borderRadius: "8px",
                 cursor: "pointer",

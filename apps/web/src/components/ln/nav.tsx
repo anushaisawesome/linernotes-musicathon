@@ -219,6 +219,23 @@ export function Footer({ dark = true }: { dark?: boolean }) {
   const fg = dark ? "#f1ebe0" : "var(--ln-fg)";
   const muted = dark ? "rgba(241,235,224,0.5)" : "rgba(var(--ln-fg-rgb),0.55)";
   const line = dark ? "rgba(241,235,224,0.12)" : "rgba(var(--ln-fg-rgb),0.12)";
+
+  // Last.fm status for signed-in users (shown on the right of the footer).
+  const [lastfm, setLastfm] = useState<{ connected: boolean; username: string } | null>(null);
+  useEffect(() => {
+    if (!session) { setLastfm(null); return; }
+    let cancelled = false;
+    fetch("/api/connect/lastfm")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (!cancelled && d) setLastfm({ connected: !!d.connected, username: d.username || "" }); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [session]);
+  const connectLastfm = () => {
+    const back = typeof window !== "undefined" ? window.location.pathname : "/";
+    window.location.href = `/api/connect/lastfm?callbackUrl=${encodeURIComponent(back)}`;
+  };
+
   return (
     <footer style={{ position: "relative", zIndex: 0, borderTop: `1px solid ${line}`, marginTop: "auto", background: "rgba(0,0,0,0.12)" }}>
       <div style={{ maxWidth: 1180, margin: "0 auto", padding: "44px 24px 52px", display: "flex", flexWrap: "wrap", gap: 30, alignItems: "flex-start", justifyContent: "space-between" }}>
@@ -232,12 +249,26 @@ export function Footer({ dark = true }: { dark?: boolean }) {
           <div style={{ marginTop: 16, fontFamily: "var(--ln-mono)", fontSize: 10.5, letterSpacing: "0.04em", color: muted }}>© 2026 LinerNotes · made for listeners</div>
         </div>
 
-        <div style={{ flex: 1, display: "flex", gap: 54, flexWrap: "wrap", justifyContent: "center" }}>
+        <div style={{ flex: 1, display: "flex", gap: 90, flexWrap: "wrap", justifyContent: "center" }}>
           <FootCol head="Product" links={[["Explore", "/feed"], ["Log a note", "/log"]]} fg={fg} muted={muted} />
           <FootCol head="You" links={[["Friends", "/friends"], ["Profile", handle ? `/profile/${handle}` : "/login"]]} fg={fg} muted={muted} />
         </div>
 
-        {!session && (
+        {session ? (
+          <div style={{ minWidth: 220, maxWidth: 240 }}>
+            <div style={{ fontFamily: "var(--ln-label)", fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", fontWeight: 700, color: accent, marginBottom: 12 }}>Last.fm</div>
+            {lastfm?.connected ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "11px 13px", borderRadius: 12, background: "rgba(127,207,155,0.1)", border: "1px solid rgba(127,207,155,0.28)" }}>
+                <svg width="16" height="16" viewBox="0 0 18 18" fill="none" style={{ flexShrink: 0 }}><circle cx="9" cy="9" r="9" fill="#7fcf9b" /><path d="M5 9l2.5 2.5 5-5" stroke="#0a0908" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                <span style={{ fontFamily: "var(--ln-body)", fontSize: 13, fontWeight: 600, color: fg }}>Last.fm connected successfully</span>
+              </div>
+            ) : (
+              <button onClick={connectLastfm} className="ln-press" style={{ display: "block", textAlign: "center", width: "100%", boxSizing: "border-box", padding: "13px", borderRadius: 12, background: accent, color: "#2c1517", border: "none", cursor: "pointer", fontFamily: "var(--ln-body)", fontSize: 14, fontWeight: 700, boxShadow: `0 10px 26px -12px ${accent}` }}>
+                Connect Last.fm
+              </button>
+            )}
+          </div>
+        ) : (
           <div style={{ minWidth: 220 }}>
             <div style={{ fontFamily: "var(--ln-label)", fontSize: 10.5, letterSpacing: "0.16em", textTransform: "uppercase", fontWeight: 700, color: accent, marginBottom: 12 }}>get started</div>
             <Link href="/login" className="ln-press" style={{ display: "block", textAlign: "center", textDecoration: "none", width: "100%", boxSizing: "border-box", padding: "13px", borderRadius: 12, background: accent, color: "#2c1517", fontFamily: "var(--ln-body)", fontSize: 14, fontWeight: 700, boxShadow: `0 10px 26px -12px ${accent}` }}>
