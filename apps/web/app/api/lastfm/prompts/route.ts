@@ -224,6 +224,33 @@ export async function GET(request: Request) {
     const tracks: LastFmTrack[] = recentData.recenttracks?.track || [];
 
     console.log("[Last.fm Prompts] Recent tracks count:", tracks.length);
+
+    // Fetch user's existing reviews to filter out already-logged tracks/albums
+    const existingReviews = await prisma.review.findMany({
+      where: { userId: user.id },
+      select: {
+        trackName: true,
+        trackArtist: true,
+        trackAlbum: true,
+      },
+    });
+
+    const existingAlbumReviews = await prisma.albumReview.findMany({
+      where: { userId: user.id },
+      select: {
+        albumName: true,
+        albumArtist: true,
+      },
+    });
+
+    const reviewedTracks = new Set(
+      existingReviews.map(r => `${r.trackArtist}::${r.trackName}`.toLowerCase())
+    );
+    const reviewedAlbums = new Set(
+      existingAlbumReviews.map(r => `${r.albumArtist}::${r.albumName}`.toLowerCase())
+    );
+
+    console.log("[Last.fm Prompts] Already reviewed:", reviewedTracks.size, "tracks,", reviewedAlbums.size, "albums");
     if (tracks.length > 0) {
       console.log("[Last.fm Prompts] Sample recent track structure:");
       console.log("  name:", tracks[0].name);
@@ -358,6 +385,7 @@ export async function GET(request: Request) {
     const albumCandidates: Prompt[] = [];
     const seenTracks = new Set<string>();
     const seenAlbums = new Set<string>();
+    const albumsInPrompts = new Set<string>(); // Track which albums already have prompts to avoid duplicates
 
     // Priority 1: Tracks on heavy repeat (from top tracks of the week) - Limit to 5
     // Shuffle top tracks to get variety instead of always showing the same top 5
@@ -374,11 +402,27 @@ export async function GET(request: Request) {
 
       const trackKey = `${artistName}::${track.name}`;
 
+      // Skip if already reviewed
+      if (reviewedTracks.has(trackKey.toLowerCase())) {
+        console.log(`[Last.fm Prompts] Skipping already-reviewed track: ${trackKey}`);
+        continue;
+      }
+
       if (seenTracks.has(trackKey)) continue;
       seenTracks.add(trackKey);
 
       const playCount = track.playcount ? parseInt(track.playcount) : 0;
       if (playCount < 3) continue; // Only show if played 3+ times
+
+      // Skip if we already have a prompt for this album (one prompt per album in carousel)
+      const albumKey = `${artistName}::${albumName}`.toLowerCase();
+      if (albumName && albumsInPrompts.has(albumKey)) {
+        console.log(`[Last.fm Prompts] Skipping track - already have prompt for album: ${albumName}`);
+        continue;
+      }
+      if (albumName) {
+        albumsInPrompts.add(albumKey);
+      }
 
       // Try to get artwork from Last.fm first (prefer highest quality)
       let artworkUrl = track.image?.find((img) => img.size === "mega")?.["#text"] ||
@@ -465,8 +509,22 @@ export async function GET(request: Request) {
 
       const trackKey = `${artistName}::${track.name}`;
 
+      // Skip if already reviewed
+      if (reviewedTracks.has(trackKey.toLowerCase())) {
+        continue;
+      }
+
       if (seenTracks.has(trackKey)) continue;
       seenTracks.add(trackKey);
+
+      // Skip if we already have a prompt for this album (one prompt per album in carousel)
+      const albumKey = `${artistName}::${albumName}`.toLowerCase();
+      if (albumName && albumsInPrompts.has(albumKey)) {
+        continue;
+      }
+      if (albumName) {
+        albumsInPrompts.add(albumKey);
+      }
 
       // Try to get artwork from Last.fm first (prefer highest quality)
       let artworkUrl = track.image?.find((img) => img.size === "mega")?.["#text"] ||
@@ -540,6 +598,12 @@ export async function GET(request: Request) {
     // Priority 3: Recent album plays (full album listens) - Limit to 3
     for (const albumPlay of recentAlbumPlays.slice(0, 10)) {
       const albumKey = `${albumPlay.artist}::${albumPlay.album}`;
+
+      // Skip if already reviewed
+      if (reviewedAlbums.has(albumKey.toLowerCase())) {
+        console.log(`[Last.fm Prompts] Skipping already-reviewed album: ${albumKey}`);
+        continue;
+      }
 
       if (seenAlbums.has(albumKey)) continue;
       seenAlbums.add(albumKey);
