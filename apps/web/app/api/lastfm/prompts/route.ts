@@ -3,6 +3,7 @@ import { requireAuth } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
 import { paletteFromString } from "@/lib/palette";
+import { extractPaletteFromUrl } from "@/lib/extractPaletteServer";
 
 /**
  * Generate Last.fm API signature
@@ -479,7 +480,9 @@ export async function GET(request: Request) {
 
       // Spotify validation above handles artwork fallback, no need for additional fallbacks
 
-      const palette = paletteFromString(albumName || track.name);
+      // Extract real colors from artwork (server-side to avoid CORS)
+      const extractedPalette = artworkUrl ? await extractPaletteFromUrl(artworkUrl) : null;
+      const palette = extractedPalette || paletteFromString(albumName || track.name);
 
       console.log("[Last.fm Prompts] Creating repeat prompt:", {
         track: track.name,
@@ -582,7 +585,9 @@ export async function GET(request: Request) {
 
       // Spotify validation above handles artwork fallback, no need for additional fallbacks
 
-      const palette = paletteFromString(albumName || track.name);
+      // Extract real colors from artwork (server-side to avoid CORS)
+      const extractedPalette = artworkUrl ? await extractPaletteFromUrl(artworkUrl) : null;
+      const palette = extractedPalette || paletteFromString(albumName || track.name);
 
       console.log("[Last.fm Prompts] Creating recent prompt:", {
         track: track.name,
@@ -646,7 +651,9 @@ export async function GET(request: Request) {
         }
       }
 
-      const palette = paletteFromString(album.name);
+      // Extract real colors from artwork (server-side to avoid CORS)
+      const extractedPalette = artworkUrl ? await extractPaletteFromUrl(artworkUrl) : null;
+      const palette = extractedPalette || paletteFromString(album.name);
 
       console.log("[Last.fm Prompts] Creating top album prompt:", {
         album: album.name,
@@ -702,7 +709,9 @@ export async function GET(request: Request) {
         }
       }
 
-      const palette = paletteFromString(albumPlay.album);
+      // Extract real colors from artwork (server-side to avoid CORS)
+      const extractedPalette = artworkUrl ? await extractPaletteFromUrl(artworkUrl) : null;
+      const palette = extractedPalette || paletteFromString(albumPlay.album);
 
       console.log("[Last.fm Prompts] Creating album prompt:", {
         album: albumPlay.album,
