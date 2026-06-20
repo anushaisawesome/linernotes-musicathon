@@ -280,11 +280,11 @@ function ExperienceContent() {
             <div key={review.id} style={{ borderRadius: 16, border: `1px solid ${accent}33`, background: `${accent}10`, padding: "16px 18px", animation: "mu-rise 0.45s cubic-bezier(.2,.8,.2,1) both" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: noteOpen ? 11 : 0 }}>
                 <span style={{ width: 30, height: 30, borderRadius: "50%", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: `${accent}26`, border: `1px solid ${accent}66`, color: accent, fontFamily: "var(--ln-display)", fontWeight: 600, fontSize: 14 }}>
-                  {review.user?.name?.[0] || "U"}
+                  {review.user?.displayName?.[0] || "U"}
                 </span>
                 <div style={{ flex: 1, minWidth: 0, lineHeight: 1.2 }}>
                   <div style={{ fontFamily: "var(--ln-mono)", fontSize: 9.5, letterSpacing: "0.08em", textTransform: "uppercase", color: accent }}>
-                    what {review.user?.name?.split(" ")[0] || "they"} wrote
+                    what {review.user?.displayName?.split(" ")[0] || "they"} wrote
                   </div>
                   <div style={{ fontFamily: "var(--ln-body)", fontSize: 13, color: muted(0.7) }}>@{review.user?.handle || "user"}</div>
                 </div>
