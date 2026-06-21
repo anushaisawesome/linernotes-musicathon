@@ -99,7 +99,9 @@ export function LyricsBrowser({ trackIsrc, trackName, artistName, onBookmark, bo
     setAnnotation("");
   };
 
-  const handleSaveAnnotation = () => {
+  // Save the selected lines as a bookmark. The annotation is optional, so this
+  // is shared by the quick "Save" button (no note) and the annotate flow.
+  const commitBookmark = (noteText: string) => {
     if (selectedLines.size === 0) return;
 
     const selectedLyrics = Array.from(selectedLines)
@@ -115,7 +117,7 @@ export function LyricsBrowser({ trackIsrc, trackName, artistName, onBookmark, bo
     onBookmark({
       seconds: firstLine.seconds,
       label,
-      note: annotation.trim() || "", // Your personal annotation
+      note: noteText.trim(),
       lyric: combinedLyric, // The lyric line(s)
     });
 
@@ -123,6 +125,8 @@ export function LyricsBrowser({ trackIsrc, trackName, artistName, onBookmark, bo
     setIsAnnotating(false);
     setAnnotation("");
   };
+
+  const handleSaveAnnotation = () => commitBookmark(annotation);
 
   const handleCancelAnnotation = () => {
     setSelectedLines(new Set());
@@ -177,11 +181,29 @@ export function LyricsBrowser({ trackIsrc, trackName, artistName, onBookmark, bo
       <div style={{ marginBottom: 12, fontFamily: "var(--ln-body)", fontSize: 13, color: "rgba(var(--ln-fg-rgb),0.6)" }}>
         {selectedLines.size > 0
           ? `${selectedLines.size} line${selectedLines.size > 1 ? "s" : ""} selected. Click to add/remove lines.`
-          : "Click lines to select them, then add your annotation. Select multiple lines to annotate a verse or chorus together."}
+          : "Click lines to select them, then save — adding an annotation is optional. Select multiple lines to bookmark a verse or chorus together."}
       </div>
 
       {selectedLines.size > 0 && !isAnnotating && (
         <div style={{ marginBottom: 12, display: "flex", gap: 8 }}>
+          <button
+            type="button"
+            onClick={() => commitBookmark("")}
+            className="ln-press"
+            style={{
+              padding: "8px 16px",
+              fontFamily: "var(--ln-mono)",
+              fontSize: 11,
+              fontWeight: 700,
+              border: `1px solid ${gold}`,
+              borderRadius: 8,
+              background: gold,
+              color: "var(--ln-bg)",
+              cursor: "pointer",
+            }}
+          >
+            SAVE
+          </button>
           <button
             type="button"
             onClick={handleStartAnnotation}
@@ -191,10 +213,10 @@ export function LyricsBrowser({ trackIsrc, trackName, artistName, onBookmark, bo
               fontFamily: "var(--ln-mono)",
               fontSize: 11,
               fontWeight: 600,
-              border: `1px solid ${gold}`,
+              border: `1px solid ${gold}99`,
               borderRadius: 8,
-              background: gold,
-              color: "var(--ln-bg)",
+              background: "transparent",
+              color: gold,
               cursor: "pointer",
             }}
           >

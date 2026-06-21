@@ -27,10 +27,9 @@ function featuredMoment(vm: ReviewVM): MomentVM | null {
 
 export function LNWCardStrip({ album, gold = GOLD, bare = false, limit }: { album: AlbumVM; gold?: string; bare?: boolean; limit?: number }) {
   const total = momentCount(album);
-  const allAddressed = album.tracks.length > 0 && album.tracks.every((t) => t.reaction || (t.moments && t.moments.length) || t.review);
-  const heading = album.kind === "playlist" || allAddressed ? null : "the ones that stuck";
   const shown = typeof limit === "number" ? album.tracks.slice(0, limit) : album.tracks;
   const hidden = album.tracks.length - shown.length;
+  const heading: string | null = null; // no "the ones that stuck" header
   const showHeader = !!heading; // moment count moved to the bottom row
   return (
     <div style={{ borderRadius: bare ? 0 : 12, border: bare ? "none" : "1px solid rgba(var(--ln-fg-rgb),0.09)", overflow: "hidden", background: bare ? "transparent" : "rgba(var(--ln-fg-rgb),0.02)" }}>
@@ -162,7 +161,7 @@ export function LNWFeedCard({ vm, accent = GOLD, onOpen }: { vm: ReviewVM; accen
           <span style={{ fontFamily: "var(--ln-body)", fontSize: 14, color: "var(--ln-muted)" }}>{album.artist}{album.year ? ` · ${album.year}` : ""}</span>
         </div>
 
-        {vm.take && <p style={{ position: "relative", margin: 0, fontFamily: "var(--ln-preview)", fontStyle: "italic", fontWeight: 500, fontSize: 19, lineHeight: 1.38, color: "var(--ln-fg)" }}>{vm.take.split("\n")[0]}</p>}
+        {vm.take && <p style={{ position: "relative", margin: 0, fontFamily: "var(--ln-preview)", fontStyle: "italic", fontWeight: 500, fontSize: 16.5, lineHeight: 1.38, color: "var(--ln-fg)" }}>{vm.take.split("\n")[0]}</p>}
 
         {fm && (
           <div style={{ position: "relative" }}>
@@ -255,7 +254,7 @@ export function LNWCard({ vm, accent = GOLD, onOpen, showCounts = false, reposte
             <span style={{ fontFamily: "var(--ln-body)", fontSize: 14, color: "var(--ln-muted)" }}>{album.artist}</span>
           </div>
 
-          {vm.take && <p style={{ margin: 0, fontFamily: "var(--ln-preview)", fontStyle: "italic", fontWeight: 500, fontSize: 18.5, lineHeight: 1.4, color: "var(--ln-fg)" }}>{vm.take.split("\n")[0]}</p>}
+          {vm.take && <p style={{ margin: 0, fontFamily: "var(--ln-preview)", fontStyle: "italic", fontWeight: 500, fontSize: 16, lineHeight: 1.4, color: "var(--ln-fg)" }}>{vm.take.split("\n")[0]}</p>}
 
           {depth === "floor" && album.kind !== "playlist" && vm.rating > 0 && (
             <div style={{ display: "flex", alignItems: "center", gap: 10, paddingTop: 1 }}>
@@ -265,7 +264,7 @@ export function LNWCard({ vm, accent = GOLD, onOpen, showCounts = false, reposte
             </div>
           )}
 
-          {depth !== "floor" && fm && (
+          {fm && (
             <div style={{ paddingTop: 1 }}>
               <LNMoment note={fm} accent={gold} />
             </div>
