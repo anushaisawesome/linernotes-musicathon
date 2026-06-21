@@ -157,6 +157,25 @@ function ExperienceContent() {
     router.push("/");
   };
 
+  // Play/pause. Right after a device is created the SDK may not have an active
+  // playback state yet, so togglePlay() would be a no-op (the bug where the play
+  // button did nothing until a refresh). If there's no state, start playback of
+  // the current track via the REST path to activate the device first.
+  const handlePlayPause = async () => {
+    if (!player) return;
+    try {
+      const state = await player.getCurrentState();
+      if (!state) {
+        const tid = review?.track?.trackId;
+        if (tid) await player.playTrack(`spotify:track:${tid}`);
+      } else {
+        await player.togglePlay();
+      }
+    } catch (e) {
+      console.error("[Experience] play/pause failed:", e);
+    }
+  };
+
   // Jump to another song in the album experience and play it.
   const goToSegment = async (n: number) => {
     if (segments.length < 2) return;
@@ -602,7 +621,7 @@ function ExperienceContent() {
                     <svg width="22" height="22" viewBox="0 0 24 24" fill={INK}><path d="M6 5v14h2V5H6zm3 7l9 7V5l-9 7z" /></svg>
                   </button>
                 )}
-                <button onClick={() => player?.togglePlay()} className="ln-press" style={{ width: 64, height: 64, borderRadius: "50%", border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }} aria-label={playerState?.isPlaying ? "pause" : "play"}>
+                <button onClick={handlePlayPause} className="ln-press" style={{ width: 64, height: 64, borderRadius: "50%", border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }} aria-label={playerState?.isPlaying ? "pause" : "play"}>
                   {playerState?.isPlaying ? (
                     <svg width="42" height="42" viewBox="0 0 24 24" fill="#fff" style={{ filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.5))" }}><rect x="6.5" y="5" width="4" height="14" rx="1.7" /><rect x="13.5" y="5" width="4" height="14" rx="1.7" /></svg>
                   ) : (
