@@ -197,6 +197,13 @@ function ExperienceContent() {
   // Find active moment (pulses for 5s after playhead hits it)
   const activeMoment = review.notes?.find((m) => positionSec >= m.seconds && positionSec < m.seconds + 5) || null;
 
+  // Nearest moment to current position for sharing
+  const nearestMoment = review.notes && review.notes.length > 0
+    ? review.notes.reduce((prev, curr) =>
+        Math.abs(curr.seconds - positionSec) < Math.abs(prev.seconds - positionSec) ? curr : prev
+      )
+    : null;
+
   return (
     <main style={{ position: "relative", minHeight: "100vh", overflow: "hidden", color: INK }}>
       {/* Immersive album-colour flood */}
@@ -352,14 +359,25 @@ function ExperienceContent() {
             </div>
 
             {/* Active moment live callout */}
-            <div style={{ height: 52, marginTop: 12, position: "relative" }}>
+            <div style={{ minHeight: 52, marginTop: 12, position: "relative" }}>
               {activeMoment && (
-                <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", gap: 11, borderRadius: 12, background: accent, color: "#2c1517", padding: "0 8px 0 15px", animation: "mu-pop 0.3s cubic-bezier(.16,1,.3,1) both", boxShadow: `0 14px 30px -12px ${accent}` }}>
-                  <span style={{ fontFamily: "var(--ln-mono)", fontSize: 12, fontWeight: 700 }}>{lnFmt(activeMoment.seconds)}</span>
-                  <span style={{ width: 1, height: 18, background: "rgba(44,21,23,0.3)" }} />
-                  <span style={{ flex: 1, minWidth: 0, fontFamily: "var(--ln-body)", fontSize: 14, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {activeMoment.label} {activeMoment.note && `— ${activeMoment.note}`}
-                  </span>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, borderRadius: 12, background: accent, color: "#2c1517", padding: "11px 15px", animation: "mu-pop 0.3s cubic-bezier(.16,1,.3,1) both", boxShadow: `0 14px 30px -12px ${accent}` }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+                    <span style={{ fontFamily: "var(--ln-mono)", fontSize: 12, fontWeight: 700 }}>{lnFmt(activeMoment.seconds)}</span>
+                    <span style={{ width: 1, height: 18, background: "rgba(44,21,23,0.3)" }} />
+                    <span style={{ flex: 1, minWidth: 0, fontFamily: "var(--ln-preview)", fontStyle: (activeMoment as any).lyric ? "italic" : "normal", fontSize: 14, fontWeight: 600, lineHeight: 1.4, wordWrap: "break-word" }}>
+                      {(activeMoment as any).lyric || activeMoment.label}
+                    </span>
+                    <button onClick={() => alert('Share feature coming soon!')} className="ln-press" title="Share this lyric" style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 5, background: "rgba(44,21,23,0.16)", border: "none", color: "#2c1517", borderRadius: 999, padding: "6px 11px", cursor: "pointer", fontFamily: "var(--ln-body)", fontSize: 12.5, fontWeight: 700, whiteSpace: "nowrap" }}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 15V4M12 4l-4 4M12 4l4 4M5 13v5a2 2 0 002 2h10a2 2 0 002-2v-5" stroke="#2c1517" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                      Share
+                    </button>
+                  </div>
+                  {activeMoment.note && (
+                    <div style={{ fontFamily: "var(--ln-body)", fontSize: 13, lineHeight: 1.4, color: "rgba(44,21,23,0.85)", paddingLeft: 3 }}>
+                      {activeMoment.note}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

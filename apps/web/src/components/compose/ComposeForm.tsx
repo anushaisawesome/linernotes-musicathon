@@ -35,7 +35,7 @@ export function ComposeForm({ onSubmit, onSuccess, searchAPI, initialTrack, init
   // and the full review is kept after it in the order it was written.
   const lines = line.split("\n").map((s) => s.trim()).filter(Boolean);
   const capIdx = lines.length ? Math.min(captionIdx, lines.length - 1) : 0;
-  const take = lines.length > 1 ? [lines[capIdx], ...lines].join("\n") : lines[0] || "";
+  const take = lines.length > 1 ? [lines[capIdx], ...lines.filter((_, i) => i !== capIdx)].join("\n") : lines[0] || "";
   const multiline = lines.length > 1;
   const depth: Depth = multiline ? "full" : take ? "caption" : rating > 0 ? "floor" : null;
   const canPost = !!track && rating > 0;
