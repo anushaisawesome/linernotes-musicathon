@@ -86,11 +86,15 @@ function ExperienceContent() {
           // (feed:"friends" is the public all-reviews feed; your own posts are
           // included), starting at the post that was clicked when it's present.
           const all = await getReviews({ feed: "friends" });
-          const segs: Review[] = (all || []).filter(
-            (r) => r.track?.trackId && !r.track.trackId.startsWith("lastfm-")
-          );
+          const segs: Review[] = (all || [])
+            .filter((r) => r.track?.trackId && !r.track.trackId.startsWith("lastfm-"))
+            // Newest first, so the queue starts on the most recent track review.
+            .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
           if (segs.length === 0) throw new Error("No community posts to play yet");
-          const start = Math.max(0, segs.findIndex((r) => r.id === reviewId));
+          // Start on the most recent track review (segs[0]); honour a specific
+          // clicked post only when it's actually in the feed.
+          const found = segs.findIndex((r) => r.id === reviewId);
+          const start = found >= 0 ? found : 0;
           setPlaylistLabel("Community feed");
           setSegments(segs);
           setIdx(start);
@@ -251,8 +255,14 @@ function ExperienceContent() {
   useEffect(() => {
     if (!playerState) return;
     const { positionMs, durationMs, isPlaying } = playerState;
+    // The SDK signals a finished single track by pausing — and reports the
+    // position either back at 0 or pinned at the very end, depending on timing.
+    // Treat either as "ended" as long as we were near the end just before.
     const wasNearEnd = lastPosRef.current > 0 && durationMs > 0 && lastPosRef.current >= durationMs - 2500;
-    if (!isPlaying && positionMs === 0 && wasNearEnd && !endedHandledRef.current) {
+    // Within 400ms of the end is effectively the track finishing, not a human
+    // pause, so this won't false-trigger when someone pauses mid-song.
+    const atEdge = positionMs === 0 || (durationMs > 0 && positionMs >= durationMs - 400);
+    if (!isPlaying && atEdge && wasNearEnd && !endedHandledRef.current) {
       endedHandledRef.current = true;
       if (segments.length > 1 && idx < segments.length - 1) {
         goToSegment(idx + 1);
