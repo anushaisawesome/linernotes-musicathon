@@ -84,6 +84,17 @@ function ExperienceContent() {
 
         setPlayer(sdk);
         setLoading(false);
+
+        // Auto-play the track once player is ready
+        if (review.track.trackId) {
+          const spotifyUri = `spotify:track:${review.track.trackId}`;
+          console.log("[Experience] Auto-playing track:", spotifyUri);
+          try {
+            await sdk.playTrack(spotifyUri);
+          } catch (playErr) {
+            console.error("[Experience] Failed to auto-play track:", playErr);
+          }
+        }
       } catch (err) {
         console.warn("[Experience] Could not initialize Spotify player:", err);
         // Continue in preview mode - not a fatal error
