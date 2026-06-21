@@ -38,7 +38,8 @@ export default function AlbumCardPage() {
           setIsOwner(authData.user?.id === data.albumReview.userId);
         }
 
-        fetch("/api/album-reviews")
+        // "more on LinerNotes" pulls from the global community feed, not just yours.
+        fetch("/api/album-reviews?feed=friends")
           .then((r) => (r.ok ? r.json() : { albumReviews: [] }))
           .then((d) => setRelated((d.albumReviews || []).filter((a: AlbumReview) => a.id !== id).slice(0, 4)))
           .catch(() => {});

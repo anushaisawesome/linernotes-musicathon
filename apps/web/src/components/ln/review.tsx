@@ -397,7 +397,7 @@ export function ImmersiveReview({
       </div>
 
       {related.length > 0 && (
-        <section style={{ position: "relative", zIndex: 1, maxWidth: 1080, margin: "0 auto", padding: "72px 24px 0" }}>
+        <section style={{ position: "relative", zIndex: 1, maxWidth: 1080, margin: "0 auto", padding: "72px 24px 96px" }}>
           <SectionLabel gold={gold}>{relatedTitle}</SectionLabel>
           <div className="lnw-rel-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginTop: 20 }}>
             {related.map((r) => (
@@ -406,30 +406,6 @@ export function ImmersiveReview({
           </div>
         </section>
       )}
-
-      {/* conversion band */}
-      <section style={{ position: "relative", zIndex: 1, maxWidth: 1080, margin: "0 auto", padding: "76px 24px 96px" }}>
-        <div style={{ borderRadius: 24, overflow: "hidden", position: "relative", border: `1px solid ${gold}33`, background: `linear-gradient(135deg, ${p.deep}, #0a0807)`, padding: "clamp(34px, 5vw, 58px)" }}>
-          <div style={{ position: "absolute", inset: 0, background: `radial-gradient(60% 120% at 88% 10%, ${gold}22, transparent 60%)`, pointerEvents: "none" }} />
-          <div style={{ position: "relative", maxWidth: 620 }}>
-            <div style={{ fontFamily: "var(--ln-label)", fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", fontWeight: 700, color: gold, marginBottom: 16 }}>made on LinerNotes</div>
-            <h2 style={{ margin: 0, fontFamily: "var(--ln-display)", fontWeight: 700, fontSize: "clamp(28px, 3.4vw, 42px)", lineHeight: 1.08, letterSpacing: "-0.02em", color: INK }}>
-              This is one note. Your library is full of them.
-            </h2>
-            <p style={{ margin: "16px 0 0", fontFamily: "var(--ln-body)", fontSize: 17, lineHeight: 1.55, color: muted(0.74) }}>
-              Capture the exact second a song gets you, the moment you&apos;re still in it — and keep them somewhere that remembers.
-            </p>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 13, marginTop: 26 }}>
-              <button onClick={() => router.push("/login")} className="ln-press" style={{ padding: "14px 24px", borderRadius: 999, border: "none", cursor: "pointer", background: gold, color: "#2c1517", fontFamily: "var(--ln-body)", fontSize: 15, fontWeight: 700, boxShadow: `0 14px 32px -12px ${gold}` }}>
-                Sign up
-              </button>
-              <button onClick={() => router.push(`/profile/${vm.user.handle}`)} className="ln-press" style={{ padding: "14px 22px", borderRadius: 999, cursor: "pointer", border: "1px solid rgba(241,235,224,0.2)", background: "rgba(241,235,224,0.05)", color: INK, fontFamily: "var(--ln-body)", fontSize: 15, fontWeight: 600 }}>
-                See {vm.user.name}&apos;s profile
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* spotify toast */}
       <div style={{ position: "fixed", left: "50%", bottom: spotify ? 30 : 6, transform: "translateX(-50%)", opacity: spotify ? 1 : 0, transition: "all 0.25s cubic-bezier(.2,.8,.2,1)", pointerEvents: "none", display: "flex", alignItems: "center", gap: 9, padding: "11px 16px", borderRadius: 999, background: "rgba(8,7,6,0.85)", backdropFilter: "blur(10px)", border: "1px solid rgba(29,185,84,0.6)", zIndex: 200, boxShadow: "0 16px 40px -12px rgba(0,0,0,0.7)" }}>

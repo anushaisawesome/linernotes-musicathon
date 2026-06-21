@@ -41,7 +41,9 @@ export default function CardPage() {
           setIsOwner(authData.user?.id === data.review.userId);
         }
 
-        getReviews()
+        // "more on LinerNotes" pulls from the global community feed (feed:"friends"
+        // is the public all-reviews feed), not just your own reviews.
+        getReviews({ feed: "friends" })
           .then((rs) => setRelated(rs.filter((r) => r.id !== id).slice(0, 4)))
           .catch(() => {});
       } catch (error) {
