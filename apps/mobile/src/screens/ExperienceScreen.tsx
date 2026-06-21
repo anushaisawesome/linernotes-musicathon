@@ -234,8 +234,8 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
     Alert.alert(
       isAlbumReview ? 'Delete album review?' : 'Delete note?',
       isAlbumReview
-        ? 'This permanently removes your album review. This can't be undone.'
-        : 'This permanently removes your note. This can't be undone.',
+        ? "This permanently removes your album review. This can't be undone."
+        : "This permanently removes your note. This can't be undone.",
       [
         { text: 'Cancel', style: 'cancel' },
         {
