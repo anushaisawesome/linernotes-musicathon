@@ -5,3 +5,4 @@
 
 export { ShareModal } from "./ShareModal";
 export { LyricShareModal } from "./LyricShareModal";
+export { ProfileShareModal } from "./ProfileShareModal";

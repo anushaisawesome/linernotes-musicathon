@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import type { AlbumReview } from "@/lib/types";
+import type { AlbumReview, Review } from "@/lib/types";
 import { TopBar } from "@/components/ln/nav";
 import { ImmersiveReview, ReviewActions } from "@/components/ln/review";
+import { ShareModal } from "@/components/share";
 import { toAlbumReviewVM } from "@/lib/view-adapter";
 
 export default function AlbumCardPage() {
@@ -15,8 +16,8 @@ export default function AlbumCardPage() {
   const [albumReview, setAlbumReview] = useState<AlbumReview | null>(null);
   const [related, setRelated] = useState<AlbumReview[]>([]);
   const [loading, setLoading] = useState(true);
-  const [copied, setCopied] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
+  const [showShare, setShowShare] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -50,17 +51,6 @@ export default function AlbumCardPage() {
 
     if (id) loadAlbumReview();
   }, [id]);
-
-  const handleCopyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(window.location.href);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (error) {
-      console.error("Failed to copy:", error);
-      alert("Failed to copy link");
-    }
-  };
 
   const handleDelete = async () => {
     if (!albumReview) return;
@@ -102,6 +92,25 @@ export default function AlbumCardPage() {
   const vm = toAlbumReviewVM(albumReview);
   const relatedVms = related.map((a) => toAlbumReviewVM(a));
 
+  // Build a track-shaped review from the album so the share card can render it.
+  const shareReview: Review = {
+    id: albumReview.id,
+    userId: albumReview.userId,
+    user: albumReview.user,
+    track: {
+      trackId: albumReview.album.albumId,
+      name: albumReview.album.name,
+      artist: albumReview.album.artist,
+      album: albumReview.album.name,
+      artworkUrl: albumReview.album.artworkUrl,
+    },
+    rating: albumReview.overallRating ?? 0,
+    take: albumReview.take,
+    createdAt: albumReview.createdAt,
+    likeCount: albumReview.likeCount,
+    repostCount: albumReview.repostCount,
+  };
+
   return (
     <div style={{ background: "#0a0807", minHeight: "100vh" }}>
       <TopBar transparent />
@@ -112,13 +121,14 @@ export default function AlbumCardPage() {
         isSelf={isOwner}
         actions={
           <ReviewActions
-            onCopy={handleCopyLink}
-            copied={copied}
+            onShareCard={() => setShowShare(true)}
             onDelete={() => setShowDeleteConfirm(true)}
             isOwner={isOwner}
           />
         }
       />
+
+      {showShare && <ShareModal review={shareReview} onClose={() => setShowShare(false)} />}
 
       {showDeleteConfirm && (
         <div onClick={() => !deleting && setShowDeleteConfirm(false)} style={{ position: "fixed", inset: 0, zIndex: 400, background: "rgba(6,4,4,0.66)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 20px", animation: "ln-fade 0.2s ease both" }}>

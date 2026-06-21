@@ -1,11 +1,11 @@
 "use client";
 
-import { ReviewCard } from "@/components/card";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import type { Review } from "@/lib/types";
 import { TopBar } from "@/components/ln/nav";
 import { ImmersiveReview, ReviewActions } from "@/components/ln/review";
+import { ShareModal } from "@/components/share";
 import { toReviewVM } from "@/lib/view-adapter";
 import { lnFmt, LNIcon } from "@/components/ln/atoms";
 import { getReviews } from "@/lib/api";
@@ -18,8 +18,8 @@ export default function CardPage() {
   const [review, setReview] = useState<Review | null>(null);
   const [related, setRelated] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
-  const [copied, setCopied] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
+  const [showShare, setShowShare] = useState(false);
   const [showNotePicker, setShowNotePicker] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -54,17 +54,6 @@ export default function CardPage() {
     if (id) loadReview();
   }, [id]);
 
-  const handleCopyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(window.location.href);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (error) {
-      console.error("Failed to copy:", error);
-      alert("Failed to copy link");
-    }
-  };
-
   const handleSetFeaturedNote = async (noteId: string) => {
     if (!review) return;
     try {
@@ -83,25 +72,6 @@ export default function CardPage() {
     } catch (error) {
       console.error("Failed to update featured note:", error);
       alert("Failed to update featured note");
-    }
-  };
-
-  const handleShareToTwitter = async () => {
-    if (!review) return;
-    const url = window.location.href;
-    const text = `${review.track.name} by ${review.track.artist}`;
-    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
-
-    try {
-      // Copy link to clipboard for convenience
-      await navigator.clipboard.writeText(url);
-
-      // Open Twitter compose in new window
-      window.open(twitterUrl, "_blank", "width=550,height=420");
-    } catch (error) {
-      console.error("Failed to share to Twitter:", error);
-      // Fallback: still open Twitter even if clipboard failed
-      window.open(twitterUrl, "_blank", "width=550,height=420");
     }
   };
 
@@ -155,9 +125,7 @@ export default function CardPage() {
         isSelf={isOwner}
         actions={
           <ReviewActions
-            onCopy={handleCopyLink}
-            copied={copied}
-            onShare={handleShareToTwitter}
+            onShareCard={() => setShowShare(true)}
             onPickNote={() => setShowNotePicker(true)}
             onDelete={() => setShowDeleteConfirm(true)}
             isOwner={isOwner}
@@ -165,6 +133,8 @@ export default function CardPage() {
           />
         }
       />
+
+      {showShare && <ShareModal review={review} onClose={() => setShowShare(false)} />}
 
       {/* Note picker */}
       {showNotePicker && review.notes && review.notes.length > 0 && (

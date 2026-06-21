@@ -9,6 +9,7 @@ import { TopBar, Footer } from "@/components/ln/nav";
 import { LNArt, LNStars, LNIcon } from "@/components/ln/atoms";
 import { LNWCard } from "@/components/ln/cards";
 import { AlbumSearch } from "@/components/compose/AlbumSearch";
+import { ProfileShareModal } from "@/components/share";
 import { toReviewVM, toAlbumReviewVM, type ReviewVM } from "@/lib/view-adapter";
 import { paletteFromString, tintFromString } from "@/lib/palette";
 
@@ -128,6 +129,7 @@ export default function ProfilePage() {
   const [savedFavs, setSavedFavs] = useState<FavMeta[]>([]);
   const [editingFavs, setEditingFavs] = useState(false);
   const [savingFavs, setSavingFavs] = useState(false);
+  const [showShareProfile, setShowShareProfile] = useState(false);
 
   const isOwnProfile = session?.user?.handle === handle;
 
@@ -353,6 +355,12 @@ export default function ProfilePage() {
                 <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
                   <span style={{ fontFamily: "var(--ln-label)", fontSize: 12, letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 700, color: "var(--ln-accent)" }}>favourites</span>
                   <span style={{ flex: 1, height: 1, background: "rgba(var(--ln-fg-rgb),0.1)" }} />
+                  {!editingFavs && favsToShow.length > 0 && (
+                    <button onClick={() => setShowShareProfile(true)} className="ln-press" title="Share Top 4" style={{ ...ghostBtn, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      <LNIcon name="share" size={13} color="rgba(var(--ln-fg-rgb),0.75)" />
+                      Share
+                    </button>
+                  )}
                   {isOwnProfile && (editingFavs ? (
                     <div style={{ display: "flex", gap: 8 }}>
                       <button onClick={() => { setFavs(savedFavs); setEditingFavs(false); }} className="ln-press" style={ghostBtn}>Cancel</button>
@@ -476,6 +484,18 @@ export default function ProfilePage() {
           )}
         </div>
       </main>
+
+      {showShareProfile && (
+        <ProfileShareModal
+          user={{ handle: user.handle, displayName: user.displayName, avatarUrl: user.avatarUrl, bio: user.bio }}
+          top4={favsToShow.map((it) => ({ musicId: it.musicId, title: it.title, artworkUrl: it.artworkUrl }))}
+          reviewCount={reviews.length + albumReviews.length}
+          moments={momentCount}
+          friends={user.friendCount || 0}
+          accent={tint}
+          onClose={() => setShowShareProfile(false)}
+        />
+      )}
 
       <Footer />
 

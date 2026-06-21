@@ -410,17 +410,13 @@ export function ImmersiveReview({
 
 // A restyled action toolbar for owners/sharers, rendered in the hero-left column.
 export function ReviewActions({
-  onCopy,
-  copied,
-  onShare,
+  onShareCard,
   onPickNote,
   onDelete,
   isOwner,
   canPickNote,
 }: {
-  onCopy: () => void;
-  copied: boolean;
-  onShare?: () => void;
+  onShareCard: () => void;
   onPickNote?: () => void;
   onDelete?: () => void;
   isOwner: boolean;
@@ -445,16 +441,10 @@ export function ReviewActions({
   };
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 9, marginTop: 4 }}>
-      <button onClick={onCopy} className="ln-press" style={{ ...btn, background: copied ? "var(--ln-accent)" : btn.background, color: copied ? "#2c1517" : INK, borderColor: copied ? "transparent" : "rgba(241,235,224,0.18)" }}>
-        <LNIcon name="share" size={15} color={copied ? "#2c1517" : INK} />
-        {copied ? "Link copied" : "Copy link"}
+      <button onClick={onShareCard} className="ln-press" style={{ ...btn, background: "var(--ln-accent)", color: "#2c1517", border: "1px solid transparent" }}>
+        <LNIcon name="share" size={15} color="#2c1517" />
+        Share review
       </button>
-      {onShare && (
-        <button onClick={onShare} className="ln-press" style={btn}>
-          <LNIcon name="share" size={15} color={INK} />
-          Share on Twitter
-        </button>
-      )}
       {onPickNote && canPickNote && (
         <button onClick={onPickNote} className="ln-press" style={btn}>
           <LNIcon name="edit" size={15} color={INK} />
