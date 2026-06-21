@@ -19,6 +19,10 @@ import { paletteFromString, type Palette } from "@/lib/palette";
 import { LNArt, lnFmt } from "@/components/ln/atoms";
 import { getReviews } from "@/lib/api";
 import { LyricShareModal } from "@/components/share/LyricShareModal";
+import { VisualiserEngine, PositionPredictor, createMockRhythm } from "@/lib/visualiser-engine";
+import { deriveBaseAesthetic } from "@/lib/visualiser-base-aesthetic";
+import { VisualiserCanvas } from "@/components/VisualiserCanvas";
+import type { VisualState } from "@/lib/visualiser-types";
 
 function ExperienceContent() {
   const params = useParams();
@@ -51,6 +55,12 @@ function ExperienceContent() {
   const [shareMoment, setShareMoment] = useState<any>(null);
   // "Experience more" picks — recent community track posts to jump to (track mode).
   const [moreReviews, setMoreReviews] = useState<Review[]>([]);
+
+  // Visualiser state
+  const [visualiserEnabled, setVisualiserEnabled] = useState(true);
+  const [visualState, setVisualState] = useState<VisualState | null>(null);
+  const engineRef = useRef<VisualiserEngine | null>(null);
+  const predictorRef = useRef<PositionPredictor>(new PositionPredictor());
 
   // Lyric auto-scroll
   const lineRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -226,6 +236,21 @@ function ExperienceContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playerState, segments.length, idx]);
 
+  // Initialize visualiser engine when track changes
+  useEffect(() => {
+    if (!review?.track) return;
+
+    // Derive base aesthetic from genre (default to "Pop" if not available)
+    const genre = (review.track as any).genre || 'Pop';
+    const baseAesthetic = deriveBaseAesthetic(genre);
+
+    // Create mock rhythm (120 BPM default - replace with real librosa data later)
+    const rhythm = createMockRhythm(120);
+
+    // Initialize engine
+    engineRef.current = new VisualiserEngine(baseAesthetic, rhythm);
+  }, [review]);
+
   // Fetch lyrics when track loads (works with or without Spotify player)
   useEffect(() => {
     if (!review?.track) return;
@@ -290,7 +315,7 @@ function ExperienceContent() {
     setAnnotations(newAnnotations);
   }, [playerState, lyrics, review]);
 
-  // Poll position while playing for continuous lyric sync
+  // Poll position while playing for continuous lyric sync + visualiser predictor update
   useEffect(() => {
     if (!player || !playerState?.isPlaying) return;
 
@@ -298,11 +323,60 @@ function ExperienceContent() {
       const currentState = await player.getCurrentState();
       if (currentState) {
         setPlayerState(currentState);
+        // Update visualiser position predictor (5Hz)
+        predictorRef.current.update(currentState.positionMs, currentState.isPlaying);
       }
     }, 200); // Update 5 times per second
 
     return () => clearInterval(interval);
   }, [player, playerState?.isPlaying]);
+
+  // 60fps visualiser rendering loop
+  useEffect(() => {
+    if (!visualiserEnabled || !engineRef.current) return;
+
+    let animationFrameId: number;
+
+    function renderLoop() {
+      if (!engineRef.current) {
+        animationFrameId = requestAnimationFrame(renderLoop);
+        return;
+      }
+
+      // Predict current position (60fps smooth interpolation from 5Hz polls)
+      const predictedPos = predictorRef.current.predict();
+      const isPlaying = predictorRef.current.getIsPlaying();
+
+      // Get current lyric line text
+      const currentLine = annotations?.activeLine?.text || '';
+
+      // Check if moment is active (lingers for 9s after firing)
+      const positionSec = predictedPos / 1000;
+      const momentActive = review?.notes?.some(
+        (m) => positionSec >= m.seconds && positionSec < m.seconds + 9
+      ) || false;
+
+      // Get visual state from engine
+      const state = engineRef.current.getVisualState(
+        predictedPos,
+        isPlaying,
+        currentLine,
+        momentActive
+      );
+
+      setVisualState(state);
+
+      animationFrameId = requestAnimationFrame(renderLoop);
+    }
+
+    renderLoop();
+
+    return () => {
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+    };
+  }, [visualiserEnabled, annotations, review?.notes]);
 
   // Lyric auto-scroll effect
   useLayoutEffect(() => {
@@ -377,15 +451,30 @@ function ExperienceContent() {
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(18,9,10,0.55) 0%, rgba(18,9,10,0.32) 30%, rgba(18,9,10,0.72) 100%)" }} />
       </div>
 
+      {/* Visualiser Canvas Layer (between background and content) */}
+      {visualiserEnabled && visualState && (
+        <VisualiserCanvas
+          visualState={visualState}
+          width={1920}
+          height={1080}
+        />
+      )}
+
       <div style={{ position: "relative", zIndex: 1, maxWidth: 1140, margin: "0 auto", padding: "92px 24px 60px" }}>
-        {/* Top row: back + vision-demo tag */}
+        {/* Top row: back + visualiser toggle + vision-demo tag */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 26 }}>
           <button onClick={() => router.back()} className="ln-press" style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(244,239,230,0.06)", border: "1px solid rgba(244,239,230,0.16)", color: INK, borderRadius: 999, padding: "8px 15px", cursor: "pointer", fontFamily: "var(--ln-body)", fontSize: 13.5, fontWeight: 600 }}>
             <span style={{ fontSize: 15, lineHeight: 1 }}>←</span> Back
           </button>
-          <span style={{ fontFamily: "var(--ln-mono)", fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: muted(0.5), border: "1px solid rgba(244,239,230,0.14)", borderRadius: 999, padding: "5px 11px" }}>
-            the Experience · Musicathon
-          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <button onClick={() => setVisualiserEnabled(!visualiserEnabled)} className="ln-press" style={{ display: "inline-flex", alignItems: "center", gap: 6, background: visualiserEnabled ? `${accent}1a` : "rgba(244,239,230,0.06)", border: `1px solid ${visualiserEnabled ? `${accent}55` : "rgba(244,239,230,0.16)"}`, color: visualiserEnabled ? accent : INK, borderRadius: 999, padding: "6px 12px", cursor: "pointer", fontFamily: "var(--ln-mono)", fontSize: 10, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: visualiserEnabled ? accent : "rgba(244,239,230,0.5)" }} />
+              Visualiser
+            </button>
+            <span style={{ fontFamily: "var(--ln-mono)", fontSize: 10, letterSpacing: "0.14em", textTransform: "uppercase", color: muted(0.5), border: "1px solid rgba(244,239,230,0.14)", borderRadius: 999, padding: "5px 11px" }}>
+              the Experience · Musicathon
+            </span>
+          </div>
         </div>
 
         <div className="mu-exp-grid" style={{ display: "grid", gridTemplateColumns: "minmax(300px, 380px) 1fr", gap: 48, alignItems: "start" }}>
