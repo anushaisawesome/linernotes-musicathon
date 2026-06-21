@@ -39,6 +39,13 @@ export const authOptions: NextAuthConfig = {
         displayName: { label: "Display Name", type: "text" },
       },
       async authorize(credentials): Promise<any> {
+        console.log("[Auth] Credentials received:", {
+          email: credentials?.email,
+          hasPassword: !!credentials?.password,
+          action: credentials?.action,
+          hasDisplayName: !!credentials?.displayName,
+        });
+
         if (!credentials?.email || !credentials?.password) {
           throw new Error("Email and password required");
         }
@@ -47,20 +54,26 @@ export const authOptions: NextAuthConfig = {
 
         // Sign up
         if (credentials.action === "signup") {
+          console.log("[Auth] Entering signup flow");
+
           if (!credentials.displayName) {
+            console.log("[Auth] Signup failed: Display name missing");
             throw new Error("Display name required for signup");
           }
 
           // Check if user already exists
+          console.log("[Auth] Checking if user exists:", email);
           const existingUser = await prisma.user.findUnique({
             where: { email },
           });
 
           if (existingUser) {
+            console.log("[Auth] Signup failed: User already exists");
             throw new Error("User with this email already exists");
           }
 
           // Hash password
+          console.log("[Auth] Creating new user");
           const passwordHash = await bcrypt.hash(credentials.password as string, 10);
 
           // Create user
@@ -74,6 +87,8 @@ export const authOptions: NextAuthConfig = {
             },
           });
 
+          console.log("[Auth] User created successfully:", user.id);
+
           return {
             id: user.id,
             email: user.email,
@@ -83,19 +98,25 @@ export const authOptions: NextAuthConfig = {
         }
 
         // Login
+        console.log("[Auth] Entering login flow for:", email);
         const user = await prisma.user.findUnique({
           where: { email },
         });
 
         if (!user || !user.passwordHash) {
+          console.log("[Auth] Login failed: User not found or no password");
           throw new Error("Invalid email or password");
         }
 
+        console.log("[Auth] User found, verifying password");
         const isValid = await bcrypt.compare(credentials.password as string, user.passwordHash);
 
         if (!isValid) {
+          console.log("[Auth] Login failed: Invalid password");
           throw new Error("Invalid email or password");
         }
+
+        console.log("[Auth] Login successful:", user.id);
 
         return {
           id: user.id,
