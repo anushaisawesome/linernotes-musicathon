@@ -14,7 +14,7 @@ interface AuthContextType {
   needsOnboarding: boolean;
   login: (email: string, password: string) => Promise<void>;
   loginWithGoogle: (token: string, isAccessToken?: boolean) => Promise<void>;
-  loginWithSpotify: (code: string) => Promise<void>;
+  loginWithSpotify: (code: string, codeVerifier?: string) => Promise<void>;
   signup: (email: string, password: string, handle: string, displayName: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -111,9 +111,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  async function loginWithSpotify(code: string) {
+  async function loginWithSpotify(code: string, codeVerifier?: string) {
     try {
-      const response = await api.loginWithSpotify(code);
+      const response = await api.loginWithSpotify(code, codeVerifier);
       api.setAuthToken(response.token);
 
       // The login response only includes basic user data from /auth/me (no bio).

@@ -176,12 +176,12 @@ class APIClient {
     });
   }
 
-  async loginWithSpotify(code: string): Promise<{ user: User; token: string }> {
+  async loginWithSpotify(code: string, codeVerifier?: string): Promise<{ user: User; token: string }> {
     // For mobile, we exchange the Spotify authorization code for a JWT
     // This calls the Next.js API which handles the token exchange and user creation
     return this.request('/auth/mobile/spotify', {
       method: 'POST',
-      body: { code },
+      body: { code, codeVerifier },
     });
   }
 

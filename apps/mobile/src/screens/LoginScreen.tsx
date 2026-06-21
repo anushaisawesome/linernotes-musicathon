@@ -72,17 +72,18 @@ export function LoginScreen() {
   );
 
   React.useEffect(() => {
-    if (response?.type === 'success') {
-      handleSpotifyAuth(response.params.code);
+    if (response?.type === 'success' && request) {
+      handleSpotifyAuth(response.params.code, request.codeVerifier);
     }
-  }, [response]);
+  }, [response, request]);
 
-  async function handleSpotifyAuth(code: string) {
+  async function handleSpotifyAuth(code: string, codeVerifier?: string) {
     try {
       setIsLoading(true);
 
       console.log('Spotify auth code:', code);
-      await loginWithSpotify(code);
+      console.log('Code verifier present:', !!codeVerifier);
+      await loginWithSpotify(code, codeVerifier);
 
       console.log('Login successful!');
     } catch (error: any) {

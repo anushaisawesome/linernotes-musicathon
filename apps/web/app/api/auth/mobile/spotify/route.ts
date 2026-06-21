@@ -8,11 +8,12 @@ import { sign } from 'jsonwebtoken';
  */
 export async function POST(req: NextRequest) {
   try {
-    const { code } = await req.json();
+    const { code, codeVerifier } = await req.json();
 
     console.log('[Mobile Spotify Auth] Request received:', {
       hasCode: !!code,
       codePreview: code?.substring(0, 20),
+      hasCodeVerifier: !!codeVerifier,
     });
 
     if (!code) {
@@ -23,6 +24,18 @@ export async function POST(req: NextRequest) {
     }
 
     // Exchange authorization code for access token
+    // Include code_verifier for PKCE flow (required by expo-auth-session)
+    const tokenParams: Record<string, string> = {
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: 'com.musicathonln.app://callback',
+    };
+
+    // Add code_verifier if present (PKCE flow)
+    if (codeVerifier) {
+      tokenParams.code_verifier = codeVerifier;
+    }
+
     const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
       method: 'POST',
       headers: {
@@ -31,11 +44,7 @@ export async function POST(req: NextRequest) {
           `${process.env.SPOTIFY_CLIENT_ID}:${process.env.SPOTIFY_CLIENT_SECRET}`
         ).toString('base64')}`,
       },
-      body: new URLSearchParams({
-        grant_type: 'authorization_code',
-        code,
-        redirect_uri: 'com.musicathonln.app://callback',
-      }),
+      body: new URLSearchParams(tokenParams),
     });
 
     if (!tokenResponse.ok) {
