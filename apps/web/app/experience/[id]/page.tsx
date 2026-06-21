@@ -31,7 +31,7 @@ function ExperienceContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [coverPalette, setCoverPalette] = useState<Palette | null>(null);
-  const [noteOpen, setNoteOpen] = useState(true);
+  const [noteOpen, setNoteOpen] = useState(false);
 
   // Lyric auto-scroll
   const lineRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -215,8 +215,15 @@ function ExperienceContent() {
   const durationSec = (playerState?.durationMs || 1) / 1000;
   const progress = durationSec > 0 ? (positionSec / durationSec) * 100 : 0;
 
-  // Find active moment (pulses for 5s after playhead hits it)
-  const activeMoment = review.notes?.find((m) => positionSec >= m.seconds && positionSec < m.seconds + 5) || null;
+  // Find active moment (lingers for 9s after the playhead hits it, so the
+  // annotation doesn't vanish before you've read it alongside the lyric).
+  const activeMoment = review.notes?.find((m) => positionSec >= m.seconds && positionSec < m.seconds + 9) || null;
+
+  // The written note: first line is the caption, the rest is the full review
+  // (revealed on expand). No note → the card is hidden entirely.
+  const takeLines = (review.take || "").split("\n").map((s) => s.trim()).filter(Boolean);
+  const caption = takeLines[0] || "";
+  const hasMoreNote = takeLines.length > 1;
 
   // Nearest moment to current position for sharing
   const nearestMoment = review.notes && review.notes.length > 0
@@ -328,20 +335,15 @@ function ExperienceContent() {
                 </button>
               </div>
             ) : (
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 24 }}>
-                <button onClick={() => player?.previousTrack()} className="ln-press" style={{ width: 46, height: 46, borderRadius: "50%", border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }} aria-label="previous">
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill={INK}><path d="M6 5v14h2V5H6zm3 7l9 7V5l-9 7z" /></svg>
-                </button>
+              // A track review is a single song — just start/stop, no prev/next.
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <button onClick={() => player?.togglePlay()} className="ln-press" style={{ width: 64, height: 64, borderRadius: "50%", border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }} aria-label={playerState?.isPlaying ? "pause" : "play"}>
                   {playerState?.isPlaying ? (
                     <svg width="42" height="42" viewBox="0 0 24 24" fill="#fff" style={{ filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.5))" }}><rect x="6.5" y="5" width="4" height="14" rx="1.7" /><rect x="13.5" y="5" width="4" height="14" rx="1.7" /></svg>
-                ) : (
-                  <svg width="42" height="42" viewBox="0 0 24 24" fill="#fff" stroke="#fff" strokeWidth="3.4" strokeLinejoin="round" strokeLinecap="round" style={{ filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.5))" }}><path d="M8 6.2v11.6l10-5.8z" /></svg>
-                )}
-              </button>
-              <button onClick={() => player?.nextTrack()} className="ln-press" style={{ width: 46, height: 46, borderRadius: "50%", border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }} aria-label="next">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill={INK}><path d="M16 5v14h2V5h-2zM6 5v14l9-7-9-7z" /></svg>
-              </button>
+                  ) : (
+                    <svg width="42" height="42" viewBox="0 0 24 24" fill="#fff" stroke="#fff" strokeWidth="3.4" strokeLinejoin="round" strokeLinecap="round" style={{ filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.5))" }}><path d="M8 6.2v11.6l10-5.8z" /></svg>
+                  )}
+                </button>
               </div>
             )}
 
@@ -356,37 +358,48 @@ function ExperienceContent() {
 
           {/* RIGHT — reviewer note + synced lyrics */}
           <div className="mu-exp-right" style={{ minWidth: 0 }}>
-            {/* Reviewer note */}
-            <div key={review.id} style={{ borderRadius: 16, border: `1px solid ${accent}33`, background: `${accent}10`, padding: "16px 18px", animation: "mu-rise 0.45s cubic-bezier(.2,.8,.2,1) both" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: noteOpen ? 11 : 0 }}>
-                <span style={{ width: 30, height: 30, borderRadius: "50%", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: `${accent}26`, border: `1px solid ${accent}66`, color: accent, fontFamily: "var(--ln-display)", fontWeight: 600, fontSize: 14 }}>
-                  {review.user?.displayName?.[0] || "U"}
-                </span>
-                <div style={{ flex: 1, minWidth: 0, lineHeight: 1.2 }}>
-                  <div style={{ fontFamily: "var(--ln-mono)", fontSize: 9.5, letterSpacing: "0.08em", textTransform: "uppercase", color: accent }}>
-                    what {review.user?.displayName?.split(" ")[0] || "they"} wrote
+            {/* Reviewer note — only when the author actually wrote one */}
+            {caption && (
+              <div key={review.id} style={{ borderRadius: 16, border: `1px solid ${accent}33`, background: `${accent}10`, padding: "16px 18px", animation: "mu-rise 0.45s cubic-bezier(.2,.8,.2,1) both" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 11 }}>
+                  <span style={{ width: 30, height: 30, borderRadius: "50%", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: `${accent}26`, border: `1px solid ${accent}66`, color: accent, fontFamily: "var(--ln-display)", fontWeight: 600, fontSize: 14 }}>
+                    {review.user?.displayName?.[0] || "U"}
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0, lineHeight: 1.2 }}>
+                    <div style={{ fontFamily: "var(--ln-mono)", fontSize: 9.5, letterSpacing: "0.08em", textTransform: "uppercase", color: accent }}>
+                      what {review.user?.displayName?.split(" ")[0] || "they"} wrote
+                    </div>
+                    <div style={{ fontFamily: "var(--ln-body)", fontSize: 13, color: muted(0.7) }}>@{review.user?.handle || "user"}</div>
                   </div>
-                  <div style={{ fontFamily: "var(--ln-body)", fontSize: 13, color: muted(0.7) }}>@{review.user?.handle || "user"}</div>
+                  {hasMoreNote && (
+                    <button onClick={() => setNoteOpen((v) => !v)} style={{ background: "none", border: "none", cursor: "pointer", color: muted(0.55), fontFamily: "var(--ln-mono)", fontSize: 11 }}>
+                      {noteOpen ? "collapse" : "expand"}
+                    </button>
+                  )}
                 </div>
-                <button onClick={() => setNoteOpen((v) => !v)} style={{ background: "none", border: "none", cursor: "pointer", color: muted(0.55), fontFamily: "var(--ln-mono)", fontSize: 11 }}>
-                  {noteOpen ? "hide" : "show"}
-                </button>
-              </div>
-              {noteOpen && review.take && (
                 <p style={{ margin: 0, fontFamily: "var(--ln-preview)", fontStyle: "italic", fontWeight: 500, fontSize: 18, lineHeight: 1.45, color: INK, wordWrap: "break-word" }}>
-                  {review.take}
+                  {caption}
                 </p>
-              )}
-            </div>
+                {noteOpen && hasMoreNote && (
+                  <div style={{ marginTop: 11, display: "flex", flexDirection: "column", gap: 9 }}>
+                    {takeLines.slice(1).map((ln, i) => (
+                      <p key={i} style={{ margin: 0, fontFamily: "var(--ln-body)", fontSize: 14.5, lineHeight: 1.6, color: muted(0.82), wordWrap: "break-word" }}>
+                        {ln}
+                      </p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Active moment live callout */}
             <div style={{ minHeight: 52, marginTop: 12, position: "relative" }}>
               {activeMoment && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 8, borderRadius: 12, background: accent, color: "#2c1517", padding: "11px 15px", animation: "mu-pop 0.3s cubic-bezier(.16,1,.3,1) both", boxShadow: `0 14px 30px -12px ${accent}` }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
-                    <span style={{ fontFamily: "var(--ln-mono)", fontSize: 12, fontWeight: 700 }}>{lnFmt(activeMoment.seconds)}</span>
-                    <span style={{ width: 1, height: 18, background: "rgba(44,21,23,0.3)" }} />
-                    <span style={{ flex: 1, minWidth: 0, fontFamily: "var(--ln-preview)", fontStyle: (activeMoment as any).lyric ? "italic" : "normal", fontSize: 14, fontWeight: 600, lineHeight: 1.4, wordWrap: "break-word" }}>
+                    <span style={{ fontFamily: "var(--ln-mono)", fontSize: 13, fontWeight: 700 }}>{lnFmt(activeMoment.seconds)}</span>
+                    <span style={{ width: 1, height: 20, background: "rgba(44,21,23,0.3)" }} />
+                    <span style={{ flex: 1, minWidth: 0, fontFamily: "var(--ln-preview)", fontStyle: (activeMoment as any).lyric ? "italic" : "normal", fontSize: 17, fontWeight: 600, lineHeight: 1.4, wordWrap: "break-word" }}>
                       {(activeMoment as any).lyric || activeMoment.label}
                     </span>
                     <button onClick={() => alert('Share feature coming soon!')} className="ln-press" title="Share this lyric" style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 5, background: "rgba(44,21,23,0.16)", border: "none", color: "#2c1517", borderRadius: 999, padding: "6px 11px", cursor: "pointer", fontFamily: "var(--ln-body)", fontSize: 12.5, fontWeight: 700, whiteSpace: "nowrap" }}>
@@ -395,7 +408,7 @@ function ExperienceContent() {
                     </button>
                   </div>
                   {activeMoment.note && (
-                    <div style={{ fontFamily: "var(--ln-body)", fontSize: 13, lineHeight: 1.4, color: "rgba(44,21,23,0.85)", paddingLeft: 3 }}>
+                    <div style={{ fontFamily: "var(--ln-body)", fontSize: 15, lineHeight: 1.45, color: "rgba(44,21,23,0.85)", paddingLeft: 3 }}>
                       {activeMoment.note}
                     </div>
                   )}
@@ -428,7 +441,7 @@ function ExperienceContent() {
                             padding: "7px 2px",
                             fontFamily: "var(--ln-album)",
                             fontWeight: isActive ? 600 : 500,
-                            fontSize: isActive ? 27 : 22,
+                            fontSize: isActive ? 22 : 18,
                             lineHeight: 1.25,
                             letterSpacing: "-0.01em",
                             color: isActive ? INK : passed ? muted(0.32) : muted(0.5),
