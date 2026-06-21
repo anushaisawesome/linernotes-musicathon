@@ -14,7 +14,7 @@ const config: ExpoConfig = {
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
     },
-    scheme: 'com.googleusercontent.apps.985992092131-ag9ohcq8t4d7dde659kqq343q5m6af47',
+    scheme: 'com.musicathonln.app',
   },
   android: {
     package: 'com.anusha.linernotes',
@@ -64,6 +64,8 @@ const config: ExpoConfig = {
     // ],
   ],
   extra: {
+    apiUrl: process.env.EXPO_PUBLIC_API_URL || 'https://linernotes-musicathon.vercel.app/api',
+    spotifyClientId: process.env.SPOTIFY_CLIENT_ID || '190588081c89410d8a88ad15a94be8cb',
     eas: {
       projectId: '9b3785c0-ecf9-4932-8ebc-7bceaf551ff9',
     },

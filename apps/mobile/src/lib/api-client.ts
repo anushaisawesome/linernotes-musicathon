@@ -2,10 +2,11 @@
  * @linernotes/core/api-client
  *
  * Shared API client for both mobile and web apps.
- * Points to the NestJS backend.
+ * Points to the Next.js backend.
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 import type {
   User,
   Review,
@@ -19,8 +20,10 @@ import type {
 // CONFIGURATION
 // ============================================================================
 
-/** API base URL - hardcoded for now to avoid React Native env issues */
-export const API_BASE_URL = 'https://beta-linernotes.vercel.app/api';
+/** API base URL - loaded from app.config.ts */
+export const API_BASE_URL =
+  Constants.expoConfig?.extra?.apiUrl ||
+  'https://linernotes-musicathon.vercel.app/api';
 
 /** AsyncStorage keys for persisted auth state */
 const TOKEN_STORAGE_KEY = '@linernotes:auth_token';
@@ -170,6 +173,15 @@ class APIClient {
     return this.request('/auth/mobile/google', {
       method: 'POST',
       body: isAccessToken ? { accessToken: token } : { idToken: token },
+    });
+  }
+
+  async loginWithSpotify(code: string): Promise<{ user: User; token: string }> {
+    // For mobile, we exchange the Spotify authorization code for a JWT
+    // This calls the Next.js API which handles the token exchange and user creation
+    return this.request('/auth/mobile/spotify', {
+      method: 'POST',
+      body: { code },
     });
   }
 
