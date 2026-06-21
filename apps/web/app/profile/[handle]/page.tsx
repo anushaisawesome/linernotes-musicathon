@@ -355,7 +355,7 @@ export default function ProfilePage() {
                 <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
                   <span style={{ fontFamily: "var(--ln-label)", fontSize: 12, letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 700, color: "var(--ln-accent)" }}>favourites</span>
                   <span style={{ flex: 1, height: 1, background: "rgba(var(--ln-fg-rgb),0.1)" }} />
-                  {!editingFavs && favsToShow.length > 0 && (
+                  {isOwnProfile && !editingFavs && favsToShow.length > 0 && (
                     <button onClick={() => setShowShareProfile(true)} className="ln-press" title="Share Top 4" style={{ ...ghostBtn, display: "inline-flex", alignItems: "center", gap: 6 }}>
                       <LNIcon name="share" size={13} color="rgba(var(--ln-fg-rgb),0.75)" />
                       Share
@@ -485,7 +485,7 @@ export default function ProfilePage() {
         </div>
       </main>
 
-      {showShareProfile && (
+      {showShareProfile && isOwnProfile && (
         <ProfileShareModal
           user={{ handle: user.handle, displayName: user.displayName, avatarUrl: user.avatarUrl, bio: user.bio }}
           top4={favsToShow.map((it) => ({ musicId: it.musicId, title: it.title, artworkUrl: it.artworkUrl }))}
