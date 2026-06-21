@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import type { Track, Review } from "@/lib/types";
 import { TrackSearch } from "./TrackSearch";
@@ -23,6 +23,15 @@ export function ComposeForm({ onSubmit, onSuccess, searchAPI, initialTrack, init
   const { data: session } = useSession();
   const [track, setTrack] = useState<Track | null>(initialTrack || null);
   const [rating, setRating] = useState(initialRating || 0);
+
+  // A prompt (or Last.fm row) resolves its track asynchronously, so initialTrack
+  // arrives after mount — autofill the song once it does.
+  useEffect(() => {
+    if (initialTrack) setTrack(initialTrack);
+  }, [initialTrack]);
+  useEffect(() => {
+    if (initialRating) setRating(initialRating);
+  }, [initialRating]);
   const [showLine, setShowLine] = useState(false);
   const [line, setLine] = useState("");
   const [showMoments, setShowMoments] = useState(false);
