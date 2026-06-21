@@ -188,7 +188,7 @@ export function LNWFeedCard({ vm, accent = GOLD, onOpen }: { vm: ReviewVM; accen
 }
 
 // Vertical card (profile grids / compact lists).
-export function LNWCard({ vm, accent = GOLD, onOpen, showCounts = false, repostedBadge = false, onToggleSave, onToggleRepost }: { vm: ReviewVM; accent?: string; onOpen?: () => void; showCounts?: boolean; repostedBadge?: boolean; onToggleSave?: () => void; onToggleRepost?: () => void }) {
+export function LNWCard({ vm, accent = GOLD, onOpen, showCounts = false, repostedBadge = false, onToggleSave, onToggleRepost, preview = false }: { vm: ReviewVM; accent?: string; onOpen?: () => void; showCounts?: boolean; repostedBadge?: boolean; onToggleSave?: () => void; onToggleRepost?: () => void; preview?: boolean }) {
   const { album } = vm;
   const [palette, setPalette] = useState<Palette>(album.palette);
   const p = palette;
@@ -248,8 +248,8 @@ export function LNWCard({ vm, accent = GOLD, onOpen, showCounts = false, reposte
         )}
       </LNArt>
 
-      <div style={{ position: "relative", padding: "18px 19px 16px", display: "flex", flexDirection: "column", gap: 12, height: 224, boxSizing: "border-box" }}>
-        <div ref={bodyRef} style={{ position: "relative", flex: 1, minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column", gap: 13 }}>
+      <div style={{ position: "relative", padding: "18px 19px 16px", display: "flex", flexDirection: "column", gap: 12, height: preview ? "auto" : 224, boxSizing: "border-box" }}>
+        <div ref={bodyRef} style={{ position: "relative", flex: 1, minHeight: 0, overflow: preview ? "visible" : "hidden", display: "flex", flexDirection: "column", gap: 13 }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
             <h3 style={{ margin: 0, fontFamily: "var(--ln-album)", fontWeight: 600, fontSize: 23, lineHeight: 1.12, color: "var(--ln-fg)", letterSpacing: "-0.01em" }}>{album.title}</h3>
             <span style={{ fontFamily: "var(--ln-body)", fontSize: 14, color: "var(--ln-muted)" }}>{album.artist}</span>
@@ -265,20 +265,32 @@ export function LNWCard({ vm, accent = GOLD, onOpen, showCounts = false, reposte
             </div>
           )}
 
-          {depth !== "floor" && fm && (
-            <div style={{ paddingTop: 1 }}>
-              <LNMoment note={fm} accent={gold} />
-            </div>
+          {/* Preview (the live composer): show every moment as it's added, in order.
+              Normal cards stay compact and show just the featured moment. */}
+          {preview ? (
+            vm.notes && vm.notes.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12, paddingTop: 1 }}>
+                {vm.notes.map((m, i) => (
+                  <LNMoment key={i} note={m} accent={gold} />
+                ))}
+              </div>
+            )
+          ) : (
+            depth !== "floor" && fm && (
+              <div style={{ paddingTop: 1 }}>
+                <LNMoment note={fm} accent={gold} />
+              </div>
+            )
           )}
 
           {(isAlbum || album.kind === "playlist") && <LNWCardStrip album={album} gold={gold} limit={2} />}
 
-          {overflowing && (
+          {!preview && overflowing && (
             <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 44, background: "linear-gradient(transparent, var(--ln-surface))", pointerEvents: "none" }} />
           )}
         </div>
 
-        {hasMore && (
+        {!preview && hasMore && (
           <div style={{ fontFamily: "var(--ln-body)", fontSize: 12.5, fontWeight: 600, color: gold }}>Tap to view full review →</div>
         )}
 

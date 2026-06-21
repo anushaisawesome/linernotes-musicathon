@@ -213,7 +213,7 @@ export function ComposeForm({ onSubmit, onSuccess, searchAPI, initialTrack, init
           {/* LIVE PREVIEW */}
           <div className="lnw-cmp-prev">
             <PreviewShell ready={!!draft && (rating > 0 || !!take || moments.length > 0)}>
-              {draft && <LNWCard vm={draft} />}
+              {draft && <LNWCard vm={draft} preview />}
             </PreviewShell>
           </div>
         </form>
