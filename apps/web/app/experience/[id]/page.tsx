@@ -463,7 +463,7 @@ function ExperienceContent() {
                   <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
                     <span style={{ fontFamily: "var(--ln-mono)", fontSize: 13, fontWeight: 700 }}>{lnFmt(activeMoment.seconds)}</span>
                     <span style={{ width: 1, height: 20, background: "rgba(44,21,23,0.3)" }} />
-                    <span style={{ flex: 1, minWidth: 0, fontFamily: "var(--ln-preview)", fontStyle: (activeMoment as any).lyric ? "italic" : "normal", fontSize: 17, fontWeight: 600, lineHeight: 1.4, wordWrap: "break-word" }}>
+                    <span style={{ flex: 1, minWidth: 0, fontFamily: "var(--ln-preview)", fontStyle: (activeMoment as any).lyric ? "italic" : "normal", fontSize: 17, fontWeight: 600, lineHeight: 1.4, wordWrap: "break-word", color: (activeMoment as any).lyric ? "#1a0d0e" : "inherit" }}>
                       {(activeMoment as any).lyric || activeMoment.label}
                     </span>
                     <button onClick={() => alert('Share feature coming soon!')} className="ln-press" title="Share this lyric" style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 5, background: "rgba(44,21,23,0.16)", border: "none", color: "#2c1517", borderRadius: 999, padding: "6px 11px", cursor: "pointer", fontFamily: "var(--ln-body)", fontSize: 12.5, fontWeight: 700, whiteSpace: "nowrap" }}>
@@ -472,7 +472,7 @@ function ExperienceContent() {
                     </button>
                   </div>
                   {activeMoment.note && (
-                    <div style={{ fontFamily: "var(--ln-body)", fontSize: 15, lineHeight: 1.45, color: "rgba(44,21,23,0.85)", paddingLeft: 3 }}>
+                    <div style={{ fontFamily: "var(--ln-body)", fontSize: 15, lineHeight: 1.45, color: "#1a0d0e", paddingLeft: 3 }}>
                       {activeMoment.note}
                     </div>
                   )}
