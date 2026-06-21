@@ -26,7 +26,6 @@ export function ComposeForm({ onSubmit, onSuccess, searchAPI, initialTrack, init
   const [showLine, setShowLine] = useState(false);
   const [line, setLine] = useState("");
   const [showMoments, setShowMoments] = useState(false);
-  const [showLyrics, setShowLyrics] = useState(false);
   const [moments, setMoments] = useState<DraftMoment[]>([]);
   const [captionIdx, setCaptionIdx] = useState(0);
   const [submitting, setSubmitting] = useState(false);
@@ -179,11 +178,6 @@ export function ComposeForm({ onSubmit, onSuccess, searchAPI, initialTrack, init
             <div style={{ marginTop: 16, display: "flex", flexWrap: "wrap", gap: 8 }}>
               <Chip label="Write a note" on={showLine} onToggle={() => setShowLine((v) => !v)} />
               <Chip label={`Mark moments${moments.length ? ` · ${moments.length}` : ""}`} on={showMoments} onToggle={() => setShowMoments((v) => !v)} />
-              <Chip
-                label={`Bookmark lyrics${moments.filter(m => m.lyric).length ? ` · ${moments.filter(m => m.lyric).length}` : ""}`}
-                on={showLyrics}
-                onToggle={() => setShowLyrics((v) => !v)}
-              />
             </div>
 
             {showLine && (
@@ -206,21 +200,20 @@ export function ComposeForm({ onSubmit, onSuccess, searchAPI, initialTrack, init
                   featuredIdx={featuredIdx}
                   onSetFeatured={(idx) => setFeaturedKey(momentSig(moments[idx]))}
                 />
-              </div>
-            )}
 
-            {showLyrics && (
-              <div style={{ marginTop: 13, padding: 14, borderRadius: 14, border: `1px solid ${gold}33`, background: `${gold}0a` }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 14 }}>
-                  <LNIcon name="save" size={16} color={gold} />
-                  <span style={{ fontFamily: "var(--ln-mono)", fontSize: 11, letterSpacing: "0.06em", color: gold, textTransform: "uppercase" }}>Bookmark favorite lyrics</span>
+                {/* Bookmark lyrics — the same browser, now lives inside Mark moments */}
+                <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${gold}26` }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 14 }}>
+                    <LNIcon name="save" size={16} color={gold} />
+                    <span style={{ fontFamily: "var(--ln-mono)", fontSize: 11, letterSpacing: "0.06em", color: gold, textTransform: "uppercase" }}>Bookmark favorite lyrics</span>
+                  </div>
+                  <LyricsBrowser
+                    trackName={track?.name || ""}
+                    artistName={track?.artist || ""}
+                    onBookmark={(m) => setMoments((a) => [...a, m].sort((x, y) => x.seconds - y.seconds))}
+                    bookmarkedLines={new Set(moments.filter(m => m.lyric).map(m => m.lyric!))}
+                  />
                 </div>
-                <LyricsBrowser
-                  trackName={track?.name || ""}
-                  artistName={track?.artist || ""}
-                  onBookmark={(m) => setMoments((a) => [...a, m].sort((x, y) => x.seconds - y.seconds))}
-                  bookmarkedLines={new Set(moments.filter(m => m.lyric).map(m => m.lyric!))}
-                />
               </div>
             )}
 
