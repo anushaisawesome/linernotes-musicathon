@@ -49,7 +49,7 @@ export default function Home() {
         const [reviews, albumRes, communityReviews] = await Promise.all([
           getReviews({ feed: "friends" }).catch(() => []),
           fetch("/api/album-reviews?feed=friends", { cache: "no-store" }).then((r) => (r.ok ? r.json() : { albumReviews: [] })).catch(() => ({ albumReviews: [] })),
-          getReviews({ feed: "global" }).catch(() => []),
+          getReviews().catch(() => []), // No feed param = all reviews
         ]);
         const albumReviews: AlbumReview[] = albumRes.albumReviews || [];
         const vms = [
