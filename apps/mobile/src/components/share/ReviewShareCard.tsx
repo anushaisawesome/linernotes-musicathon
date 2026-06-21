@@ -23,8 +23,11 @@ export function ReviewShareCard({ review, format, linkSlot = false }: ReviewShar
   const isStory = format === 'story';
   const featuredMoment = review.notes && review.notes.length > 0 ? review.notes[0] : null;
 
+  // Fixed width for proper aspect ratio (Story: 360px @ 9:16, Square: 360px @ 1:1)
+  const cardWidth = 360;
+
   return (
-    <View style={[styles.container, { aspectRatio: isStory ? 9/16 : 1 }]}>
+    <View style={[styles.container, { width: cardWidth, aspectRatio: isStory ? 9/16 : 1 }]}>
       {/* Album-color gradient flood */}
       <LinearGradient
         colors={[p.mid, p.deep, p.lo]}
@@ -132,7 +135,6 @@ export function ReviewShareCard({ review, format, linkSlot = false }: ReviewShar
 
 const styles = StyleSheet.create({
   container: {
-    width: '100%',
     overflow: 'hidden',
     borderRadius: 22,
   },

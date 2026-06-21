@@ -1,7 +1,7 @@
 import { tokens } from '../lib/tokens';
 /**
  * LinerNotes Login/Signup Screen
- * Google OAuth + email/password auth
+ * Spotify OAuth + email/password auth
  * Based on Claude Design handoff: login.jsx
  */
 
@@ -20,10 +20,17 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
+import { makeRedirectUri, useAuthRequest } from 'expo-auth-session';
+import Constants from 'expo-constants';
 import { useAuth } from '../contexts/AuthContext';
 
 WebBrowser.maybeCompleteAuthSession();
+
+// Spotify OAuth endpoints
+const discovery = {
+  authorizationEndpoint: 'https://accounts.spotify.com/authorize',
+  tokenEndpoint: 'https://accounts.spotify.com/api/token',
+};
 
 // Warm gradient colors for auth screens
 const AUTH_COLORS = {
@@ -35,7 +42,7 @@ const AUTH_COLORS = {
 };
 
 export function LoginScreen() {
-  const { login, signup, loginWithGoogle } = useAuth();
+  const { login, signup, loginWithSpotify } = useAuth();
   const [mode, setMode] = useState<'signup' | 'login'>('signup');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -43,47 +50,47 @@ export function LoginScreen() {
   const [displayName, setDisplayName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Google OAuth configuration
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    androidClientId: '985992092131-19g5d3fsgmb4riepda7a9s4eu133r8oj.apps.googleusercontent.com',
-    iosClientId: '985992092131-ag9ohcq8t4d7dde659kqq343q5m6af47.apps.googleusercontent.com',
-    webClientId: '985992092131-9e67ajva2nob5efot6bfj1asikhdrdml.apps.googleusercontent.com',
-    scopes: ['openid', 'profile', 'email'],
-  });
+  // Spotify OAuth configuration
+  const SPOTIFY_CLIENT_ID =
+    Constants.expoConfig?.extra?.spotifyClientId ||
+    '190588081c89410d8a88ad15a94be8cb';
+
+  const [request, response, promptAsync] = useAuthRequest(
+    {
+      clientId: SPOTIFY_CLIENT_ID,
+      scopes: [
+        'user-read-email',
+        'user-read-private',
+        'streaming',
+        'user-read-playback-state',
+        'user-modify-playback-state',
+      ],
+      // Must match exactly what backend sends to Spotify token exchange
+      redirectUri: 'com.musicathonln.app://callback',
+    },
+    discovery
+  );
 
   React.useEffect(() => {
-    if (response?.type === 'success') {
-      handleGoogleAuth(response.authentication);
+    if (response?.type === 'success' && request) {
+      handleSpotifyAuth(response.params.code, request.codeVerifier);
     }
-  }, [response]);
+  }, [response, request]);
 
-  async function handleGoogleAuth(authentication: any) {
+  async function handleSpotifyAuth(code: string, codeVerifier?: string) {
     try {
       setIsLoading(true);
 
-      console.log('Google auth response:', JSON.stringify(authentication, null, 2));
-
-      // expo-auth-session provides an idToken if configured correctly
-      // Use the ID token for backend authentication
-      const idToken = authentication?.idToken || authentication?.accessToken;
-
-      if (!idToken) {
-        throw new Error('No ID token or access token received from Google');
-      }
-
-      console.log('Sending token to backend...');
-      const isAccessToken = !authentication?.idToken;
-      console.log('Token type:', isAccessToken ? 'Access token' : 'ID token');
-      console.log('Token (first 20 chars):', idToken.substring(0, 20));
-
-      await loginWithGoogle(idToken, isAccessToken);
+      console.log('Spotify auth code:', code);
+      console.log('Code verifier present:', !!codeVerifier);
+      await loginWithSpotify(code, codeVerifier);
 
       console.log('Login successful!');
     } catch (error: any) {
-      console.error('Google auth error:', error);
+      console.error('Spotify auth error:', error);
       Alert.alert(
         'Authentication Error',
-        error.message || 'Failed to authenticate with Google. Please try again.'
+        error.message || 'Failed to authenticate with Spotify. Please try again.'
       );
     } finally {
       setIsLoading(false);
@@ -157,17 +164,13 @@ export function LoginScreen() {
 
           {/* Auth forms */}
           <View style={styles.authContainer}>
-            {/* Google OAuth Button */}
+            {/* Spotify OAuth Button */}
             <TouchableOpacity
-              style={styles.googleButton}
+              style={styles.spotifyButton}
               onPress={() => promptAsync()}
               disabled={!request || isLoading}
             >
-              {/* Google Logo SVG */}
-              <View style={styles.googleLogo}>
-                <Text style={styles.googleLogoText}>G</Text>
-              </View>
-              <Text style={styles.googleButtonText}>Continue with Google</Text>
+              <Text style={styles.spotifyButtonText}>Continue with Spotify</Text>
             </TouchableOpacity>
 
             {/* Divider */}
@@ -404,5 +407,20 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
     textAlign: 'center',
     marginTop: 10,
+  },
+  spotifyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    padding: 14,
+    borderRadius: 13,
+    backgroundColor: '#1DB954',
+  },
+  spotifyButtonText: {
+    fontFamily: 'System',
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

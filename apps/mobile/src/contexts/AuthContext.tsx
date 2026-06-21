@@ -14,6 +14,7 @@ interface AuthContextType {
   needsOnboarding: boolean;
   login: (email: string, password: string) => Promise<void>;
   loginWithGoogle: (token: string, isAccessToken?: boolean) => Promise<void>;
+  loginWithSpotify: (code: string, codeVerifier?: string) => Promise<void>;
   signup: (email: string, password: string, handle: string, displayName: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -110,6 +111,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  async function loginWithSpotify(code: string, codeVerifier?: string) {
+    try {
+      const response = await api.loginWithSpotify(code, codeVerifier);
+      api.setAuthToken(response.token);
+
+      // The login response only includes basic user data from /auth/me (no bio).
+      // Fetch the full profile from /users/me to get bio and favourites.
+      const fullUser = await api.getMyProfile();
+      setUser(fullUser);
+      await api.setUserData(fullUser);
+
+      // Check if user needs onboarding by looking at server-side data.
+      // A user needs onboarding if they haven't set up their required profile fields.
+      // Required fields: handle and displayName (bio and favourites are optional).
+      // Spotify OAuth users get an auto-generated handle, so we check if they've
+      // customized it OR set a displayName.
+      const hasCompletedOnboarding = !!(
+        fullUser.handle &&
+        fullUser.displayName
+      );
+
+      setNeedsOnboarding(!hasCompletedOnboarding);
+
+      // Sync local flag with server state
+      if (hasCompletedOnboarding) {
+        await api.setOnboarded();
+      }
+    } catch (error) {
+      console.error('Spotify login failed:', error);
+      throw error;
+    }
+  }
+
   async function signup(
     email: string,
     password: string,
@@ -158,6 +192,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isAuthenticated: !!user,
     needsOnboarding,
     loginWithGoogle,
+    loginWithSpotify,
     login,
     signup,
     logout,
