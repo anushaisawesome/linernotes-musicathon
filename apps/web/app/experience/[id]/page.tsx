@@ -162,6 +162,20 @@ function ExperienceContent() {
     setAnnotations(newAnnotations);
   }, [playerState, lyrics, review]);
 
+  // Poll position while playing for continuous lyric sync
+  useEffect(() => {
+    if (!player || !playerState?.isPlaying) return;
+
+    const interval = setInterval(async () => {
+      const currentState = await player.getCurrentState();
+      if (currentState) {
+        setPlayerState(currentState);
+      }
+    }, 200); // Update 5 times per second
+
+    return () => clearInterval(interval);
+  }, [player, playerState?.isPlaying]);
+
   // Lyric auto-scroll effect
   useLayoutEffect(() => {
     if (!lyrics?.lines || annotations?.activeLineIndex === undefined) return;
