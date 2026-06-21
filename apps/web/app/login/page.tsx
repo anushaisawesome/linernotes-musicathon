@@ -40,6 +40,22 @@ function LoginForm() {
     setError("");
     setLoading(true);
     try {
+      // On signup, surface a clear message for the common case of a duplicate
+      // email (NextAuth masks the authorize error as a generic "Configuration").
+      if (isSignup) {
+        try {
+          const res = await fetch(`/api/auth/check-email?email=${encodeURIComponent(email)}`);
+          const data = res.ok ? await res.json() : { exists: false };
+          if (data.exists) {
+            setError("Account with this email already exists");
+            setLoading(false);
+            return;
+          }
+        } catch {
+          /* check failed — fall through and let signIn try */
+        }
+      }
+
       const result = await signIn("credentials", {
         email,
         password,
@@ -48,14 +64,15 @@ function LoginForm() {
         redirect: false,
       });
       if (result?.error) {
-        setError(result.error);
+        // Any other auth failure shows the generic error.
+        setError("Configuration");
       } else if (result?.ok) {
         // Redirect new signups to onboarding, existing users to callback URL
         router.push(isSignup ? "/onboarding" : callbackUrl);
         router.refresh();
       }
     } catch {
-      setError("An error occurred. Please try again.");
+      setError("Configuration");
     } finally {
       setLoading(false);
     }

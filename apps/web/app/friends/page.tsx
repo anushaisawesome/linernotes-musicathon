@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { getFriends, sendFriendRequest, updateFriendRequest, removeFriend } from "@/lib/api";
@@ -42,20 +43,32 @@ function SectionLabel({ children, count }: { children: React.ReactNode; count?: 
   );
 }
 
-function PersonRow({ user, right }: { user: User; right?: React.ReactNode }) {
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 2px" }}>
+function PersonRow({ user, right, onOpen }: { user: User; right?: React.ReactNode; onOpen?: () => void }) {
+  const body = (
+    <>
       <LNAvatar user={avatarUser(user)} size={42} />
       <div style={{ flex: 1, minWidth: 0, lineHeight: 1.3 }}>
         <div style={{ fontFamily: "var(--ln-body)", fontSize: 14, fontWeight: 600, color: "var(--ln-fg)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.displayName || user.handle}</div>
         <div style={{ fontFamily: "var(--ln-mono)", fontSize: 10.5, color: "rgba(var(--ln-fg-rgb),0.5)" }}>@{user.handle}</div>
       </div>
+    </>
+  );
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 2px" }}>
+      {onOpen ? (
+        <button onClick={onOpen} className="ln-press" style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 12, background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left" }}>
+          {body}
+        </button>
+      ) : (
+        <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 12 }}>{body}</div>
+      )}
       {right}
     </div>
   );
 }
 
 export default function FriendsPage() {
+  const router = useRouter();
   const { data: session, status } = useSession();
   const myHandle = session?.user?.handle;
 
@@ -102,6 +115,18 @@ export default function FriendsPage() {
       if (req) setFriends((arr) => [...arr, req.requester]);
     } catch (error) {
       console.error("Failed to accept:", error);
+    }
+  };
+
+  // Remove an accepted friend — confirm first, then drop the friendship.
+  const handleRemove = async (f: User) => {
+    if (!window.confirm(`Remove @${f.handle} from your friends?`)) return;
+    try {
+      await removeFriend(f.id);
+      setFriends((arr) => arr.filter((x) => x.id !== f.id));
+    } catch (error) {
+      console.error("Failed to remove friend:", error);
+      alert("Couldn't remove friend. Please try again.");
     }
   };
 
@@ -242,12 +267,16 @@ export default function FriendsPage() {
                 ) : (
                   <div>
                     {friends.map((f) => (
-                      <Link key={f.id} href={`/profile/${f.handle}`} style={{ display: "block", textDecoration: "none" }} className="ln-card-hover">
-                        <PersonRow
-                          user={f}
-                          right={<span style={{ flexShrink: 0, fontSize: 16, lineHeight: 1, color: "rgba(var(--ln-fg-rgb),0.3)" }}>→</span>}
-                        />
-                      </Link>
+                      <PersonRow
+                        key={f.id}
+                        user={f}
+                        onOpen={() => router.push(`/profile/${f.handle}`)}
+                        right={
+                          <button onClick={() => handleRemove(f)} className="ln-press" title="Remove friend" style={{ flexShrink: 0, padding: "7px 13px", borderRadius: 999, border: "1px solid rgba(var(--ln-line-rgb),0.2)", background: "transparent", cursor: "pointer", color: "rgba(var(--ln-fg-rgb),0.6)", fontFamily: "var(--ln-body)", fontSize: 12.5, fontWeight: 600 }}>
+                            Remove
+                          </button>
+                        }
+                      />
                     ))}
                   </div>
                 )}

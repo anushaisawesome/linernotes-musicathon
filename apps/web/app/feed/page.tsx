@@ -51,6 +51,7 @@ export default function FeedPage() {
   };
   const onSave = (vm: ReviewVM) => {
     if (vm.kind === "track") fetch(`/api/reviews/${vm.id}/save`, { method: "POST" }).catch(() => {});
+    else if (vm.kind === "album") fetch(`/api/album-reviews/${vm.id}/save`, { method: "POST" }).catch(() => {});
   };
 
   return (

@@ -12,6 +12,7 @@ import { LNIcon } from "./atoms";
 
 export function TopBar({ transparent = false }: { transparent?: boolean }) {
   const [scrolled, setScrolled] = useState(false);
+  const [friendNotif, setFriendNotif] = useState(false);
   const pathname = usePathname();
   const { data: session } = useSession();
   const handle = session?.user?.handle;
@@ -22,6 +23,37 @@ export function TopBar({ transparent = false }: { transparent?: boolean }) {
     window.addEventListener("scroll", h, { passive: true });
     return () => window.removeEventListener("scroll", h);
   }, []);
+
+  // Friends notification dot: lights up when there's a new incoming request or a
+  // newly-accepted friend since you last opened the Friends page. Visiting
+  // /friends marks the current state as seen.
+  useEffect(() => {
+    if (!session) { setFriendNotif(false); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const [fRes, rRes] = await Promise.all([
+          fetch("/api/friends", { cache: "no-store" }).then((r) => (r.ok ? r.json() : { friends: [] })),
+          fetch("/api/friends?type=requests", { cache: "no-store" }).then((r) => (r.ok ? r.json() : { requests: [] })),
+        ]);
+        if (cancelled) return;
+        const friends = (fRes.friends || []).length;
+        const incoming = (rRes.requests || []).length;
+        const stored = typeof window !== "undefined" ? localStorage.getItem("ln_friends_seen") : null;
+        const markSeen = () => { try { localStorage.setItem("ln_friends_seen", JSON.stringify({ friends, incoming })); } catch { /* ignore */ } };
+        if (pathname === "/friends" || !stored) {
+          // First load establishes a baseline; opening /friends clears the dot.
+          markSeen();
+          setFriendNotif(false);
+        } else {
+          let seen = { friends: 0, incoming: 0 };
+          try { seen = JSON.parse(stored); } catch { /* ignore */ }
+          setFriendNotif(incoming > seen.incoming || friends > seen.friends);
+        }
+      } catch { /* best-effort */ }
+    })();
+    return () => { cancelled = true; };
+  }, [session, pathname]);
 
   const accent = "var(--ln-accent)";
   const onFlood = transparent && !scrolled;
@@ -95,9 +127,12 @@ export function TopBar({ transparent = false }: { transparent?: boolean }) {
             <Link
               href="/friends"
               className="ln-press lnw-nav-login"
-              style={{ color: pathname === "/friends" ? ink : muted, textDecoration: "none", fontFamily: "var(--ln-body)", fontSize: 13.5, fontWeight: 600, padding: "6px 4px", whiteSpace: "nowrap" }}
+              style={{ position: "relative", color: pathname === "/friends" ? ink : muted, textDecoration: "none", fontFamily: "var(--ln-body)", fontSize: 13.5, fontWeight: 600, padding: "6px 4px", whiteSpace: "nowrap" }}
             >
               Friends
+              {friendNotif && (
+                <span title="New friends activity" style={{ position: "absolute", top: 2, right: -5, width: 8, height: 8, borderRadius: "50%", background: "var(--ln-star)", boxShadow: `0 0 0 2px ${transparent ? "rgba(10,8,7,0.9)" : "var(--ln-surface)"}, 0 0 7px var(--ln-star)` }} />
+              )}
             </Link>
             <Link
               href={handle ? `/profile/${handle}` : "/onboarding"}

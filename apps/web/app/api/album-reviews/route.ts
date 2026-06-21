@@ -32,11 +32,14 @@ export async function GET(request: NextRequest) {
           likes: currentUserId ? {
             where: { userId: currentUserId },
           } : false,
+          saves: currentUserId ? {
+            where: { userId: currentUserId },
+          } : false,
           reposts: {
             include: { user: true },
           },
           _count: {
-            select: { likes: true, reposts: true },
+            select: { likes: true, reposts: true, saves: true },
           },
         },
         orderBy: { createdAt: "desc" },
@@ -84,8 +87,10 @@ export async function GET(request: NextRequest) {
         createdAt: albumReview.createdAt.toISOString(),
         likeCount: albumReview._count.likes,
         repostCount: albumReview._count.reposts,
+        saveCount: albumReview._count.saves,
         likedByMe: albumReview.likes.length > 0,
         repostedByMe: albumReview.reposts.some(r => r.userId === currentUserId),
+        saved: Array.isArray(albumReview.saves) && albumReview.saves.length > 0,
         reposts: albumReview.reposts.map(r => ({
           id: r.id,
           user: r.user,

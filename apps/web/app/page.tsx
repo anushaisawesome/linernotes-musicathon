@@ -225,7 +225,7 @@ export default function Home() {
                   vm={vm}
                   onLike={() => { if (vm.kind === "track") toggleLike(vm.id).catch(() => {}); else if (vm.kind === "album") fetch(`/api/album-reviews/${vm.id}/like`, { method: "POST" }).catch(() => {}); }}
                   onRepost={() => { if (vm.kind === "track") toggleRepost(vm.id).catch(() => {}); else if (vm.kind === "album") fetch(`/api/album-reviews/${vm.id}/repost`, { method: "POST" }).catch(() => {}); }}
-                  onSave={() => { if (vm.kind === "track") fetch(`/api/reviews/${vm.id}/save`, { method: "POST" }).catch(() => {}); }}
+                  onSave={() => { if (vm.kind === "track") fetch(`/api/reviews/${vm.id}/save`, { method: "POST" }).catch(() => {}); else if (vm.kind === "album") fetch(`/api/album-reviews/${vm.id}/save`, { method: "POST" }).catch(() => {}); }}
                 />
               ))}
             </div>
