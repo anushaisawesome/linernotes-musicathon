@@ -81,16 +81,21 @@ export function LoginScreen() {
     try {
       setIsLoading(true);
 
-      console.log('Spotify auth code:', code);
-      console.log('Code verifier present:', !!codeVerifier);
+      console.log('[Spotify] Starting auth with code:', code);
+      console.log('[Spotify] Code verifier present:', !!codeVerifier);
+      console.log('[Spotify] API base URL:', Constants.expoConfig?.extra?.apiUrl);
+
       await loginWithSpotify(code, codeVerifier);
 
-      console.log('Login successful!');
+      console.log('[Spotify] ✅ Login successful!');
     } catch (error: any) {
-      console.error('Spotify auth error:', error);
+      console.error('[Spotify] ❌ Auth error:', error);
+      console.error('[Spotify] Error message:', error.message);
+      console.error('[Spotify] Error stack:', error.stack);
+
       Alert.alert(
         'Authentication Error',
-        error.message || 'Failed to authenticate with Spotify. Please try again.'
+        `${error.message || 'Failed to authenticate with Spotify'}\n\nCheck console for details.`
       );
     } finally {
       setIsLoading(false);
