@@ -33,7 +33,9 @@
     "react-native-view-shot": "5.1.0"
   },
   "devDependencies": {
+    "@babel/core": "^7.29.7",
     "@types/react": "~19.2.14",
+    "babel-preset-expo": "^56.0.15",
     "eas-cli": "^20.1.0",
     "typescript": "^6.0.3"
   },

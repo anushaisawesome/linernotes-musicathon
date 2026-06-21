@@ -1,7 +1,7 @@
 import { ExpoConfig } from 'expo/config';
 
 const config: ExpoConfig = {
-  name: 'LinerNotes',
+  name: 'MXM - LinerNotes',
   slug: 'linernotes',
   version: '0.2.0',
   orientation: 'portrait',
@@ -10,7 +10,7 @@ const config: ExpoConfig = {
   assetBundlePatterns: ['**/*'],
   ios: {
     supportsTablet: true,
-    bundleIdentifier: 'com.anusha.linernotes',
+    bundleIdentifier: 'com.musicathonln.app',
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
     },
