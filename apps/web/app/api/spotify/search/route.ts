@@ -90,17 +90,24 @@ export async function GET(request: NextRequest) {
     const tracks = searchData.tracks?.items || [];
 
     // Transform to our format
-    const results = tracks.map((track: any) => ({
-      trackId: track.id, // REAL Spotify ID
-      name: track.name,
-      artist: track.artists.map((a: any) => a.name).join(", "),
-      album: track.album.name,
-      artworkUrl: track.album.images[0]?.url || "",
-      previewUrl: track.preview_url,
-      duration: track.duration_ms,
-      releaseDate: track.album.release_date,
-      source: "spotify",
-    }));
+    const results = tracks.map((track: any) => {
+      // Spotify images are ordered by size (largest first)
+      // Get highest quality artwork (640x640 or larger)
+      const images = track.album.images || [];
+      const artworkUrl = images.find((img: any) => img.width >= 640)?.url || images[0]?.url || "";
+
+      return {
+        trackId: track.id, // REAL Spotify ID
+        name: track.name,
+        artist: track.artists.map((a: any) => a.name).join(", "),
+        album: track.album.name,
+        artworkUrl,
+        previewUrl: track.preview_url,
+        duration: track.duration_ms,
+        releaseDate: track.album.release_date,
+        source: "spotify",
+      };
+    });
 
     return NextResponse.json({
       tracks: results,
