@@ -6,24 +6,17 @@ import { ComposeForm } from "@/components/compose";
 import { TopBar, Footer } from "@/components/ln/nav";
 import type { Track } from "@/lib/types";
 
-// Search Spotify for tracks (returns real Spotify track IDs for playback).
-// offset pages through results for the "show more" control.
+// Search tracks using iTunes/MusicBrainz (no rate limits)
+// Spotify ID will be looked up server-side during review submission
 async function searchSpotifyTracks(query: string, offset = 0): Promise<Track[]> {
   try {
-    const response = await fetch(`/api/spotify/search?q=${encodeURIComponent(query)}&limit=10&offset=${offset}`);
-
-    // If rate limited, return empty (user can try again in a moment)
-    if (response.status === 429) {
-      console.warn("[Search] Spotify rate limited, please wait");
-      return [];
-    }
-
+    const response = await fetch(`/api/music/search/tracks?q=${encodeURIComponent(query)}&limit=10`);
     if (!response.ok) return [];
 
     const data = await response.json();
-    return data.tracks || [];
+    return data.results || [];
   } catch (error) {
-    console.error("[Search] Spotify search failed:", error);
+    console.error("[Search] Track search failed:", error);
     return [];
   }
 }
