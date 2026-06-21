@@ -73,23 +73,37 @@ function LogPageContent() {
 
         // No Spotify match - use Last.fm data with fake ID (Experience will show preview mode)
         console.log("[Log Page] No Spotify match found for", trackName, "- using Last.fm data");
+
+        // Upgrade Last.fm artwork from 64s to 300x300
+        let upgradedArtwork = artworkUrl || "";
+        if (upgradedArtwork.includes("/64s/")) {
+          upgradedArtwork = upgradedArtwork.replace("/64s/", "/300x300/");
+        }
+
         setInitialTrack({
           trackId: `lastfm-${trackName}-${artistName}`,
           name: trackName || '',
           artist: artistName || '',
           album: albumName || "",
-          artworkUrl: artworkUrl || "",
+          artworkUrl: upgradedArtwork,
           previewUrl: "",
         });
       } catch (error) {
         console.error("[Log Page] Failed to lookup Spotify track:", error);
+
+        // Upgrade Last.fm artwork from 64s to 300x300
+        let upgradedArtwork = artworkUrl || "";
+        if (upgradedArtwork.includes("/64s/")) {
+          upgradedArtwork = upgradedArtwork.replace("/64s/", "/300x300/");
+        }
+
         // Fall back to Last.fm data
         setInitialTrack({
           trackId: `lastfm-${trackName}-${artistName}`,
           name: trackName || '',
           artist: artistName || '',
           album: albumName || "",
-          artworkUrl: artworkUrl || "",
+          artworkUrl: upgradedArtwork,
           previewUrl: "",
         });
       } finally {
