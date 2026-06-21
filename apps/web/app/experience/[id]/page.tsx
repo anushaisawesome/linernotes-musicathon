@@ -270,9 +270,22 @@ function ExperienceContent() {
                 <div style={{ fontSize: 13, opacity: 0.7, marginBottom: 16 }}>
                   To hear the track and experience synced moments in real-time
                 </div>
-                <a href="/connect/spotify" style={{ display: "inline-block", padding: "10px 20px", background: accent, color: "#161013", borderRadius: 8, textDecoration: "none", fontWeight: 600, fontSize: 14 }}>
+                <button
+                  onClick={async () => {
+                    try {
+                      const res = await fetch("/api/connect/spotify", { method: "POST" });
+                      const data = await res.json();
+                      if (data.authUrl) {
+                        window.location.href = data.authUrl;
+                      }
+                    } catch (err) {
+                      console.error("Failed to connect Spotify:", err);
+                    }
+                  }}
+                  style={{ display: "inline-block", padding: "10px 20px", background: accent, color: "#161013", borderRadius: 8, border: "none", fontWeight: 600, fontSize: 14, cursor: "pointer" }}
+                >
                   Connect Spotify
-                </a>
+                </button>
               </div>
             ) : (
               <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 24 }}>
