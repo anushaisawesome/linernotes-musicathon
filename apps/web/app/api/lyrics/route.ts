@@ -169,60 +169,53 @@ export async function GET(request: NextRequest) {
       console.log("[Musixmatch] Track is in", originalLanguage, "- fetching English translation");
 
       try {
-        // Try subtitle translation endpoint first (more likely to have synced translations)
-        const translationUrl = `https://api.musixmatch.com/ws/1.1/track.subtitle.translation.get?format=json&track_id=${trackId}&subtitle_format=lrc&selected_language=en&apikey=${apiKey}`;
+        // Try multiple translation endpoints
+        // First try: track.lyrics.translation.get with comment_format=text
+        const translationUrl = `https://api.musixmatch.com/ws/1.1/track.lyrics.translation.get?format=json&track_id=${trackId}&selected_language=en&comment_format=text&apikey=${apiKey}`;
 
+        console.log("[Musixmatch] Trying translation URL:", translationUrl);
         const translationRes = await fetch(translationUrl);
         if (translationRes.ok) {
           const translationData = await translationRes.json();
           console.log("[Musixmatch] Full translation response:", JSON.stringify(translationData, null, 2));
 
-          // Try subtitle translation format (LRC)
-          const subtitleBody = translationData.message?.body?.subtitle?.subtitle_body;
+          // Check multiple possible response structures
           const lyricsBody = translationData.message?.body?.lyrics?.lyrics_body;
+          const lyricsLanguage = translationData.message?.body?.lyrics?.lyrics_language;
 
-          console.log("[Musixmatch] Subtitle body:", subtitleBody ? "found" : "not found");
-          console.log("[Musixmatch] Lyrics body:", lyricsBody ? "found" : "not found");
+          console.log("[Musixmatch] Lyrics body:", lyricsBody ? `found (${lyricsBody.substring(0, 100)}...)` : "not found");
+          console.log("[Musixmatch] Lyrics language:", lyricsLanguage || "unknown");
 
-          if (subtitleBody && typeof subtitleBody === 'string') {
-            // Translation came as subtitle in LRC format - parse it
-            console.log("[Musixmatch] Translation came as subtitle_body (LRC format), parsing...");
+          if (lyricsBody && typeof lyricsBody === 'string' && lyricsBody.length > 0) {
+            // Check if the returned text is actually in English (not Korean)
+            const hasKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(lyricsBody);
+            const hasEnglish = /[a-zA-Z]/.test(lyricsBody);
 
-            const lrcLines = subtitleBody.split('\n').filter((line: string) => line.trim());
-            const translatedParsed: typeof parsedLyrics = [];
+            console.log("[Musixmatch] Translation text analysis - hasKorean:", hasKorean, "hasEnglish:", hasEnglish);
 
-            for (const line of lrcLines) {
-              const match = line.match(/\[(\d{2}):(\d{2})\.(\d{2})\]\s*(.+)/);
-              if (match) {
-                const [, minutes, seconds, centiseconds, text] = match;
-                const totalMs = (parseInt(minutes) * 60 + parseInt(seconds)) * 1000 + parseInt(centiseconds) * 10;
-                translatedParsed.push({
-                  text: text.trim(),
-                  time: { total: totalMs, minutes: parseInt(minutes), seconds: parseInt(seconds), hundredths: parseInt(centiseconds) },
-                });
-              }
+            if (!hasKorean && hasEnglish) {
+              // This looks like an actual English translation
+              console.log("[Musixmatch] Found English translation in lyrics_body");
+
+              const translatedLines = lyricsBody.split('\n').filter((line: string) => line.trim());
+
+              // Match by position since we don't have timestamps
+              translation = parsedLyrics.map((originalLine, idx) => {
+                const translatedText = translatedLines[idx];
+                if (translatedText && translatedText.trim()) {
+                  return {
+                    text: translatedText.trim(),
+                    time: originalLine.time,
+                  };
+                }
+                return originalLine;
+              });
+
+              const translatedCount = translation.filter((line, idx) => line.text !== parsedLyrics[idx].text).length;
+              console.log("[Musixmatch] Mapped", translatedCount, "of", parsedLyrics.length, "lines to English translations");
+            } else {
+              console.log("[Musixmatch] Returned text is not English (possibly Korean original), skipping");
             }
-
-            console.log("[Musixmatch] Parsed", translatedParsed.length, "translated lines from LRC subtitle");
-
-            // Match by timestamp
-            translation = parsedLyrics.map((originalLine) => {
-              const match = translatedParsed.find(t => t.time.total === originalLine.time.total);
-              return match || originalLine;
-            });
-          } else if (lyricsBody && typeof lyricsBody === 'string') {
-            // Translation came as plain lyrics body - need to parse and match
-            console.log("[Musixmatch] Translation came as lyrics_body, parsing...");
-            const translatedLines = lyricsBody.split('\n').filter((line: string) => line.trim());
-
-            translation = parsedLyrics.map((originalLine, idx) => {
-              return {
-                text: translatedLines[idx] || originalLine.text,
-                time: originalLine.time,
-              };
-            });
-
-            console.log("[Musixmatch] Parsed", translation.length, "translated lines from lyrics_body");
           } else {
             console.log("[Musixmatch] No translation available for this track");
           }
