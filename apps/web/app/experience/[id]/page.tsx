@@ -557,11 +557,12 @@ function ExperienceContent() {
 
                 <div ref={colRef} className="ln-scroll" style={{ position: "relative", height: "clamp(360px, 52vh, 560px)", overflow: "hidden", WebkitMaskImage: "linear-gradient(180deg, transparent, #000 16%, #000 80%, transparent)" }}>
                   <div style={{ transform: `translateY(${lyricShift}px)`, transition: "transform 0.5s cubic-bezier(.2,.8,.2,1)", display: "flex", flexDirection: "column", gap: 4, paddingTop: 8 }}>
-                    {(showTranslation && translation ? translation.lines : lyrics.lines).map((line, i) => {
+                    {lyrics.lines.map((line, i) => {
                       const lineSec = line.time.total / 1000;
                       const isActive = i === annotations?.activeLineIndex;
                       const passed = annotations?.activeLineIndex !== undefined && i < annotations.activeLineIndex;
                       const dist = Math.abs(i - (annotations?.activeLineIndex || 0));
+                      const translatedLine = translation?.lines?.[i];
 
                       return (
                         <div key={i} ref={(el) => { lineRefs.current[i] = el; }}
@@ -569,6 +570,8 @@ function ExperienceContent() {
                           style={{
                             cursor: "pointer",
                             padding: "7px 2px",
+                          }}>
+                          <div style={{
                             fontFamily: "var(--ln-album)",
                             fontWeight: isActive ? 600 : 500,
                             fontSize: isActive ? 22 : 18,
@@ -579,8 +582,25 @@ function ExperienceContent() {
                             transition: "all 0.4s cubic-bezier(.2,.8,.2,1)",
                             wordWrap: "break-word",
                           }}>
-                          {isActive && <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: accent, marginRight: 12, verticalAlign: "middle", boxShadow: `0 0 0 4px ${accent}33` }} />}
-                          {line.text}
+                            {isActive && <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: accent, marginRight: 12, verticalAlign: "middle", boxShadow: `0 0 0 4px ${accent}33` }} />}
+                            {line.text}
+                          </div>
+                          {showTranslation && translatedLine && translatedLine.text !== line.text && (
+                            <div style={{
+                              fontFamily: "var(--ln-body)",
+                              fontSize: isActive ? 14 : 12,
+                              lineHeight: 1.4,
+                              color: muted(0.45),
+                              marginTop: 4,
+                              marginLeft: isActive ? 32 : 0,
+                              fontStyle: "italic",
+                              opacity: isActive ? 0.9 : Math.max(0.2, 1 - dist * 0.2),
+                              transition: "all 0.4s cubic-bezier(.2,.8,.2,1)",
+                              wordWrap: "break-word",
+                            }}>
+                              {translatedLine.text}
+                            </div>
+                          )}
                         </div>
                       );
                     })}

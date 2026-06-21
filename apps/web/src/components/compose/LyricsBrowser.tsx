@@ -121,12 +121,10 @@ export function LyricsBrowser({ trackIsrc, trackName, artistName, onBookmark, bo
   const commitBookmark = (noteText: string) => {
     if (selectedLines.size === 0) return;
 
-    // Use the currently displayed lyrics (original or translation)
-    const displayedLyrics = showTranslation && translation.length > 0 ? translation : lyrics;
-
+    // Always save original lyrics (not translation)
     const selectedLyrics = Array.from(selectedLines)
       .sort((a, b) => a - b)
-      .map(idx => displayedLyrics[idx]);
+      .map(idx => lyrics[idx]);
 
     const firstLine = selectedLyrics[0];
     const combinedLyric = selectedLyrics.map(l => l.text).join("\n");
@@ -138,7 +136,7 @@ export function LyricsBrowser({ trackIsrc, trackName, artistName, onBookmark, bo
       seconds: firstLine.seconds,
       label,
       note: noteText.trim(),
-      lyric: combinedLyric, // The lyric line(s)
+      lyric: combinedLyric, // The lyric line(s) - always original
     });
 
     setSelectedLines(new Set());
@@ -361,12 +359,13 @@ export function LyricsBrowser({ trackIsrc, trackName, artistName, onBookmark, bo
       )}
 
       <div style={{ maxHeight: 400, overflowY: "auto", border: "1px solid rgba(var(--ln-fg-rgb),0.1)", borderRadius: 12, background: "rgba(var(--ln-fg-rgb),0.02)" }}>
-        {(showTranslation && translation.length > 0 ? translation : lyrics).map((line, index) => {
+        {lyrics.map((line, index) => {
           const isBookmarked = bookmarkedLines.has(line.text);
           const isSelected = selectedLines.has(index);
           const minutes = Math.floor(line.seconds / 60);
           const seconds = Math.floor(line.seconds % 60);
           const timestamp = `${minutes}:${seconds.toString().padStart(2, "0")}`;
+          const translatedLine = translation[index];
 
           return (
             <button
@@ -400,11 +399,18 @@ export function LyricsBrowser({ trackIsrc, trackName, artistName, onBookmark, bo
                 }
               }}
             >
-              <div style={{ fontFamily: "var(--ln-mono)", fontSize: 11, color: isBookmarked ? gold : isSelected ? gold : "rgba(var(--ln-fg-rgb),0.4)", minWidth: 40 }}>
+              <div style={{ fontFamily: "var(--ln-mono)", fontSize: 11, color: isBookmarked ? gold : isSelected ? gold : "rgba(var(--ln-fg-rgb),0.4)", minWidth: 40, flexShrink: 0 }}>
                 {timestamp}
               </div>
-              <div style={{ flex: 1, fontFamily: "var(--ln-body)", fontSize: 14.5, lineHeight: 1.5, color: isBookmarked ? gold : isSelected ? gold : "var(--ln-fg)" }}>
-                {line.text}
+              <div style={{ flex: 1 }}>
+                <div style={{ fontFamily: "var(--ln-body)", fontSize: 14.5, lineHeight: 1.5, color: isBookmarked ? gold : isSelected ? gold : "var(--ln-fg)" }}>
+                  {line.text}
+                </div>
+                {showTranslation && translatedLine && translatedLine.text !== line.text && (
+                  <div style={{ fontFamily: "var(--ln-body)", fontSize: 12, lineHeight: 1.4, color: "rgba(var(--ln-fg-rgb),0.5)", marginTop: 4, fontStyle: "italic" }}>
+                    {translatedLine.text}
+                  </div>
+                )}
               </div>
               {isBookmarked && (
                 <div style={{ fontSize: 16, color: gold }}>★</div>
