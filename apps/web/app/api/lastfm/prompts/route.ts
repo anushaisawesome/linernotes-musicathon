@@ -245,11 +245,23 @@ export async function GET(request: Request) {
       },
     });
 
+    // Normalize artist+title into a comparison key that tolerates Last.fm vs
+    // Spotify naming differences (case, punctuation, "(feat …)", "(Remastered)").
+    const normKey = (artist: string, title: string): string => {
+      const clean = (s: string) =>
+        (s || "")
+          .toLowerCase()
+          .replace(/\s*[([][^)\]]*[)\]]/g, "")              // drop (...) and [...]
+          .replace(/\s+(feat|ft|featuring|with)\.?\s.*$/i, "") // drop "feat …" to end
+          .replace(/[^a-z0-9]+/g, "");                       // strip remaining punctuation/space
+      return `${clean(artist)}::${clean(title)}`;
+    };
+
     const reviewedTracks = new Set(
-      existingReviews.map(r => `${r.trackArtist}::${r.trackName}`.toLowerCase())
+      existingReviews.map(r => normKey(r.trackArtist, r.trackName))
     );
     const reviewedAlbums = new Set(
-      existingAlbumReviews.map(r => `${r.albumArtist}::${r.albumName}`.toLowerCase())
+      existingAlbumReviews.map(r => normKey(r.albumArtist, r.albumName))
     );
 
     console.log("[Last.fm Prompts] Already reviewed:", reviewedTracks.size, "tracks,", reviewedAlbums.size, "albums");
@@ -418,7 +430,7 @@ export async function GET(request: Request) {
       const trackKey = `${artistName}::${track.name}`;
 
       // Skip if already reviewed
-      if (reviewedTracks.has(trackKey.toLowerCase())) {
+      if (reviewedTracks.has(normKey(artistName, track.name))) {
         console.log(`[Last.fm Prompts] Skipping already-reviewed track: ${trackKey}`);
         continue;
       }
@@ -529,7 +541,7 @@ export async function GET(request: Request) {
       const trackKey = `${artistName}::${track.name}`;
 
       // Skip if already reviewed
-      if (reviewedTracks.has(trackKey.toLowerCase())) {
+      if (reviewedTracks.has(normKey(artistName, track.name))) {
         continue;
       }
 
@@ -628,7 +640,7 @@ export async function GET(request: Request) {
       const albumKey = `${artistName}::${album.name}`;
 
       // Skip if already reviewed
-      if (reviewedAlbums.has(albumKey.toLowerCase())) {
+      if (reviewedAlbums.has(normKey(artistName, album.name))) {
         continue;
       }
 
@@ -687,7 +699,7 @@ export async function GET(request: Request) {
       const albumKey = `${albumPlay.artist}::${albumPlay.album}`;
 
       // Skip if already reviewed
-      if (reviewedAlbums.has(albumKey.toLowerCase())) {
+      if (reviewedAlbums.has(normKey(albumPlay.artist, albumPlay.album))) {
         console.log(`[Last.fm Prompts] Skipping already-reviewed album: ${albumKey}`);
         continue;
       }

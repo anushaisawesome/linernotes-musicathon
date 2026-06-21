@@ -207,7 +207,9 @@ function PromptCard({
           <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
             {/* Album art thumbnail */}
             <div style={{ width: 42, height: 42, borderRadius: 9, overflow: "hidden", flexShrink: 0, background: `radial-gradient(120% 120% at 22% 18%, ${p.mid} 0%, ${p.deep} 55%, ${p.lo} 100%)` }}>
-              {prompt.artworkUrl && !imgError ? (
+              {/* Last.fm serves a literal grey-star placeholder image (this hash) that
+                  loads fine (so onError won't catch it) — treat it as no artwork. */}
+              {prompt.artworkUrl && !prompt.artworkUrl.includes("2a96cbd8b46e442fc41c2b86b821562f") && !imgError ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={prompt.artworkUrl}
