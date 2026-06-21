@@ -93,7 +93,7 @@ export function TopBar({ transparent = false }: { transparent?: boolean }) {
 
         <nav className="lnw-nav-links" style={{ display: "flex", alignItems: "center", gap: 22 }}>
           <NavLink label="Home" href="/" active={pathname === "/"} ink={ink} muted={muted} accent={accent} />
-          <NavLink label="Explore" href="/feed" active={pathname === "/feed"} ink={ink} muted={muted} accent={accent} />
+          <NavLink label="Community Feed" href="/feed" active={pathname === "/feed"} ink={ink} muted={muted} accent={accent} />
         </nav>
 
         <div style={{ flex: 1 }} />
@@ -283,7 +283,7 @@ export function Footer({ dark = true }: { dark?: boolean }) {
         </div>
 
         <div style={{ flex: 1, display: "flex", gap: 90, flexWrap: "wrap", justifyContent: "center" }}>
-          <FootCol head="Product" links={[["Explore", "/feed"], ["Log a note", "/log"]]} fg={fg} muted={muted} />
+          <FootCol head="Product" links={[["Community Feed", "/feed"], ["Log a note", "/log"]]} fg={fg} muted={muted} />
           <FootCol head="You" links={[["Friends", "/friends"], ["Profile", handle ? `/profile/${handle}` : "/login"]]} fg={fg} muted={muted} />
         </div>
 

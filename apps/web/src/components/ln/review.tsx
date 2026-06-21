@@ -58,7 +58,7 @@ function FollowButton({ userId }: { userId: string }) {
   };
 
   const isAction = status === "none";
-  const label = status === "loading" ? "…" : status === "friends" ? "friends" : status === "requested" ? "requested" : "add friend";
+  const label = status === "loading" ? "…" : status === "friends" ? "friends" : status === "requested" ? "requested" : "Add friend";
 
   return (
     <button

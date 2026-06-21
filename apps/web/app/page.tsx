@@ -146,7 +146,7 @@ export default function Home() {
                   Play the Experience
                 </Link>
                 <Link href="/feed" className="ln-press" style={{ padding: "15px 22px", borderRadius: 999, textDecoration: "none", border: "1px solid rgba(var(--ln-fg-rgb),0.2)", background: "rgba(var(--ln-fg-rgb),0.04)", color: "var(--ln-fg)", fontFamily: "var(--ln-body)", fontSize: 16, fontWeight: 600 }}>
-                  Browse the notes
+                  Browse the Community Feed
                 </Link>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 22, fontFamily: "var(--ln-mono)", fontSize: 10.5, letterSpacing: "0.03em", color: "rgba(var(--ln-fg-rgb),0.5)" }}>
@@ -228,7 +228,7 @@ export default function Home() {
         {items.length > 0 && (
           <section style={{ maxWidth: 900, margin: "0 auto", padding: "26px 20px 90px" }}>
             <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 22 }}>
-              <span style={{ fontFamily: "var(--ln-label)", fontSize: 11.5, letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 700, color: "var(--ln-accent)" }}>the feed</span>
+              <span style={{ fontFamily: "var(--ln-label)", fontSize: 11.5, letterSpacing: "0.18em", textTransform: "uppercase", fontWeight: 700, color: "var(--ln-accent)" }}>your feed</span>
               <span style={{ fontFamily: "var(--ln-mono)", fontSize: 10.5, color: "rgba(var(--ln-fg-rgb),0.42)", letterSpacing: "0.03em" }}>notes from people you&apos;d trust</span>
               <span style={{ flex: 1, height: 1, background: "rgba(var(--ln-fg-rgb),0.1)", alignSelf: "center" }} />
             </div>

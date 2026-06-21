@@ -60,6 +60,9 @@ function ExperienceContent() {
   // The Spotify SDK is initialised once per page; navigating songs reuses it.
   const playerRef = useRef<WebPlaybackSDK | null>(null);
   const initedRef = useRef(false);
+  // For album/feed auto-advance: track the last position to detect a track end.
+  const lastPosRef = useRef(0);
+  const endedHandledRef = useRef(false);
 
   const INK = "#d7c9d0";
   const muted = (a: number) => `rgba(215,201,208,${a})`;
@@ -202,6 +205,26 @@ function ExperienceContent() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [segments]);
+
+  // Album / feed experiences auto-advance: when the current song finishes (the
+  // SDK reports paused at position 0 after we were near the end), play the next.
+  useEffect(() => {
+    if (!playerState) return;
+    const { positionMs, durationMs, isPlaying } = playerState;
+    const wasNearEnd = lastPosRef.current > 0 && durationMs > 0 && lastPosRef.current >= durationMs - 2500;
+    if (!isPlaying && positionMs === 0 && wasNearEnd && !endedHandledRef.current) {
+      endedHandledRef.current = true;
+      if (segments.length > 1 && idx < segments.length - 1) {
+        goToSegment(idx + 1);
+      }
+    }
+    // Once a track is genuinely playing again, re-arm the end detector.
+    if (isPlaying && positionMs > 1500) {
+      endedHandledRef.current = false;
+    }
+    lastPosRef.current = positionMs;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playerState, segments.length, idx]);
 
   // Fetch lyrics when track loads (works with or without Spotify player)
   useEffect(() => {
