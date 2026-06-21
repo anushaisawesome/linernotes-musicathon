@@ -41,6 +41,15 @@ function composeNote(take?: string, moments?: DraftMoment[]): string | undefined
   return parts.join("\n") || undefined;
 }
 
+// One-line display of a moment: "m:ss — lyric/note/label".
+function fmtMoment(m: DraftMoment): string {
+  const mm = Math.floor((m.seconds || 0) / 60);
+  const ss = Math.floor((m.seconds || 0) % 60);
+  const ts = `${mm}:${String(ss).padStart(2, "0")}`;
+  const body = m.lyric ? `“${m.lyric}”` : (m.note || (m.label && m.label !== "moment" ? m.label : ""));
+  return body ? `${ts} — ${body}` : ts;
+}
+
 const cmpInput: React.CSSProperties = {
   width: "100%",
   boxSizing: "border-box",
@@ -62,6 +71,14 @@ export function PlaylistComposer() {
   const [description, setDescription] = useState("");
   const [tracks, setTracks] = useState<PlaylistTrack[]>([]);
   const [openTrack, setOpenTrack] = useState<number | null>(null);
+  // Which collapsed track summaries are showing all their notes/moments.
+  const [showAll, setShowAll] = useState<Set<number>>(new Set());
+  const toggleShowAll = (i: number) =>
+    setShowAll((s) => {
+      const n = new Set(s);
+      n.has(i) ? n.delete(i) : n.add(i);
+      return n;
+    });
   const [submitting, setSubmitting] = useState(false);
   const [reviewedTracks, setReviewedTracks] = useState<{ track: Track; take?: string; moments: DraftMoment[] }[]>([]);
 
@@ -101,6 +118,7 @@ export function PlaylistComposer() {
   const handleRemoveTrack = (index: number) => {
     setTracks(tracks.filter((_, i) => i !== index));
     setOpenTrack(null);
+    setShowAll(new Set());
   };
 
   const handleMoveTrack = (index: number, direction: "up" | "down") => {
@@ -110,6 +128,7 @@ export function PlaylistComposer() {
     [newTracks[index], newTracks[newIndex]] = [newTracks[newIndex], newTracks[index]];
     setTracks(newTracks);
     setOpenTrack(null);
+    setShowAll(new Set());
   };
 
   // Patch a track's local fields (take / moments). Stays local to the playlist.
@@ -249,10 +268,16 @@ export function PlaylistComposer() {
             Your playlist
           </div>
           {tracks.map((track, index) => {
-            const iconBtn: React.CSSProperties = { width: 28, height: 28, borderRadius: 7, background: "rgba(var(--ln-fg-rgb),0.06)", border: "1px solid rgba(var(--ln-fg-rgb),0.12)", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, cursor: "pointer" };
+            const iconBtn: React.CSSProperties = { width: 36, height: 36, borderRadius: 9, background: "rgba(var(--ln-fg-rgb),0.06)", border: "1px solid rgba(var(--ln-fg-rgb),0.12)", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, cursor: "pointer" };
             const open = openTrack === index;
-            const mc = track.moments?.length || 0;
-            const hasNote = !!track.take?.trim() || mc > 0;
+            const moments = track.moments || [];
+            const takeLines = (track.take || "").split("\n").map((s) => s.trim()).filter(Boolean);
+            const hasNote = takeLines.length > 0 || moments.length > 0;
+            const all = showAll.has(index);
+            const collapsedShown = Math.min(1, takeLines.length) + Math.min(1, moments.length);
+            const totalItems = takeLines.length + moments.length;
+            const visibleLines = all ? takeLines : takeLines.slice(0, 1);
+            const visibleMoments = all ? moments : moments.slice(0, 1);
             return (
             <div key={`${track.trackId}-${index}`} style={{ borderRadius: 12, background: "var(--ln-surface)", border: "1px solid rgba(var(--ln-line-rgb),0.08)", overflow: "hidden" }}>
               <div style={{ display: "flex", gap: 11, padding: 10 }}>
@@ -274,32 +299,37 @@ export function PlaylistComposer() {
                   <div style={{ fontFamily: "var(--ln-body)", fontSize: 12, color: "var(--ln-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {track.artist}{track.album ? ` · ${track.album}` : ""}
                   </div>
+                  {/* Collapsed notes/moments — show the lead caption + lead moment; rest behind a toggle */}
                   {!open && hasNote && (
-                    <div style={{ marginTop: 5, fontFamily: "var(--ln-body)", fontSize: 12.5, lineHeight: 1.45, color: "rgba(var(--ln-fg-rgb),0.72)" }}>
-                      {track.take?.trim() && <span style={{ fontStyle: "italic" }}>{track.take.trim()}</span>}
-                      {mc > 0 && <span style={{ fontFamily: "var(--ln-mono)", fontSize: 11, color: gold }}>{track.take?.trim() ? "  ·  " : ""}{mc} moment{mc > 1 ? "s" : ""}</span>}
+                    <div style={{ marginTop: 5, display: "flex", flexDirection: "column", gap: 3 }}>
+                      {visibleLines.map((ln, k) => (
+                        <div key={`l${k}`} style={{ fontFamily: "var(--ln-body)", fontStyle: "italic", fontSize: 12.5, lineHeight: 1.4, color: "rgba(var(--ln-fg-rgb),0.72)" }}>{ln}</div>
+                      ))}
+                      {visibleMoments.map((m, k) => (
+                        <div key={`m${k}`} style={{ fontFamily: "var(--ln-mono)", fontSize: 11.5, lineHeight: 1.4, color: gold }}>{fmtMoment(m)}</div>
+                      ))}
+                      {totalItems > collapsedShown && (
+                        <button type="button" onClick={() => toggleShowAll(index)} className="ln-press" style={{ alignSelf: "flex-start", marginTop: 1, padding: 0, background: "none", border: "none", cursor: "pointer", fontFamily: "var(--ln-mono)", fontSize: 10.5, letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--ln-muted)" }}>
+                          {all ? "Show less" : `+${totalItems - collapsedShown} more`}
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
 
-                {/* Actions — reorder chevrons side by side, then notes/moments + remove */}
-                <div style={{ display: "flex", flexDirection: "column", gap: 5, flexShrink: 0, alignItems: "flex-end" }}>
-                  <div style={{ display: "flex", gap: 4 }}>
+                {/* Actions — reorder chevrons side by side, then notes/moments toggle */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, flexShrink: 0, alignItems: "flex-end" }}>
+                  <div style={{ display: "flex", gap: 5 }}>
                     <button type="button" onClick={() => handleMoveTrack(index, "up")} disabled={index === 0} className="ln-press" style={{ ...iconBtn, cursor: index === 0 ? "default" : "pointer", opacity: index === 0 ? 0.3 : 1 }} title="Move up">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M18 15l-6-6-6 6" stroke="var(--ln-fg)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M18 15l-6-6-6 6" stroke="var(--ln-fg)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
                     </button>
                     <button type="button" onClick={() => handleMoveTrack(index, "down")} disabled={index === tracks.length - 1} className="ln-press" style={{ ...iconBtn, cursor: index === tracks.length - 1 ? "default" : "pointer", opacity: index === tracks.length - 1 ? 0.3 : 1 }} title="Move down">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="var(--ln-fg)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="var(--ln-fg)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
                     </button>
                   </div>
-                  <div style={{ display: "flex", gap: 4 }}>
-                    <button type="button" onClick={() => setOpenTrack(open ? null : index)} className="ln-press" style={{ ...iconBtn, background: open || hasNote ? `${gold}1f` : iconBtn.background, borderColor: open || hasNote ? `${gold}66` : "rgba(var(--ln-fg-rgb),0.12)" }} title={hasNote ? "Edit notes & moments" : "Add notes & moments"}>
-                      <LNIcon name="save" size={14} color={open || hasNote ? gold : "var(--ln-fg)"} />
-                    </button>
-                    <button type="button" onClick={() => handleRemoveTrack(index)} className="ln-press" style={{ ...iconBtn, background: "rgba(220,38,38,0.1)", border: "1px solid rgba(220,38,38,0.3)" }} title="Remove">
-                      <LNIcon name="close" size={14} color="#ef4444" />
-                    </button>
-                  </div>
+                  <button type="button" onClick={() => setOpenTrack(open ? null : index)} className="ln-press" style={{ ...iconBtn, background: open || hasNote ? `${gold}1f` : iconBtn.background, borderColor: open || hasNote ? `${gold}66` : "rgba(var(--ln-fg-rgb),0.12)" }} title={hasNote ? "Edit notes & moments" : "Add notes & moments"}>
+                    <LNIcon name="save" size={17} color={open || hasNote ? gold : "var(--ln-fg)"} />
+                  </button>
                 </div>
               </div>
 
@@ -315,9 +345,9 @@ export function PlaylistComposer() {
                     style={{ ...cmpInput, fontSize: 13.5 }}
                   />
                   <MomentsEditor
-                    moments={track.moments || []}
-                    onAdd={(m) => updateTrack(index, { moments: [...(track.moments || []), m].sort((a, b) => a.seconds - b.seconds) })}
-                    onRemove={(idx) => updateTrack(index, { moments: (track.moments || []).filter((_, j) => j !== idx) })}
+                    moments={moments}
+                    onAdd={(m) => updateTrack(index, { moments: [...moments, m].sort((a, b) => a.seconds - b.seconds) })}
+                    onRemove={(idx) => updateTrack(index, { moments: moments.filter((_, j) => j !== idx) })}
                   />
                   <div style={{ display: "flex", justifyContent: "flex-end" }}>
                     <button type="button" onClick={() => setOpenTrack(null)} className="ln-press" style={{ padding: "8px 18px", borderRadius: 10, background: gold, color: "#2c1517", border: "none", cursor: "pointer", fontFamily: "var(--ln-body)", fontSize: 13, fontWeight: 700 }}>
@@ -326,6 +356,14 @@ export function PlaylistComposer() {
                   </div>
                 </div>
               )}
+
+              {/* Delete track — at the bottom of the block */}
+              <div style={{ borderTop: "1px solid rgba(var(--ln-fg-rgb),0.07)", display: "flex", justifyContent: "center" }}>
+                <button type="button" onClick={() => handleRemoveTrack(index)} className="ln-press" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%", padding: "9px 12px", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--ln-mono)", fontSize: 10.5, letterSpacing: "0.07em", textTransform: "uppercase", color: "rgba(239,68,68,0.85)" }} title="Remove track">
+                  <LNIcon name="close" size={13} color="rgba(239,68,68,0.85)" />
+                  Remove track
+                </button>
+              </div>
             </div>
             );
           })}
