@@ -5,9 +5,9 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { TopBar, Footer } from "@/components/ln/nav";
 import { FeedItem } from "@/components/ln/cards";
-import { getReviews, toggleLike, toggleRepost } from "@/lib/api";
+import { getReviews, getFriends, toggleLike, toggleRepost } from "@/lib/api";
 import { toReviewVM, toAlbumReviewVM, type ReviewVM } from "@/lib/view-adapter";
-import type { AlbumReview } from "@/lib/types";
+import type { AlbumReview, User } from "@/lib/types";
 import { PromptShelf } from "@/components/prompts/PromptShelf";
 
 interface Prompt {
@@ -46,21 +46,29 @@ export default function Home() {
     let cancelled = false;
     (async () => {
       try {
-        const [reviews, albumRes, communityReviews] = await Promise.all([
+        // The "/feed=friends" API param is actually the public all-reviews feed,
+        // so we filter the home feed to your friends (+ your own posts) here.
+        const [reviews, albumRes, communityReviews, friendsData] = await Promise.all([
           getReviews({ feed: "friends" }).catch(() => []),
           fetch("/api/album-reviews?feed=friends", { cache: "no-store" }).then((r) => (r.ok ? r.json() : { albumReviews: [] })).catch(() => ({ albumReviews: [] })),
-          getReviews({ feed: "friends" }).catch(() => []), // All community reviews
+          getReviews({ feed: "friends" }).catch(() => []), // All community reviews (for the hero)
+          getFriends().catch(() => ({ friends: [] as User[] })),
         ]);
         const albumReviews: AlbumReview[] = albumRes.albumReviews || [];
+
+        // Your feed = reviews by your accepted friends, plus your own.
+        const friendIds = new Set<string>((friendsData.friends || []).map((f: User) => f.id));
+        if (session?.user?.id) friendIds.add(session.user.id);
+
         const vms = [
           ...reviews.map((r) => toReviewVM(r)),
           ...albumReviews.map((a) => toAlbumReviewVM(a)),
         ]
+          .filter((vm) => friendIds.has(vm.user.id))
           .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
           .slice(0, 6);
 
-        // Recent GLOBAL community track reviews for hero artwork (your own posts
-        // included).
+        // Recent GLOBAL community track reviews for hero artwork (not friend-gated).
         const recentTrackReviews = communityReviews
           .filter((r) => r.track) // Check track exists
           .map((r) => toReviewVM(r))
@@ -78,7 +86,7 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [session?.user?.id]);
 
   // Fetch Last.fm prompts if logged in
   const fetchPrompts = useCallback(async () => {
