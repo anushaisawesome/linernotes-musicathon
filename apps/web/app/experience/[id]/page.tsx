@@ -119,8 +119,9 @@ function ExperienceContent() {
     async function fetchLyrics() {
       try {
         // Use stored track data (not playerState which might differ)
-        const trackName = review?.track?.name;
-        const artistName = review?.track?.artist;
+        // Clean up trailing periods and extra whitespace
+        const trackName = review?.track?.name?.trim().replace(/\.\s*$/, '').trim();
+        const artistName = review?.track?.artist?.trim();
 
         if (!trackName || !artistName) return;
 
@@ -139,7 +140,12 @@ function ExperienceContent() {
         }
 
         const data = await res.json();
-        setLyrics(data.lyrics);
+        if (data.lyrics && Array.isArray(data.lyrics)) {
+          setLyrics({ lines: data.lyrics });
+          console.log("[Experience] Loaded", data.lyrics.length, "synced lyric lines");
+        } else {
+          setLyrics(null);
+        }
       } catch (err) {
         console.error("Failed to fetch lyrics:", err);
         setLyrics(null);
