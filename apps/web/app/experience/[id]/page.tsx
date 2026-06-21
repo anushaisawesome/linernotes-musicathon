@@ -49,7 +49,7 @@ function ExperienceContent() {
         if (!res.ok) throw new Error("Failed to load review");
 
         const data = await res.json();
-        setReview(data);
+        setReview(data.review);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load review");
       }
@@ -103,9 +103,11 @@ function ExperienceContent() {
 
   // Fetch lyrics when track loads (works with or without Spotify player)
   useEffect(() => {
+    if (!review) return;
+
     // Try playerState first (if Spotify connected), otherwise use review track
-    const trackId = playerState?.isrc || review?.track.trackId;
-    if (!trackId || !review) return;
+    const trackId = playerState?.isrc || review?.track?.trackId;
+    if (!trackId) return;
 
     async function fetchLyrics() {
       try {
