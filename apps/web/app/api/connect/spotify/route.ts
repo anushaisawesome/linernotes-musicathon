@@ -24,8 +24,8 @@ export async function POST() {
     // Fall back to the app's base URL so the connect flow works even when
     // SPOTIFY_REDIRECT_URI isn't set explicitly. Must match a redirect URI
     // registered in the Spotify dashboard.
-    const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL;
-    const redirectUri = process.env.SPOTIFY_REDIRECT_URI || (baseUrl ? `${baseUrl}/api/connect/spotify/callback` : undefined);
+    const baseUrl = (process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");
+    const redirectUri = (process.env.SPOTIFY_REDIRECT_URI || (baseUrl ? `${baseUrl}/api/connect/spotify/callback` : "")).replace(/\/$/, "") || undefined;
 
     if (!clientId || !redirectUri) {
       return NextResponse.json(

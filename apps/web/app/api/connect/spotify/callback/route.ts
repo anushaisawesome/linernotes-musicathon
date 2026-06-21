@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
         grant_type: "authorization_code",
         code: code,
         // Must match the redirect_uri used to start the flow (see the connect route).
-        redirect_uri: (process.env.SPOTIFY_REDIRECT_URI || `${process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL}/api/connect/spotify/callback`) as string,
+        redirect_uri: (process.env.SPOTIFY_REDIRECT_URI || `${(process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "")}/api/connect/spotify/callback`).replace(/\/$/, "") as string,
       }),
     });
 

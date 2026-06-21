@@ -6,19 +6,6 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
-/**
- * Generate a unique handle from display name or email
- */
-function generateHandle(input: string): string {
-  const base = input
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "")
-    .slice(0, 15);
-
-  const randomSuffix = Math.random().toString(36).substring(2, 6);
-  return `${base}${randomSuffix}`;
-}
-
 export const authOptions: NextAuthConfig = {
   adapter: PrismaAdapter(prisma) as any,
   debug: process.env.NODE_ENV === 'development',
@@ -76,13 +63,13 @@ export const authOptions: NextAuthConfig = {
           console.log("[Auth] Creating new user");
           const passwordHash = await bcrypt.hash(credentials.password as string, 10);
 
-          // Create user
-          const handle = generateHandle(credentials.displayName as string);
+          // Create the user WITHOUT a handle — they pick it in onboarding, so it's
+          // kept exactly as typed (no random suffix). A null handle also means the
+          // onboarding gate won't bounce them home before they choose one.
           const user = await prisma.user.create({
             data: {
               email,
               displayName: credentials.displayName as string,
-              handle,
               passwordHash,
             },
           });
