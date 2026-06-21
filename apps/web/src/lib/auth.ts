@@ -138,41 +138,11 @@ export const authOptions: NextAuthConfig = {
     async signIn({ user, account, profile }) {
       try {
         console.log("[Auth] SignIn callback - provider:", account?.provider);
-
-        // Persist the Spotify tokens as a MusicConnection so the Experience player
-        // (which reads /api/spotify/token) works for everyone who continues with
-        // Spotify — including brand-new users. Upsert: create it if missing, update
-        // it if it already exists. (Previously new users never got one, so playback
-        // never worked even though their login succeeded.)
-        if (account?.provider === "spotify" && account.access_token && user.id) {
-          const sp = profile as { id?: string; display_name?: string } | undefined;
-          const expiresAt = account.expires_at ? new Date(account.expires_at * 1000) : null;
-          await prisma.musicConnection.upsert({
-            where: { userId_service: { userId: user.id, service: "spotify" } },
-            update: {
-              accessToken: account.access_token,
-              ...(account.refresh_token ? { refreshToken: account.refresh_token } : {}),
-              expiresAt,
-              ...(sp?.id ? { serviceUserId: sp.id } : {}),
-              ...(sp?.display_name ? { serviceUsername: sp.display_name } : {}),
-            },
-            create: {
-              userId: user.id,
-              service: "spotify",
-              accessToken: account.access_token,
-              refreshToken: account.refresh_token ?? null,
-              expiresAt,
-              serviceUserId: sp?.id ?? null,
-              serviceUsername: sp?.display_name ?? null,
-            },
-          });
-          console.log("[Auth] Upserted Spotify MusicConnection for", user.id);
-        }
-
+        // Don't create MusicConnection here - user might not exist yet
+        // It's created in the jwt callback after user creation
         return true;
       } catch (error) {
         console.error("[Auth] SignIn callback error:", error);
-        // Don't block login if token persistence fails
         return true;
       }
     },
@@ -199,10 +169,45 @@ export const authOptions: NextAuthConfig = {
       }
       return session;
     },
-    async jwt({ token, user, account }) {
+    async jwt({ token, user, account, profile }) {
       if (user) {
         token.sub = user.id;
       }
+
+      // Create/update Spotify MusicConnection on initial sign-in
+      // account is only present on initial sign-in, not on subsequent JWT refreshes
+      if (account?.provider === "spotify" && account.access_token && token.sub) {
+        try {
+          console.log("[Auth] JWT callback - creating Spotify MusicConnection for", token.sub);
+          const sp = profile as { id?: string; display_name?: string } | undefined;
+          const expiresAt = account.expires_at ? new Date(account.expires_at * 1000) : null;
+
+          await prisma.musicConnection.upsert({
+            where: { userId_service: { userId: token.sub, service: "spotify" } },
+            update: {
+              accessToken: account.access_token,
+              ...(account.refresh_token ? { refreshToken: account.refresh_token } : {}),
+              expiresAt,
+              ...(sp?.id ? { serviceUserId: sp.id } : {}),
+              ...(sp?.display_name ? { serviceUsername: sp.display_name } : {}),
+            },
+            create: {
+              userId: token.sub,
+              service: "spotify",
+              accessToken: account.access_token,
+              refreshToken: account.refresh_token ?? null,
+              expiresAt,
+              serviceUserId: sp?.id ?? null,
+              serviceUsername: sp?.display_name ?? null,
+            },
+          });
+          console.log("[Auth] Successfully upserted Spotify MusicConnection");
+        } catch (error) {
+          console.error("[Auth] Failed to upsert Spotify MusicConnection:", error);
+          // Don't throw - allow auth to continue
+        }
+      }
+
       return token;
     },
   },
