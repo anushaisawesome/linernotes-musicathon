@@ -118,12 +118,13 @@ function ExperienceContent() {
 
     async function fetchLyrics() {
       try {
-        // Use track name + artist to fetch lyrics from Musixmatch
-        const trackName = playerState?.trackName || review?.track?.name;
-        const artistName = playerState?.artistName || review?.track?.artist;
+        // Use stored track data (not playerState which might differ)
+        const trackName = review.track.name;
+        const artistName = review.track.artist;
 
         if (!trackName || !artistName) return;
 
+        console.log("[Experience] Fetching lyrics for:", trackName, "by", artistName);
         const res = await fetch(`/api/lyrics?track=${encodeURIComponent(trackName)}&artist=${encodeURIComponent(artistName)}`);
 
         if (res.status === 401 || res.status === 403) {
@@ -146,7 +147,7 @@ function ExperienceContent() {
     }
 
     fetchLyrics();
-  }, [playerState?.trackName, playerState?.artistName, review?.track.name, review?.track.artist, review?.track]);
+  }, [review]);
 
   // Update annotations whenever player state changes
   useEffect(() => {
