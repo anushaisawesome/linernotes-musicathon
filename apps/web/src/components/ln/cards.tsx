@@ -18,10 +18,10 @@ function momentCount(album: AlbumVM): number {
 }
 
 function featuredMoment(vm: ReviewVM): MomentVM | null {
+  // Only surface a review-level moment. Moments written for a specific track in
+  // an album review belong to that track (shown in the track strip), so they
+  // should not be lifted up as the album's headline moment.
   if (vm.notes && vm.notes.length) return vm.notes[0];
-  for (const t of vm.album.tracks || []) {
-    if (t.moments && t.moments.length) return { ...t.moments[0], label: t.moments[0].label || t.name };
-  }
   return null;
 }
 
