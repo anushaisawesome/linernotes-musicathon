@@ -311,8 +311,10 @@ export function ImmersiveReview({
                 play through every reviewed track with prev/next navigation. */}
             {(vm.kind === "track" || (vm.kind === "album" && album.tracks.length > 0)) && (
               <button onClick={() => router.push(`/experience/${vm.id}${vm.kind === "album" ? "?type=album" : ""}`)} className="ln-press" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "15px 20px", borderRadius: 999, border: "none", background: gold, cursor: "pointer", fontFamily: "var(--ln-body)", fontSize: 16, fontWeight: 700, color: "#2c1517", boxShadow: `0 6px 16px -10px ${gold}99` }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                  <path d="M12 2v6M12 16v6M6 12h12M6 12l-4 4M6 12l-4-4M18 12l4 4M18 12l4-4" stroke="#2c1517" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2c1517" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
+                  <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3z" />
+                  <path d="M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
                 </svg>
                 Experience
               </button>
