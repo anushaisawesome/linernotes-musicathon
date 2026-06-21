@@ -10,24 +10,31 @@
 // ============================================================================
 
 export const colors = {
-  /** App background - #0c0b0a (dark mode) */
-  bg: '#0c0b0a',
-  bgLight: '#f3ede1', // light mode
+  /** Musicathon: deep maroon background */
+  bg: '#251214',
+  bgLight: '#ffffff', // light mode (paper)
 
-  /** Primary text - #f1ebe0 (cream) */
-  fg: '#f1ebe0',
-  fgLight: '#23201b', // light mode
-  fgRgb: '241,235,224', // for rgba()
+  /** Musicathon: warm sand text */
+  fg: '#f0e2cc',
+  fgLight: '#2c1517', // light mode
+  fgRgb: '240,226,204', // for rgba()
 
   /** Line/border color */
-  lineRgb: '255,255,255', // for rgba()
+  lineRgb: '218,183,133', // Musicathon sand tint
 
   /** Muted text */
-  muted: '#aaa298',
+  muted: '#b6927a',
 
-  /** Gold accents */
-  gold: '#d9b25a',
-  goldBright: '#c8a45c',
+  /** Musicathon: Star gold (pinned across all accents) */
+  gold: '#e6b450',
+  goldBright: '#e6b450',
+
+  /** Musicathon: Brick accent (default) */
+  brick: '#992b23',
+  /** Musicathon: Coral accent */
+  coral: '#d5896f',
+  /** Musicathon: Sage accent */
+  sage: '#70a288',
 
   /** Reaction colors */
   flame: '#e0762f',
@@ -37,11 +44,15 @@ export const colors = {
   /** Confirm green (for connected states) */
   confirmGreen: '#7fcf9b',
 
-  /** Near-black for Experience overlay */
+  /** Musicathon: Oxblood surface */
   nearBlack: '#0a0908',
 
-  /** Elevated card surface (subtly lighter than bg) */
-  surface: '#141210',
+  /** Musicathon: Oxblood card surface */
+  surface: '#3e1e20',
+  surfaceRgb: '62,30,32', // for rgba()
+
+  /** Musicathon: Shadow */
+  shadow: 'rgba(14,5,6,0.7)',
 } as const;
 
 // ============================================================================
