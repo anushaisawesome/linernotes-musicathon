@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ComposeForm } from "@/components/compose";
 import { searchTracks } from "@/lib/api";
@@ -9,6 +9,8 @@ import type { Track } from "@/lib/types";
 
 function LogPageContent() {
   const searchParams = useSearchParams();
+  const [initialTrack, setInitialTrack] = useState<Track | undefined>(undefined);
+  const [isLookingUpSpotify, setIsLookingUpSpotify] = useState(false);
 
   // Check if we have track data from Last.fm prompt
   const trackName = searchParams.get("track");
@@ -19,15 +21,51 @@ function LogPageContent() {
   const promptTag = searchParams.get("tag");
   const initialRating = searchParams.get("rating");
 
-  // Create initial track object if params exist
-  const initialTrack: Track | undefined = trackName && artistName ? {
-    trackId: `lastfm-${trackName}-${artistName}`,
-    name: trackName,
-    artist: artistName,
-    album: albumName || "",
-    artworkUrl: artworkUrl || "",
-    previewUrl: "",
-  } : undefined;
+  // Look up real Spotify track ID for Last.fm tracks
+  useEffect(() => {
+    if (!trackName || !artistName) return;
+
+    async function lookupSpotifyTrack() {
+      setIsLookingUpSpotify(true);
+      try {
+        // Search Spotify for this track to get real track ID
+        const results = await searchTracks(`${trackName} ${artistName}`);
+
+        if (results.length > 0) {
+          // Use first match (best match)
+          const spotifyTrack = results[0];
+          console.log("[Log Page] Found Spotify track:", spotifyTrack.trackId, "for", trackName);
+          setInitialTrack(spotifyTrack);
+        } else {
+          // No Spotify match - use Last.fm data with fake ID (Experience will show preview mode)
+          console.log("[Log Page] No Spotify match found for", trackName, "- using Last.fm data");
+          setInitialTrack({
+            trackId: `lastfm-${trackName}-${artistName}`,
+            name: trackName,
+            artist: artistName,
+            album: albumName || "",
+            artworkUrl: artworkUrl || "",
+            previewUrl: "",
+          });
+        }
+      } catch (error) {
+        console.error("[Log Page] Failed to lookup Spotify track:", error);
+        // Fall back to Last.fm data
+        setInitialTrack({
+          trackId: `lastfm-${trackName}-${artistName}`,
+          name: trackName,
+          artist: artistName,
+          album: albumName || "",
+          artworkUrl: artworkUrl || "",
+          previewUrl: "",
+        });
+      } finally {
+        setIsLookingUpSpotify(false);
+      }
+    }
+
+    lookupSpotifyTrack();
+  }, [trackName, artistName, albumName, artworkUrl]);
 
   return (
     <div style={{ background: "var(--ln-bg)", color: "var(--ln-fg)", minHeight: "100vh", display: "flex", flexDirection: "column", flex: 1 }}>
