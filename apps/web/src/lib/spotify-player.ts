@@ -101,6 +101,16 @@ export class WebPlaybackSDK {
     }
   }
 
+  // Tear down the shared device entirely (stops playback) — used when the user
+  // explicitly exits the experience player. A fresh device is created next time.
+  static disconnectShared(): void {
+    if (WebPlaybackSDK.shared) {
+      WebPlaybackSDK.shared.disconnect();
+      WebPlaybackSDK.shared = null;
+    }
+    WebPlaybackSDK.sharedInit = null;
+  }
+
   /**
    * Initialize player and connect
    */

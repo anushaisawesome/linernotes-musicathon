@@ -145,6 +145,18 @@ function ExperienceContent() {
     };
   }, [isAlbumExp, isFeedExp, reviewId]);
 
+  // Exit the experience player entirely: stop playback (tear down the shared
+  // device) and leave for home, rather than just going back a page.
+  const exitExperience = () => {
+    try {
+      WebPlaybackSDK.disconnectShared();
+    } catch {
+      /* best-effort */
+    }
+    playerRef.current = null;
+    router.push("/");
+  };
+
   // Jump to another song in the album experience and play it.
   const goToSegment = async (n: number) => {
     if (segments.length < 2) return;
@@ -494,9 +506,15 @@ function ExperienceContent() {
       <div style={{ position: "relative", zIndex: 1, maxWidth: 1140, margin: "0 auto", padding: "92px 24px 60px" }}>
         {/* Top row: back + visualiser toggle + vision-demo tag */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 26 }}>
-          <button onClick={() => router.back()} className="ln-press" style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(244,239,230,0.06)", border: "1px solid rgba(244,239,230,0.16)", color: INK, borderRadius: 999, padding: "8px 15px", cursor: "pointer", fontFamily: "var(--ln-body)", fontSize: 13.5, fontWeight: 600 }}>
-            <span style={{ fontSize: 15, lineHeight: 1 }}>←</span> Back
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <button onClick={() => router.back()} className="ln-press" style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(244,239,230,0.06)", border: "1px solid rgba(244,239,230,0.16)", color: INK, borderRadius: 999, padding: "8px 15px", cursor: "pointer", fontFamily: "var(--ln-body)", fontSize: 13.5, fontWeight: 600 }}>
+              <span style={{ fontSize: 15, lineHeight: 1 }}>←</span> Back
+            </button>
+            <button onClick={exitExperience} className="ln-press" title="Stop playback and leave the experience" style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgba(244,239,230,0.06)", border: `1px solid ${accent}55`, color: INK, borderRadius: 999, padding: "8px 15px", cursor: "pointer", fontFamily: "var(--ln-body)", fontSize: 13.5, fontWeight: 600 }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke={INK} strokeWidth="2.2" strokeLinecap="round" /></svg>
+              Exit player
+            </button>
+          </div>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <button onClick={() => setVisualiserEnabled(!visualiserEnabled)} className="ln-press" style={{ display: "inline-flex", alignItems: "center", gap: 6, background: visualiserEnabled ? `${accent}1a` : "rgba(244,239,230,0.06)", border: `1px solid ${visualiserEnabled ? `${accent}55` : "rgba(244,239,230,0.16)"}`, color: visualiserEnabled ? accent : INK, borderRadius: 999, padding: "6px 12px", cursor: "pointer", fontFamily: "var(--ln-mono)", fontSize: 10, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" }}>
               <span style={{ width: 8, height: 8, borderRadius: "50%", background: visualiserEnabled ? accent : "rgba(244,239,230,0.5)" }} />
