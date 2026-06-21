@@ -420,12 +420,17 @@ function ExperienceContent() {
                   onClick={async () => {
                     try {
                       const res = await fetch("/api/connect/spotify", { method: "POST" });
-                      const data = await res.json();
-                      if (data.authUrl) {
+                      const data = await res.json().catch(() => ({}));
+                      if (res.ok && data.authUrl) {
                         window.location.href = data.authUrl;
+                      } else if (res.status === 401) {
+                        window.location.href = "/login";
+                      } else {
+                        alert(data.error || "Couldn't start the Spotify connection. Please try again.");
                       }
                     } catch (err) {
                       console.error("Failed to connect Spotify:", err);
+                      alert("Couldn't reach Spotify. Please try again.");
                     }
                   }}
                   style={{ display: "inline-block", padding: "10px 20px", background: accent, color: "#161013", borderRadius: 8, border: "none", fontWeight: 600, fontSize: 14, cursor: "pointer" }}

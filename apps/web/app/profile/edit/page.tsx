@@ -2,6 +2,7 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { TopBar, Footer } from "@/components/ln/nav";
 import { tintFromString } from "@/lib/palette";
 
@@ -40,6 +41,7 @@ const hintStyle: React.CSSProperties = {
 function EditProfileContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { update } = useSession();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [displayName, setDisplayName] = useState("");
@@ -136,6 +138,13 @@ function EditProfileContent() {
         throw new Error(data.error || "Failed to update profile");
       }
       const result = await res.json();
+      // Refresh the NextAuth session so the new handle propagates everywhere
+      // (the nav "Profile" link reads session.user.handle — stale = 404).
+      try {
+        await update();
+      } catch {
+        /* best-effort; the redirect below still uses the fresh handle */
+      }
       router.push(`/profile/${result.user.handle}`);
     } catch (error) {
       console.error("Failed to update profile:", error);

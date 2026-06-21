@@ -21,7 +21,11 @@ export async function POST() {
     const user = await requireAuth();
 
     const clientId = process.env.SPOTIFY_CLIENT_ID;
-    const redirectUri = process.env.SPOTIFY_REDIRECT_URI;
+    // Fall back to the app's base URL so the connect flow works even when
+    // SPOTIFY_REDIRECT_URI isn't set explicitly. Must match a redirect URI
+    // registered in the Spotify dashboard.
+    const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL;
+    const redirectUri = process.env.SPOTIFY_REDIRECT_URI || (baseUrl ? `${baseUrl}/api/connect/spotify/callback` : undefined);
 
     if (!clientId || !redirectUri) {
       return NextResponse.json(
