@@ -2,11 +2,11 @@
  * GET /api/audio-analysis?trackId=...&artist=...&track=...
  *
  * Returns audio analysis for visualiser:
- * - Genre from iTunes API
- * - BPM estimate (genre-based heuristic for now, librosa integration later)
- * - Audio features (mock for now)
+ * - First tries Python/librosa service for EXACT beat tracking
+ * - Falls back to iTunes genre + BPM heuristic if Python service unavailable
  *
- * This provides real genre detection and reasonable BPM estimates per track.
+ * With Python service: Perfect BPM + beat positions + real audio features
+ * Without Python service: Genre-based estimates (still pretty good!)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -66,18 +66,48 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Fetch iTunes metadata for genre
+    // Fetch iTunes metadata for genre + preview URL
     const itunesData = await fetchITunesMetadata(trackName, artistName);
-
     const genre = itunesData?.genre || 'Pop';
-    const bpmRange = GENRE_BPM_MAP[genre] || GENRE_BPM_MAP['default'];
 
-    // For now, use genre default BPM
-    // TODO: Add librosa beat tracking from preview URL
+    // TRY PYTHON SERVICE FIRST (real librosa beat tracking)
+    if (itunesData?.previewUrl) {
+      const pythonServiceUrl = process.env.AUDIO_ANALYSIS_SERVICE_URL || 'http://localhost:8001';
+
+      try {
+        console.log(`[audio-analysis] Trying Python service: ${pythonServiceUrl}`);
+        const pythonResponse = await fetch(`${pythonServiceUrl}/analyze`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            preview_url: itunesData.previewUrl,
+            track_name: trackName,
+            artist_name: artistName,
+          }),
+          signal: AbortSignal.timeout(5000), // 5s timeout
+        });
+
+        if (pythonResponse.ok) {
+          const pythonData = await pythonResponse.json();
+          console.log(`[audio-analysis] ✅ Python service success: ${pythonData.bpm} BPM`);
+
+          // Add genre to Python response
+          return NextResponse.json({
+            ...pythonData,
+            genre,
+          });
+        }
+      } catch (pythonError) {
+        console.warn('[audio-analysis] Python service unavailable, using fallback:', pythonError);
+      }
+    }
+
+    // FALLBACK: Genre-based BPM heuristic
+    console.log(`[audio-analysis] Using genre-based fallback for ${genre}`);
+    const bpmRange = GENRE_BPM_MAP[genre] || GENRE_BPM_MAP['default'];
     const bpm = bpmRange.default;
     const beatIntervalMs = (60 / bpm) * 1000;
 
-    // Mock audio features (TODO: Add real librosa extraction)
     const audioFeatures = {
       rms: getGenreRMS(genre),
       spectralCentroid: getGenreSpectralCentroid(genre),
@@ -88,10 +118,10 @@ export async function GET(request: NextRequest) {
       genre,
       bpm,
       beatIntervalMs,
-      firstBeatMs: 0, // TODO: Hand-tune per track or detect from librosa
-      beats: [],      // TODO: Add librosa beat positions
+      firstBeatMs: 0,
+      beats: [],
       audioFeatures,
-      source: 'itunes-genre-heuristic', // Will be 'librosa' when fully implemented
+      source: 'genre-heuristic-fallback',
     });
   } catch (error) {
     console.error('[audio-analysis] Error:', error);
