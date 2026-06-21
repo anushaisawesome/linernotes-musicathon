@@ -188,6 +188,24 @@ export function LyricsBrowser({ trackIsrc, trackName, artistName, onBookmark, bo
         <div style={{ marginBottom: 12, display: "flex", gap: 8 }}>
           <button
             type="button"
+            onClick={handleStartAnnotation}
+            className="ln-press"
+            style={{
+              padding: "8px 16px",
+              fontFamily: "var(--ln-mono)",
+              fontSize: 11,
+              fontWeight: 700,
+              border: `1px solid ${gold}`,
+              borderRadius: 8,
+              background: gold,
+              color: "var(--ln-bg)",
+              cursor: "pointer",
+            }}
+          >
+            ANNOTATE {selectedLines.size} LINE{selectedLines.size > 1 ? "S" : ""}
+          </button>
+          <button
+            type="button"
             onClick={() => commitBookmark("")}
             className="ln-press"
             style={{
@@ -203,24 +221,6 @@ export function LyricsBrowser({ trackIsrc, trackName, artistName, onBookmark, bo
             }}
           >
             SAVE
-          </button>
-          <button
-            type="button"
-            onClick={handleStartAnnotation}
-            className="ln-press"
-            style={{
-              padding: "8px 14px",
-              fontFamily: "var(--ln-mono)",
-              fontSize: 11,
-              fontWeight: 600,
-              border: `1px solid ${gold}99`,
-              borderRadius: 8,
-              background: "transparent",
-              color: gold,
-              cursor: "pointer",
-            }}
-          >
-            ANNOTATE {selectedLines.size} LINE{selectedLines.size > 1 ? "S" : ""}
           </button>
           <button
             type="button"
