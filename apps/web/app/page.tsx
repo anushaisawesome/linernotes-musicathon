@@ -138,14 +138,16 @@ export default function Home() {
             {/* hero art — stacked covers showing recent community reviews */}
             <Link href={experienceHref} className="ln-press mu-hero-art" style={{ position: "relative", display: "block", textDecoration: "none", animation: "ln-rise 0.6s cubic-bezier(.2,.8,.2,1) 0.1s both" }}>
               <div style={{ position: "relative", height: 340, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                {(recentReviews.length >= 3 ? recentReviews : HERO_ART.map((p, idx) => ({ id: `placeholder-${idx}`, album: { artworkUrl: null, palette: { deep: p.deep, mid: p.mid, lo: p.lo, accent: "#d4af37", glow: "#d4af37" } } }))).slice(0, 3).map((review, i) => {
+                {HERO_ART.map((p, i) => {
                   const off = i - 1;
-                  const hasArt = review.album?.artworkUrl;
-                  const palette = review.album?.palette || HERO_ART[i];
+                  const review = recentReviews[i];
+                  const hasArt = review?.album?.artworkUrl;
+                  const artworkUrl = hasArt ? review.album.artworkUrl : null;
+                  const palette = review?.album?.palette || p;
                   return (
-                    <div key={review.id} style={{ position: "absolute", width: 220, height: 220, borderRadius: 18, overflow: "hidden", transform: `translateX(${off * 86}px) rotate(${off * 6}deg) scale(${i === 1 ? 1.06 : 0.92})`, zIndex: i === 1 ? 3 : 1, boxShadow: "0 30px 70px -28px rgba(0,0,0,0.85), 0 0 0 1px rgba(255,255,255,0.06)", background: hasArt ? "#1a0c0d" : `radial-gradient(120% 120% at 26% 18%, ${palette.mid}, ${palette.deep} 60%, ${palette.lo})` }}>
-                      {hasArt ? (
-                        <img src={review.album.artworkUrl!} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    <div key={i} style={{ position: "absolute", width: 220, height: 220, borderRadius: 18, overflow: "hidden", transform: `translateX(${off * 86}px) rotate(${off * 6}deg) scale(${i === 1 ? 1.06 : 0.92})`, zIndex: i === 1 ? 3 : 1, boxShadow: "0 30px 70px -28px rgba(0,0,0,0.85), 0 0 0 1px rgba(255,255,255,0.06)", background: hasArt ? "#1a0c0d" : `radial-gradient(120% 120% at 26% 18%, ${palette.mid}, ${palette.deep} 60%, ${palette.lo})` }}>
+                      {hasArt && artworkUrl ? (
+                        <img src={artworkUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                       ) : (
                         <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(135deg, rgba(255,255,255,0.05) 0 1px, transparent 1px 13px)", mixBlendMode: "overlay" }} />
                       )}
