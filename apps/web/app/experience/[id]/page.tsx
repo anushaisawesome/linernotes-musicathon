@@ -67,10 +67,17 @@ function ExperienceContent() {
     async function fetchReview() {
       try {
         if (isFeedExp) {
-          // Compile the community feed into a playlist of track reviews, starting
-          // at the post that was clicked (the id) when it's present.
-          const all = await getReviews();
-          const segs: Review[] = (all || []).filter((r) => r.track?.trackId && !r.track.trackId.startsWith("lastfm-"));
+          // Compile the GLOBAL community feed into a playlist of track reviews
+          // (feed:"friends" is the public all-reviews feed), excluding your own
+          // posts, starting at the post that was clicked when it's present.
+          const [all, meData] = await Promise.all([
+            getReviews({ feed: "friends" }),
+            fetch("/api/auth/me").then((r) => (r.ok ? r.json() : null)).catch(() => null),
+          ]);
+          const myId = meData?.user?.id;
+          const segs: Review[] = (all || []).filter(
+            (r) => r.track?.trackId && !r.track.trackId.startsWith("lastfm-") && r.userId !== myId
+          );
           if (segs.length === 0) throw new Error("No community posts to play yet");
           const start = Math.max(0, segs.findIndex((r) => r.id === reviewId));
           setPlaylistLabel("Community feed");
@@ -108,15 +115,20 @@ function ExperienceContent() {
     fetchReview();
   }, [reviewId, isAlbumExp, isFeedExp]);
 
-  // For a single-track experience, pull 4 other community posts to "Experience more".
+  // For a single-track experience, pull 4 other GLOBAL community posts (not your
+  // own) to "Experience more".
   useEffect(() => {
     if (isAlbumExp || isFeedExp) return;
     let cancelled = false;
-    getReviews()
-      .then((all) => {
+    Promise.all([
+      getReviews({ feed: "friends" }),
+      fetch("/api/auth/me").then((r) => (r.ok ? r.json() : null)).catch(() => null),
+    ])
+      .then(([all, meData]) => {
         if (cancelled) return;
+        const myId = meData?.user?.id;
         const picks = (all || [])
-          .filter((r) => r.track?.trackId && !r.track.trackId.startsWith("lastfm-") && r.id !== reviewId)
+          .filter((r) => r.track?.trackId && !r.track.trackId.startsWith("lastfm-") && r.id !== reviewId && r.userId !== myId)
           .slice(0, 4);
         setMoreReviews(picks);
       })

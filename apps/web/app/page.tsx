@@ -59,12 +59,13 @@ export default function Home() {
           .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
           .slice(0, 6);
 
-        // Get recent community track reviews for hero artwork
+        // Recent GLOBAL community track reviews for hero artwork. Keep a buffer so
+        // we can drop the viewer's own posts and still have three to show.
         const recentTrackReviews = communityReviews
           .filter((r) => r.track) // Check track exists
           .map((r) => toReviewVM(r))
           .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
-          .slice(0, 3); // No artwork filter - use gradient fallback if missing
+          .slice(0, 12);
 
         if (!cancelled) {
           setItems(vms);
@@ -97,13 +98,16 @@ export default function Home() {
     fetchPrompts();
   }, [fetchPrompts]);
 
-  // "Play the Experience" / the hero covers compile the community feed into a
-  // playlist and open the Experience starting at the most recent track post.
-  const experienceReview = recentReviews[0];
+  // "Play the Experience" / the hero covers compile the GLOBAL community feed into
+  // a playlist and open the Experience starting at the most recent track post —
+  // excluding the viewer's own posts.
+  const myHandle = session?.user?.handle;
+  const communityCovers = recentReviews.filter((vm) => !myHandle || vm.user?.handle !== myHandle).slice(0, 3);
+  const experienceReview = communityCovers[0];
   const experienceHref = experienceReview ? `/experience/${experienceReview.id}?type=feed` : "/feed";
   // The three hero covers, newest post in the middle. Falls back to the
   // decorative gradients until real posts load.
-  const heroCovers = [recentReviews[1], recentReviews[0], recentReviews[2]];
+  const heroCovers = [communityCovers[1], communityCovers[0], communityCovers[2]];
 
   return (
     <div style={{ background: "var(--ln-bg)", color: "var(--ln-fg)", minHeight: "100vh", position: "relative", display: "flex", flexDirection: "column", flex: 1 }}>
