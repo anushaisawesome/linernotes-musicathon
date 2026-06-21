@@ -13,5 +13,8 @@ export * from './Avatar';
 // Album Art
 export * from './AlbumArt';
 
+// EQ Visualizer
+export * from './EQVisualizer';
+
 // Legacy unified Icon component (if needed for backward compatibility)
 export { Icon } from './Icon';

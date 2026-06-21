@@ -23,6 +23,7 @@ import { ShareSheet } from '../components/ShareSheet';
 import { ReviewShareCard, LyricShareCard } from '../components/share';
 import { shareToInstagramStory, shareToTikTok, saveCardImage, shareToTwitter } from '../lib/share-utils';
 import * as Clipboard from 'expo-clipboard';
+import { EQVisualizer } from '../components/atoms/EQVisualizer';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -64,6 +65,10 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
   const [lyrics, setLyrics] = useState<SyncedLyrics | null>(null);
   const [lyricsError, setLyricsError] = useState<string | null>(null);
   const [shareSheetVisible, setShareSheetVisible] = useState(false);
+  const [reviewerNoteOpen, setReviewerNoteOpen] = useState(true);
+  const [armedMoment, setArmedMoment] = useState<any | null>(null);
+  const [showTranslation, setShowTranslation] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
   const lyricListRef = useRef<FlatList>(null);
   const shareCardRef = useRef<View>(null);
 
@@ -188,6 +193,18 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
   const activeMoment = review.notes?.find((m) =>
     playbackPosition >= m.sec && playbackPosition < m.sec + 5
   ) || null;
+
+  // Arm the moment for sharing when it becomes active
+  useEffect(() => {
+    if (activeMoment) {
+      setArmedMoment(activeMoment);
+    }
+  }, [activeMoment]);
+
+  // Update isPlaying based on Last.fm nowPlaying status
+  useEffect(() => {
+    setIsPlaying(!!nowPlayingTrack);
+  }, [nowPlayingTrack]);
 
   const isOwn = !!user?.handle && review.user?.handle === user.handle;
 
@@ -413,6 +430,10 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
                 <Text style={styles.coverLabel}>{album.title?.toLowerCase()}</Text>
               </View>
             )}
+            {/* EQ visualizer badge */}
+            <View style={styles.eqBadge}>
+              <EQVisualizer color={gold} isPlaying={isPlaying} size={15} />
+            </View>
           </TouchableOpacity>
 
           {/* Title + artist */}
@@ -449,6 +470,31 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
                 </Text>
               </View>
               <Text style={styles.nowPlayingSource}>via{'\n'}last.fm</Text>
+            </View>
+          )}
+
+          {/* Reviewer note card */}
+          {review.take && (
+            <View style={[styles.reviewerNote, { backgroundColor: `${gold}10`, borderColor: `${gold}33` }]}>
+              <View style={styles.reviewerNoteHeader}>
+                <View style={[styles.reviewerAvatar, { backgroundColor: `${review.user?.tint || gold}26`, borderColor: `${review.user?.tint || gold}66` }]}>
+                  <Text style={[styles.reviewerAvatarText, { color: review.user?.tint || gold }]}>
+                    {review.user?.displayName?.[0] || review.user?.handle?.[0] || '?'}
+                  </Text>
+                </View>
+                <View style={styles.reviewerInfo}>
+                  <Text style={[styles.reviewerLabel, { color: gold }]}>
+                    what {review.user?.displayName?.split(' ')[0] || review.user?.handle || 'they'} wrote
+                  </Text>
+                  <Text style={styles.reviewerHandle}>@{review.user?.handle || 'user'}</Text>
+                </View>
+                <TouchableOpacity onPress={() => setReviewerNoteOpen(!reviewerNoteOpen)} style={styles.reviewerToggle}>
+                  <Text style={styles.reviewerToggleText}>{reviewerNoteOpen ? 'hide' : 'show'}</Text>
+                </TouchableOpacity>
+              </View>
+              {reviewerNoteOpen && (
+                <Text style={styles.reviewerNoteText}>{review.take}</Text>
+              )}
             </View>
           )}
 
@@ -785,6 +831,20 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.85,
     shadowRadius: 40,
     elevation: 20,
+    position: 'relative',
+  },
+  eqBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(8,6,7,0.5)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   coverPlaceholder: {
     width: 168,
@@ -889,6 +949,63 @@ const styles = StyleSheet.create({
     color: 'rgba(241,235,224,0.5)',
     letterSpacing: 0.3,
     textAlign: 'right',
+  },
+  reviewerNote: {
+    width: '100%',
+    marginTop: 20,
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 13,
+  },
+  reviewerNoteHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+  },
+  reviewerAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reviewerAvatarText: {
+    fontFamily: 'System',
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  reviewerInfo: {
+    flex: 1,
+    minWidth: 0,
+  },
+  reviewerLabel: {
+    fontFamily: 'Menlo',
+    fontSize: 9,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  reviewerHandle: {
+    fontFamily: 'System',
+    fontSize: 12.5,
+    color: 'rgba(241,235,224,0.7)',
+  },
+  reviewerToggle: {
+    padding: 4,
+  },
+  reviewerToggleText: {
+    fontFamily: 'Menlo',
+    fontSize: 11,
+    color: 'rgba(241,235,224,0.55)',
+  },
+  reviewerNoteText: {
+    marginTop: 9,
+    fontFamily: 'System',
+    fontStyle: 'italic',
+    fontWeight: '500',
+    fontSize: 16,
+    lineHeight: 23,
+    color: '#f1ebe0',
   },
   activeMoment: {
     width: '100%',
