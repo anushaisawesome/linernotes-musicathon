@@ -116,7 +116,7 @@ export const authOptions: NextAuthConfig = {
   callbacks: {
     async signIn({ user, account, profile }) {
       try {
-        // Auto-create MusicConnection for Spotify login (for Web Playback SDK)
+        // For existing Spotify users, update their token
         if (account?.provider === "spotify" && account.access_token && user.id) {
           const existingConnection = await prisma.musicConnection.findFirst({
             where: {
@@ -125,21 +125,9 @@ export const authOptions: NextAuthConfig = {
             },
           });
 
-          if (!existingConnection) {
-            await prisma.musicConnection.create({
-              data: {
-                userId: user.id,
-                service: "spotify",
-                serviceUserId: account.providerAccountId,
-                serviceUsername: (profile as any)?.display_name,
-                accessToken: account.access_token,
-                refreshToken: account.refresh_token,
-                expiresAt: account.expires_at ? new Date(account.expires_at * 1000) : null,
-              },
-            });
-            console.log("[Auth] Created MusicConnection for Spotify login");
-          } else {
-            // Update existing connection with new token
+          // Only update existing connections here
+          // New connections are created in the createUser event
+          if (existingConnection) {
             await prisma.musicConnection.update({
               where: { id: existingConnection.id },
               data: {
