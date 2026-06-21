@@ -27,8 +27,11 @@ export function LyricShareCard({ review, moment, format, linkSlot = false }: Lyr
   const gold = tokens.colors.gold;
   const isStory = format === 'story';
 
+  // Fixed width for proper aspect ratio (Story: 360px @ 9:16, Square: 360px @ 1:1)
+  const cardWidth = 360;
+
   return (
-    <View style={[styles.container, { aspectRatio: isStory ? 9/16 : 1 }]}>
+    <View style={[styles.container, { width: cardWidth, aspectRatio: isStory ? 9/16 : 1 }]}>
       {/* Album-color gradient flood */}
       <LinearGradient
         colors={[p.mid, p.deep, p.lo]}
@@ -127,7 +130,6 @@ export function LyricShareCard({ review, moment, format, linkSlot = false }: Lyr
 
 const styles = StyleSheet.create({
   container: {
-    width: '100%',
     overflow: 'hidden',
     borderRadius: 22,
   },
@@ -143,7 +145,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   sticker: {
-    width: '100%',
     borderRadius: 16,
     backgroundColor: tokens.colors.bg,
     overflow: 'hidden',
