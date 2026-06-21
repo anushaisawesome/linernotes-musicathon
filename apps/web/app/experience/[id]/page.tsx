@@ -17,21 +17,24 @@ import { getActiveAnnotations, type SyncedLyrics, type ActiveAnnotations } from 
 import type { Review, AlbumReview } from "@/lib/types";
 import { paletteFromString, type Palette } from "@/lib/palette";
 import { LNArt, lnFmt } from "@/components/ln/atoms";
+import { getReviews } from "@/lib/api";
 
 function ExperienceContent() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
   const reviewId = params.id as string;
-  const isAlbumExp = searchParams.get("type") === "album";
+  const expType = searchParams.get("type");
+  const isAlbumExp = expType === "album";
+  const isFeedExp = expType === "feed";
 
-  // For an album experience, `segments` holds every reviewed track in order and
-  // `idx` is the song you're on; `review` always points at the current segment
-  // so the rest of the player renders unchanged. A track experience is just one
-  // segment.
+  // `segments` holds every playable track in order (one for a track review, every
+  // reviewed track for an album, the whole community feed for a feed experience);
+  // `idx` is the song you're on and `review` always points at the current segment
+  // so the rest of the player renders unchanged.
   const [segments, setSegments] = useState<Review[]>([]);
   const [idx, setIdx] = useState(0);
-  const [albumName, setAlbumName] = useState<string | null>(null);
+  const [playlistLabel, setPlaylistLabel] = useState<string | null>(null);
   const [review, setReview] = useState<Review | null>(null);
   const [lyrics, setLyrics] = useState<SyncedLyrics | null>(null);
   const [playerState, setPlayerState] = useState<PlayerState | null>(null);
@@ -58,7 +61,18 @@ function ExperienceContent() {
   useEffect(() => {
     async function fetchReview() {
       try {
-        if (isAlbumExp) {
+        if (isFeedExp) {
+          // Compile the community feed into a playlist of track reviews, starting
+          // at the post that was clicked (the id) when it's present.
+          const all = await getReviews();
+          const segs: Review[] = (all || []).filter((r) => r.track?.trackId);
+          if (segs.length === 0) throw new Error("No community posts to play yet");
+          const start = Math.max(0, segs.findIndex((r) => r.id === reviewId));
+          setPlaylistLabel("Community feed");
+          setSegments(segs);
+          setIdx(start);
+          setReview(segs[start]);
+        } else if (isAlbumExp) {
           const res = await fetch(`/api/album-reviews/${reviewId}`);
           if (!res.ok) throw new Error("Failed to load album review");
           const data = await res.json();
@@ -69,7 +83,7 @@ function ExperienceContent() {
             .filter((tr) => tr.track?.trackId)
             .map((tr) => ({ ...tr, user: tr.user || ar.user }));
           if (segs.length === 0) throw new Error("This album review has no tracks to play");
-          setAlbumName(ar.album?.name || null);
+          setPlaylistLabel(ar.album?.name || null);
           setSegments(segs);
           setIdx(0);
           setReview(segs[0]);
@@ -87,7 +101,7 @@ function ExperienceContent() {
     }
 
     fetchReview();
-  }, [reviewId, isAlbumExp]);
+  }, [reviewId, isAlbumExp, isFeedExp]);
 
   // Jump to another song in the album experience and play it.
   const goToSegment = async (n: number) => {
@@ -321,9 +335,9 @@ function ExperienceContent() {
 
             {/* Title + artist */}
             <div>
-              {isAlbumExp && albumName && (
+              {playlistLabel && segments.length > 1 && (
                 <div style={{ marginBottom: 6, fontFamily: "var(--ln-mono)", fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", color: accent }}>
-                  {albumName} · {idx + 1} / {segments.length}
+                  {playlistLabel} · {idx + 1} / {segments.length}
                 </div>
               )}
               <h1 style={{ margin: 0, fontFamily: "var(--ln-album)", fontWeight: 600, fontSize: 30, lineHeight: 1.06, letterSpacing: "-0.01em", color: INK }}>

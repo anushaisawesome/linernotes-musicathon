@@ -84,11 +84,14 @@ export default function Home() {
     fetchPrompts();
   }, [fetchPrompts]);
 
-  // "Play the Experience" / the covers open the Experience for the most recent
-  // track review in the community feed (track reviews are what the player runs;
-  // falls back to the feed until the data loads or if there are none).
-  const experienceReview = items.find((vm) => vm.kind === "track");
-  const experienceHref = experienceReview ? `/experience/${experienceReview.id}` : "/feed";
+  // "Play the Experience" / the hero covers compile the community feed into a
+  // playlist and open the Experience starting at the most recent track post.
+  const trackItems = items.filter((vm) => vm.kind === "track");
+  const experienceReview = trackItems[0];
+  const experienceHref = experienceReview ? `/experience/${experienceReview.id}?type=feed` : "/feed";
+  // The three hero covers, newest post in the middle. Falls back to the
+  // decorative gradients until real posts load.
+  const heroCovers = [trackItems[1], trackItems[0], trackItems[2]];
 
   return (
     <div style={{ background: "var(--ln-bg)", color: "var(--ln-fg)", minHeight: "100vh", position: "relative", display: "flex", flexDirection: "column", flex: 1 }}>
@@ -129,11 +132,17 @@ export default function Home() {
               <div style={{ position: "relative", height: 340, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 {HERO_ART.map((p, i) => {
                   const off = i - 1;
+                  const cover = heroCovers[i];
+                  const art = cover?.album.artworkUrl;
                   return (
                     <div key={i} style={{ position: "absolute", width: 220, height: 220, borderRadius: 18, overflow: "hidden", transform: `translateX(${off * 86}px) rotate(${off * 6}deg) scale(${i === 1 ? 1.06 : 0.92})`, zIndex: i === 1 ? 3 : 1, boxShadow: "0 30px 70px -28px rgba(0,0,0,0.85), 0 0 0 1px rgba(255,255,255,0.06)", background: `radial-gradient(120% 120% at 26% 18%, ${p.mid}, ${p.deep} 60%, ${p.lo})` }}>
+                      {art && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={art} alt={cover?.album.title || ""} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+                      )}
                       <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(135deg, rgba(255,255,255,0.05) 0 1px, transparent 1px 13px)", mixBlendMode: "overlay" }} />
                       {i === 1 && (
-                        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: art ? "linear-gradient(180deg, rgba(8,6,7,0.1), rgba(8,6,7,0.45))" : "transparent" }}>
                           <span style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(8,6,7,0.42)", backdropFilter: "blur(6px)", border: "1px solid rgba(255,255,255,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                             <svg width="22" height="22" viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z" /></svg>
                           </span>
