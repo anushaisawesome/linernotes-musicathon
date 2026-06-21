@@ -55,6 +55,9 @@ function ExperienceContent() {
   const [shareMoment, setShareMoment] = useState<any>(null);
   // "Experience more" picks — recent community track posts to jump to (track mode).
   const [moreReviews, setMoreReviews] = useState<Review[]>([]);
+  // The track review currently playing. Starts at the URL id, but changes in place
+  // when you tap an "Experience more" pick (no page remount).
+  const [currentId, setCurrentId] = useState(reviewId);
 
   // Visualiser state
   const [visualiserEnabled, setVisualiserEnabled] = useState(true);
@@ -134,9 +137,11 @@ function ExperienceContent() {
     getReviews({ feed: "friends" })
       .then((all) => {
         if (cancelled) return;
+        // Keep a small pool (the current song is filtered out at render via
+        // currentId, so the one you leave reappears as an option once you switch).
         const picks = (all || [])
-          .filter((r) => r.track?.trackId && !r.track.trackId.startsWith("lastfm-") && r.id !== reviewId)
-          .slice(0, 4);
+          .filter((r) => r.track?.trackId && !r.track.trackId.startsWith("lastfm-"))
+          .slice(0, 12);
         setMoreReviews(picks);
       })
       .catch(() => {});
@@ -153,6 +158,39 @@ function ExperienceContent() {
     setIdx(clamped);
     setReview(segments[clamped]);
     const tid = segments[clamped].track?.trackId;
+    if (player && tid) {
+      try {
+        await player.playTrack(`spotify:track:${tid}`);
+      } catch (e) {
+        console.error("[Experience] Failed to play track:", e);
+      }
+    }
+  };
+
+  // Switch the single-track experience to another community post in place — reuse
+  // the same Spotify player, swap the content, and play the new track. No remount.
+  const switchToReview = async (r: Review) => {
+    if (r.id === currentId) return;
+    setCurrentId(r.id);
+    setSegments([r]);
+    setIdx(0);
+    setReview(r);
+    // Reset per-song state so the previous song's note/lyrics don't linger.
+    setNoteOpen(false);
+    setLyrics(null);
+    setTranslation(null);
+    setShowTranslation(false);
+    setAnnotations(null);
+    setCoverPalette(null);
+    endedHandledRef.current = false;
+    lastPosRef.current = 0;
+    // Reflect the song in the address bar without re-running the page's data
+    // fetch (useParams stays put), so a refresh/share still resolves correctly.
+    if (typeof window !== "undefined") {
+      window.history.replaceState(window.history.state, "", `/experience/${r.id}`);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+    const tid = r.track?.trackId;
     if (player && tid) {
       try {
         await player.playTrack(`spotify:track:${tid}`);
@@ -463,6 +501,8 @@ function ExperienceContent() {
   // experience instead offers more community posts to jump to.
   const isPlaylist = isAlbumExp || isFeedExp;
   const upNext = isPlaylist && idx < segments.length - 1 ? segments[idx + 1] : null;
+  // "Experience more" picks, excluding whatever's playing right now.
+  const morePicks = moreReviews.filter((r) => r.id !== currentId).slice(0, 4);
 
   // Nearest moment to current position for sharing
   const nearestMoment = review.notes && review.notes.length > 0
@@ -776,16 +816,16 @@ function ExperienceContent() {
               </div>
             )}
 
-            {/* Experience more — community posts to jump to from a single track */}
-            {!isPlaylist && moreReviews.length > 0 && (
+            {/* Experience more — community posts to switch to from a single track */}
+            {!isPlaylist && morePicks.length > 0 && (
               <div style={{ marginTop: 26 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 12 }}>
                   <span style={{ fontFamily: "var(--ln-label)", fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", fontWeight: 700, color: accent }}>Experience more</span>
                   <span style={{ flex: 1, height: 1, background: "rgba(244,239,230,0.12)" }} />
                 </div>
                 <div className="mu-exp-more" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
-                  {moreReviews.map((r) => (
-                    <button key={r.id} onClick={() => router.push(`/experience/${r.id}`)} className="ln-press" style={{ display: "flex", flexDirection: "column", gap: 7, padding: 0, border: "none", background: "transparent", cursor: "pointer", textAlign: "left", minWidth: 0 }}>
+                  {morePicks.map((r) => (
+                    <button key={r.id} onClick={() => switchToReview(r)} className="ln-press" style={{ display: "flex", flexDirection: "column", gap: 7, padding: 0, border: "none", background: "transparent", cursor: "pointer", textAlign: "left", minWidth: 0 }}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={r.track.artworkUrl} alt="" style={{ width: "100%", aspectRatio: "1 / 1", borderRadius: 11, objectFit: "cover", boxShadow: "0 14px 30px -16px rgba(0,0,0,0.8)" }} />
                       <div style={{ fontFamily: "var(--ln-album)", fontWeight: 600, fontSize: 13, color: INK, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.track.name}</div>
