@@ -93,7 +93,7 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
           return;
         }
 
-        const url = `${api.baseUrl}/api/lyrics?track=${encodeURIComponent(trackName)}&artist=${encodeURIComponent(artistName)}`;
+        const url = `${api.baseUrl}/lyrics?track=${encodeURIComponent(trackName)}&artist=${encodeURIComponent(artistName)}`;
         console.log('[Experience] Lyrics API URL:', url);
 
         const response = await fetch(url);

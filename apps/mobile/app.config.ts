@@ -64,7 +64,7 @@ const config: ExpoConfig = {
     // ],
   ],
   extra: {
-    apiUrl: process.env.EXPO_PUBLIC_API_URL || 'https://linernotes-musicathon.vercel.app',
+    apiUrl: process.env.EXPO_PUBLIC_API_URL || 'https://linernotes-musicathon.vercel.app/api',
     spotifyClientId: process.env.SPOTIFY_CLIENT_ID || '190588081c89410d8a88ad15a94be8cb',
     eas: {
       projectId: '9b3785c0-ecf9-4932-8ebc-7bceaf551ff9',
