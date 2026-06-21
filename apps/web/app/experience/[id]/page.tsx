@@ -119,8 +119,8 @@ function ExperienceContent() {
     async function fetchLyrics() {
       try {
         // Use stored track data (not playerState which might differ)
-        const trackName = review.track.name;
-        const artistName = review.track.artist;
+        const trackName = review?.track?.name;
+        const artistName = review?.track?.artist;
 
         if (!trackName || !artistName) return;
 
