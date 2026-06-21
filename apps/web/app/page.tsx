@@ -61,8 +61,9 @@ export default function Home() {
 
         // Get recent community track reviews for hero artwork
         const recentTrackReviews = communityReviews
-          .filter((r) => r.track?.artworkUrl)
+          .filter((r) => r.track && r.artworkUrl) // Check both track exists and has artwork
           .map((r) => toReviewVM(r))
+          .filter((vm) => vm.album.artworkUrl) // Double-check after transform
           .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
           .slice(0, 3);
 
