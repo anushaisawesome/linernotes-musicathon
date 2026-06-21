@@ -25,7 +25,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Icon } from '../components/atoms/Icon';
 import { Stars } from '../components/atoms/Stars';
 import { ReactionIcon } from '../components/atoms/Reactions';
-import { AlbumArt } from '../components/atoms/AlbumArt';
 import { ReviewCard } from '../components/ReviewCard';
 import { formatTimestamp } from '../lib/time-utils';
 import { api } from '../lib/api-client';
@@ -136,7 +135,6 @@ export function ComposerScreen({
   const [isPosting, setIsPosting] = useState(false);
   const [showTake, setShowTake] = useState(false);
   const [showMoments, setShowMoments] = useState(false);
-  const [showTracks, setShowTracks] = useState(false);
   const [captionIndex, setCaptionIndex] = useState(0);
 
   // Album/Playlist track management
@@ -528,442 +526,358 @@ export function ComposerScreen({
             ))}
           </View>
 
-          {/* Proposed content card (NOT search) */}
-          {mode === 'playlist' ? (
-            <View style={[styles.section, { marginTop: 16 }]}>
-              <Text style={[styles.proposedLabel, { color: gold }]}>NAME YOUR PLAYLIST</Text>
-              <TextInput
-                style={[styles.playlistTitleInput, { borderColor: 'rgba(241,235,224,0.14)' }]}
-                value={playlistName}
-                onChangeText={setPlaylistName}
-                placeholder="untitled playlist"
-                placeholderTextColor="rgba(241,235,224,0.3)"
-              />
-              {/* Spotify/Apple Music link paste */}
-              <View style={[styles.linkInputRow, { borderColor: 'rgba(241,235,224,0.1)' }]}>
-                <Icon name="refresh-cw" size={15} color="rgba(241,235,224,0.5)" />
+          {/* Track search box — only on the track tab */}
+          {mode === 'track' && (
+            <SearchSection
+              label="SEARCH TRACK"
+              selectedLabel="TRACK"
+              placeholder="search for a track..."
+              query={trackQuery}
+              onChangeQuery={(q) => {
+                setTrackQuery(q);
+                queueSearch(q, 'track');
+              }}
+              searching={searchingTrack}
+              results={trackResults}
+              selected={selectedTrack}
+              onSelect={selectTrack}
+              onClear={() => setSelectedTrack(null)}
+            />
+          )}
+
+          {/* Album search box — separate, only on the album tab */}
+          {mode === 'album' && (
+            <SearchSection
+              label="SEARCH ALBUM"
+              selectedLabel="ALBUM"
+              placeholder="search for an album..."
+              query={albumQuery}
+              onChangeQuery={(q) => {
+                setAlbumQuery(q);
+                queueSearch(q, 'album');
+              }}
+              searching={searchingAlbum}
+              results={albumResults}
+              selected={selectedAlbum}
+              onSelect={selectAlbum}
+              onClear={() => setSelectedAlbum(null)}
+            />
+          )}
+
+          {/* Album track strip - shows after album is selected */}
+          {mode === 'album' && selectedAlbum && (
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>
+                ALBUM TRACKS {albumTracks.length > 0 && `· ${albumTracks.length}`}
+              </Text>
+              {loadingTracks ? (
+                <View style={styles.trackStripLoading}>
+                  <ActivityIndicator size="small" color={gold} />
+                  <Text style={styles.trackStripLoadingText}>Loading tracks...</Text>
+                </View>
+              ) : albumTracks.length > 0 ? (
+                <>
+                  <Text style={styles.playlistHint}>
+                    Tap the icon to react (optional), or the bookmark to add a note.
+                  </Text>
+                  {albumTracks.map((track, index) => {
+                    const trackNum = track.trackNumber || index + 1;
+                    const trackData = tracks[trackNum];
+                    const key = `album-${trackNum}`;
+                    const setTrack = (patch: Partial<TrackData>) =>
+                      setTracks((prev) => {
+                        const base: TrackData =
+                          prev[trackNum] ?? { n: trackNum, name: track.name, reaction: null, review: '', moments: [] };
+                        return { ...prev, [trackNum]: { ...base, ...patch } };
+                      });
+                    return (
+                      <EditableTrackRow
+                        key={track.id || index}
+                        number={trackNum}
+                        name={track.name}
+                        reaction={trackData?.reaction ?? null}
+                        note={trackData?.review || ''}
+                        noteOpen={noteEditingId === key}
+                        gold={gold}
+                        onCycleReaction={() => setTrack({ reaction: nextReaction(trackData?.reaction ?? null) })}
+                        onToggleNote={() => setNoteEditingId((cur) => (cur === key ? null : key))}
+                        onChangeNote={(text) => setTrack({ review: text })}
+                        onFocusNote={scrollToInput}
+                      />
+                    );
+                  })}
+                </>
+              ) : (
+                <Text style={styles.trackStripEmpty}>
+                  No tracks available for this album
+                </Text>
+              )}
+            </View>
+          )}
+
+          {/* Playlist — name + external Spotify/Apple Music link + curated tracks */}
+          {mode === 'playlist' && (
+            <>
+              <View style={styles.section}>
+                <Text style={styles.sectionLabel}>PLAYLIST NAME</Text>
                 <TextInput
-                  style={styles.linkInput}
+                  style={styles.lineInput}
+                  value={playlistName}
+                  onChangeText={setPlaylistName}
+                  placeholder="name your playlist..."
+                  placeholderTextColor="rgba(241,235,224,0.3)"
+                  onFocus={scrollToInput}
+                />
+              </View>
+              <View style={styles.section}>
+                <Text style={styles.sectionLabel}>PLAYLIST LINK (OPTIONAL)</Text>
+                <TextInput
+                  style={styles.lineInput}
                   value={playlistLink}
                   onChangeText={setPlaylistLink}
-                  placeholder="paste a Spotify / Apple playlist link"
-                  placeholderTextColor="rgba(241,235,224,0.5)"
+                  placeholder="paste a Spotify or Apple Music link..."
+                  placeholderTextColor="rgba(241,235,224,0.3)"
                   autoCapitalize="none"
                   autoCorrect={false}
+                  keyboardType="url"
+                  onFocus={scrollToInput}
                 />
-                {playlistLink.trim() && <Icon name="bookmark" size={14} color={gold} filled />}
-              </View>
-              <Text style={styles.linkHint}>
-                we can't read the tracklist yet. paste the link to share it, then add the tracks you want to annotate below.
-              </Text>
-            </View>
-          ) : (
-            <View style={[styles.proposedCard, { borderColor: 'rgba(241,235,224,0.09)' }]}>
-              <View style={styles.proposedArt}>
-                <AlbumArt
-                  palette={selectedTrack?.palette || selectedAlbum?.palette || { deep: '#3e1e20', mid: '#5a2e30', lo: '#2c1517', accent: gold, glow: gold }}
-                  artworkUrl={selectedTrack?.artworkUrl || selectedAlbum?.artworkUrl}
-                  label=""
-                  size={58}
-                  noTag
-                />
-              </View>
-              <View style={styles.proposedInfo}>
-                <Text style={[styles.proposedLabel, { color: gold }]}>
-                  {mode === 'track' ? 'THE TRACK YOU JUST PLAYED' : 'BECAUSE YOU JUST LISTENED'}
-                </Text>
-                <Text style={styles.proposedTitle} numberOfLines={1}>
-                  {selectedTrack?.name || selectedAlbum?.name || ''}
-                </Text>
-                <Text style={styles.proposedMeta} numberOfLines={1}>
-                  {selectedTrack?.artist || selectedAlbum?.artist || ''}
-                  {(selectedTrack?.album || selectedAlbum?.releaseDate) && ` · ${selectedTrack?.album || selectedAlbum?.releaseDate?.substring(0, 4)}`}
+                {playlistLink.trim().length > 0 &&
+                  (isPlaylistLink(playlistLink) ? (
+                    <Text style={[styles.linkOk, { color: gold }]}>valid link</Text>
+                  ) : (
+                    <Text style={styles.linkWarn}>paste a Spotify or Apple Music playlist link</Text>
+                  ))}
+                <Text style={styles.playlistHint}>
+                  We can't read the tracklist yet — paste the link to share it, then add the tracks you want to annotate below.
                 </Text>
               </View>
-              <TouchableOpacity style={styles.proposedChange}>
-                <Icon name="refresh-cw" size={13} color="rgba(241,235,224,0.5)" />
-                <Text style={styles.proposedChangeText}>change</Text>
-              </TouchableOpacity>
-            </View>
-          )}
 
-
-          {/* Playlist mode - track list with "add a track" button */}
-          {mode === 'playlist' && playlistTracks.length > 0 && (
-            <View style={[styles.tracksCard, { marginTop: 16, borderColor: 'rgba(241,235,224,0.1)' }]}>
-              <View style={[styles.tracksHeader, { paddingVertical: 10 }]}>
-                <Text style={styles.playlistTracksLabel}>
-                  your tracks — react · bookmark a note or moment
+              {/* Playlist Tracks Section */}
+              <View style={styles.section}>
+                <Text style={styles.sectionLabel}>
+                  YOUR TRACKS{playlistTracks.length > 0 && ` · ${playlistTracks.length}`}
                 </Text>
-              </View>
-              {playlistTracks.map((track, index) => {
-                const key = `pl-${track.id}`;
-                return (
-                  <EditableTrackRow
-                    key={`${track.id}-${index}`}
-                    number={index + 1}
-                    name={track.name}
-                    artist={track.artist}
-                    reaction={track.reaction ?? null}
-                    note={track.note || ''}
-                    moments={track.moments || []}
-                    noteOpen={noteEditingId === key}
-                    gold={gold}
-                    showArtist
-                    onCycleReaction={() => {
-                      setPlaylistTracks(prev => prev.map((t, i) =>
-                        i === index ? { ...t, reaction: nextReaction(t.reaction ?? null) } : t
-                      ));
-                    }}
-                    onToggleNote={() => setNoteEditingId((cur) => (cur === key ? null : key))}
-                    onChangeNote={(text) => {
-                      setPlaylistTracks(prev => prev.map((t, i) =>
-                        i === index ? { ...t, note: text } : t
-                      ));
-                    }}
-                    onAddMoment={(m) => {
-                      setPlaylistTracks(prev => prev.map((t, i) =>
-                        i === index ? { ...t, moments: [...(t.moments || []), m].sort((a, b) => a.seconds - b.seconds) } : t
-                      ));
-                    }}
-                    onRemoveMoment={(idx) => {
-                      setPlaylistTracks(prev => prev.map((t, i) =>
-                        i === index ? { ...t, moments: (t.moments || []).filter((_, mi) => mi !== idx) } : t
-                      ));
-                    }}
-                    onRemove={() => {
-                      setNoteEditingId((cur) => (cur === key ? null : cur));
-                      setPlaylistTracks((prev) => prev.filter((_, i) => i !== index));
-                    }}
-                    onFocusNote={scrollToInput}
-                  />
-                );
-              })}
-              {/* Add a track button */}
-              <TouchableOpacity
-                style={styles.addTrackButton}
-                onPress={() => setShowPlaylistSearch(true)}
-              >
-                <Icon name="plus" size={15} color={gold} />
-                <Text style={[styles.addTrackText, { color: gold }]}>add a track</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {/* Playlist track search (when adding tracks) */}
-          {mode === 'playlist' && showPlaylistSearch && (
-            <View style={styles.section}>
-              <TextInput
-                style={styles.lineInput}
-                value={trackQuery}
-                onChangeText={(q) => {
-                  setTrackQuery(q);
-                  queueSearch(q, 'track');
-                }}
-                placeholder="search for a track to add..."
-                placeholderTextColor="rgba(241,235,224,0.3)"
-                autoCorrect={false}
-                autoFocus
-                onFocus={scrollToInput}
-              />
-              {searchingTrack && trackQuery.trim().length > 0 && <Text style={styles.hint}>searching...</Text>}
-              {trackQuery.trim().length > 0 && trackResults.map((result, i) => (
-                <TouchableOpacity
-                  key={i}
-                  style={styles.searchResult}
-                  onPress={() => {
-                    const normalized = normalizeResult(result);
-                    if (playlistTracks.some((t) => t.id === normalized.id)) {
-                      Alert.alert('Already added', 'This track is already in your playlist');
-                      return;
-                    }
-                    setPlaylistTracks((prev) => [
-                      ...prev,
-                      { ...normalized, reaction: null, note: '', moments: [] },
-                    ]);
-                    setTrackResults([]);
-                    setTrackQuery('');
-                    setShowPlaylistSearch(false);
-                  }}
-                >
-                  <Text style={styles.searchResultName} numberOfLines={1}>
-                    {result.name || result.trackName || result.collectionName}
-                  </Text>
-                  <Text style={styles.searchResultArtist} numberOfLines={1}>
-                    {result.artist || result.artistName}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-              {trackResults.length === 0 && !searchingTrack && trackQuery.trim() && (
-                <TouchableOpacity
-                  style={[styles.addButton, { marginTop: 8 }]}
-                  onPress={() => {
-                    setShowPlaylistSearch(false);
-                    setTrackQuery('');
-                    setTrackResults([]);
-                  }}
-                >
-                  <Text style={[styles.addButtonText, { color: 'rgba(241,235,224,0.65)' }]}>
-                    close search
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          )}
-
-          {/* Rating - centered without label */}
-          {mode !== 'playlist' && (
-            <View style={styles.ratingSection}>
-              <View style={styles.ratingRow}>
-                <StarsInput rating={rating} onChange={setRating} size={34} />
-                <Text style={[styles.ratingNumber, { color: rating > 0 ? gold : 'rgba(241,235,224,0.3)' }]}>
-                  {rating > 0 ? rating.toFixed(1) : '·'}
-                </Text>
-              </View>
-              <Text style={styles.ratingHint}>tap to rate. that alone is a valid post</Text>
-            </View>
-          )}
-
-          {/* Effort meter card */}
-          {mode === 'playlist' ? (
-            playlistTracks.length > 0 && (
-              <View style={[styles.effortCard, { borderColor: 'rgba(241,235,224,0.09)' }]}>
-                <View style={[styles.playlistBadge, { backgroundColor: `${gold}18` }]}>
-                  <Text style={[styles.playlistBadgeText, { color: gold }]}>PLAYLIST</Text>
-                </View>
-                <Text style={styles.effortSummary}>
-                  {playlistTracks.length} track{playlistTracks.length === 1 ? '' : 's'} · {playlistTracks.filter(t => t.note).length} annotated
-                </Text>
-              </View>
-            )
-          ) : rating > 0 ? (
-            <View style={[styles.effortCard, { borderColor: 'rgba(241,235,224,0.09)' }]}>
-              <View style={styles.effortBars}>
-                {['floor', 'caption', 'full'].map((d, i) => {
-                  const depthIndex = { floor: 0, caption: 1, full: 2 };
-                  const isActive = depth && depthIndex[depth as keyof typeof depthIndex] >= i;
-                  return (
-                    <View
-                      key={d}
-                      style={[
-                        styles.effortBarFull,
-                        {
-                          backgroundColor: isActive ? gold : 'rgba(241,235,224,0.12)',
-                        },
-                      ]}
+                {!showPlaylistSearch ? (
+                  <TouchableOpacity
+                    style={styles.addButton}
+                    onPress={() => setShowPlaylistSearch(true)}
+                  >
+                    <Text style={[styles.addButtonPlus, { color: gold }]}>+</Text>
+                    <Text style={[styles.addButtonText, { color: gold }]}>add tracks</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <View>
+                    <TextInput
+                      style={styles.lineInput}
+                      value={trackQuery}
+                      onChangeText={(q) => {
+                        setTrackQuery(q);
+                        queueSearch(q, 'track');
+                      }}
+                      placeholder="search for a track to add..."
+                      placeholderTextColor="rgba(241,235,224,0.3)"
+                      autoCorrect={false}
+                      autoFocus
                     />
-                  );
-                })}
-              </View>
-              <View style={styles.effortRow}>
-                <Text style={styles.effortSummary}>
-                  posts as <Text style={[styles.effortType, { color: gold }]}>
-                    {depth === 'floor' ? 'a quick rating' : depth === 'caption' ? 'a caption' : depth === 'full' ? 'a full note' : '·'}
-                  </Text>
-                </Text>
-                <Text style={styles.effortLabel}>{depth || 'rate to begin'}</Text>
-              </View>
-              {mode === 'album' && albumTracks.length > 0 && (
-                <View style={[styles.albumReviewBadge, { borderColor: 'rgba(241,235,224,0.08)' }]}>
-                  <View style={[styles.albumBadge, { backgroundColor: `${gold}18` }]}>
-                    <Text style={[styles.albumBadgeText, { color: gold }]}>ALBUM REVIEW</Text>
+                    {searchingTrack && trackQuery.trim().length > 0 && <Text style={styles.hint}>searching...</Text>}
+                    {trackQuery.trim().length > 0 && trackResults.map((result, i) => (
+                      <TouchableOpacity
+                        key={i}
+                        style={styles.searchResult}
+                        onPress={() => {
+                          const normalized = normalizeResult(result);
+                          // Check if track already exists
+                          if (playlistTracks.some((t) => t.id === normalized.id)) {
+                            Alert.alert('Already added', 'This track is already in your playlist');
+                            return;
+                          }
+                          setPlaylistTracks((prev) => [
+                            ...prev,
+                            { ...normalized, reaction: null, note: '', moments: [] },
+                          ]);
+                          setTrackResults([]);
+                          setTrackQuery('');
+                        }}
+                      >
+                        <Text style={styles.searchResultName} numberOfLines={1}>
+                          {result.name || result.trackName || result.collectionName}
+                        </Text>
+                        <Text style={styles.searchResultArtist} numberOfLines={1}>
+                          {result.artist || result.artistName}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                    {trackResults.length === 0 && !searchingTrack && trackQuery.trim() && (
+                      <TouchableOpacity
+                        style={[styles.addButton, { marginTop: 8 }]}
+                        onPress={() => {
+                          setShowPlaylistSearch(false);
+                          setTrackQuery('');
+                          setTrackResults([]);
+                        }}
+                      >
+                        <Text style={[styles.addButtonText, { color: 'rgba(241,235,224,0.65)' }]}>
+                          close search
+                        </Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
-                  <Text style={styles.albumReviewStats}>
-                    {Object.values(tracks).filter(t => !t.excluded).length} track{Object.values(tracks).filter(t => !t.excluded).length > 1 ? 's' : ''} · {Object.values(tracks).reduce((sum, t) => sum + t.moments.length, 0)} moment{Object.values(tracks).reduce((sum, t) => sum + t.moments.length, 0) === 1 ? '' : 's'}
+                )}
+              </View>
+
+              {/* Playlist Track List */}
+              {playlistTracks.length > 0 && (
+                <View style={styles.section}>
+                  {playlistTracks.map((track, index) => {
+                    const key = `pl-${track.id}`;
+                    const setTrack = (patch: any) =>
+                      setPlaylistTracks((prev) => prev.map((t, i) => (i === index ? { ...t, ...patch } : t)));
+                    return (
+                      <EditableTrackRow
+                        key={`${track.id}-${index}`}
+                        number={index + 1}
+                        name={track.name}
+                        artist={track.artist}
+                        reaction={track.reaction ?? null}
+                        note={track.note || ''}
+                        noteOpen={noteEditingId === key}
+                        gold={gold}
+                        onCycleReaction={() => setTrack({ reaction: nextReaction(track.reaction ?? null) })}
+                        onToggleNote={() => setNoteEditingId((cur) => (cur === key ? null : key))}
+                        onChangeNote={(text) => setTrack({ note: text })}
+                        onRemove={() => {
+                          setNoteEditingId((cur) => (cur === key ? null : cur));
+                          setPlaylistTracks((prev) => prev.filter((_, i) => i !== index));
+                        }}
+                        onFocusNote={scrollToInput}
+                      />
+                    );
+                  })}
+                </View>
+              )}
+            </>
+          )}
+
+          {/* Rating */}
+          {mode !== 'playlist' && (
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>YOUR RATING</Text>
+              <StarsInput rating={rating} onChange={setRating} size={34} />
+              {/* Effort meter - shows post depth (floor/caption/full) */}
+              {rating > 0 && (
+                <View style={styles.effortMeter}>
+                  <Text style={styles.effortLabel}>effort</Text>
+                  <View style={styles.effortBars}>
+                    {['floor', 'caption', 'full'].map((d) => {
+                      const isActive =
+                        d === depth ||
+                        (depth === 'full' && d !== 'floor') ||
+                        (depth === 'caption' && d === 'floor');
+                      return (
+                        <View
+                          key={d}
+                          style={[
+                            styles.effortBar,
+                            {
+                              width: isActive ? 18 : 6,
+                              backgroundColor: isActive ? gold : 'rgba(241,235,224,0.12)',
+                            },
+                          ]}
+                        />
+                      );
+                    })}
+                  </View>
+                  <Text style={[styles.effortDepth, { color: depth ? gold : 'rgba(241,235,224,0.45)' }]}>
+                    {depth || 'none'}
                   </Text>
                 </View>
               )}
             </View>
-          ) : null}
+          )}
 
-          {/* Expandable chips */}
-          <View style={styles.chipRow}>
-            <TouchableOpacity
-              style={[
-                styles.chip,
-                showTake && { borderColor: `${gold}88`, backgroundColor: `${gold}14` }
-              ]}
-              onPress={() => setShowTake(!showTake)}
-            >
-              <Text style={[styles.chipPlus, { color: showTake ? gold : 'rgba(241,235,224,0.75)' }]}>
-                {showTake ? '−' : '+'}
-              </Text>
-              <Text style={[styles.chipText, { color: showTake ? gold : 'rgba(241,235,224,0.75)' }]}>
-                {mode === 'playlist' ? 'describe it' : 'write a note'}
-              </Text>
-            </TouchableOpacity>
-
-            {mode === 'album' && (
-              <TouchableOpacity
-                style={[
-                  styles.chip,
-                  showTracks && { borderColor: `${gold}88`, backgroundColor: `${gold}14` }
-                ]}
-                onPress={() => setShowTracks(!showTracks)}
-              >
-                <Text style={[styles.chipPlus, { color: showTracks ? gold : 'rgba(241,235,224,0.75)' }]}>
-                  {showTracks ? '−' : '+'}
+          {/* Take/Note (optional) */}
+          <View style={styles.section}>
+            {showTake ? (
+              <>
+                <Text style={styles.sectionLabel}>
+                  {mode === 'track' ? 'YOUR TAKE' : 'YOUR NOTE'}
                 </Text>
-                <Text style={[styles.chipText, { color: showTracks ? gold : 'rgba(241,235,224,0.75)' }]}>
-                  review the tracks{albumTracks.length > 0 ? ` · ${Object.values(tracks).filter(t => !t.excluded && (t.reaction || t.review || t.moments.length > 0)).length}` : ''}
-                </Text>
-              </TouchableOpacity>
-            )}
-
-            {mode === 'track' && (
-              <TouchableOpacity
-                style={[
-                  styles.chip,
-                  showMoments && { borderColor: `${gold}88`, backgroundColor: `${gold}14` }
-                ]}
-                onPress={() => setShowMoments(!showMoments)}
-              >
-                <Text style={[styles.chipPlus, { color: showMoments ? gold : 'rgba(241,235,224,0.75)' }]}>
-                  {showMoments ? '−' : '+'}
-                </Text>
-                <Text style={[styles.chipText, { color: showMoments ? gold : 'rgba(241,235,224,0.75)' }]}>
-                  mark moments{soloMoments.length > 0 ? ` · ${soloMoments.length}` : ''}
+                <TextInput
+                  style={styles.textArea}
+                  value={take}
+                  onChangeText={setTake}
+                  placeholder="what did you think?"
+                  placeholderTextColor="rgba(241,235,224,0.3)"
+                  multiline
+                  textAlignVertical="top"
+                  autoFocus
+                  onFocus={scrollToInput}
+                />
+                {lines.length > 1 && (
+                  <View style={styles.captionPicker}>
+                    <Text style={styles.captionLabel}>
+                      CAPTION — shown on the card
+                    </Text>
+                    {lines.map((line, i) => {
+                      const active = i === captionIdx;
+                      return (
+                        <TouchableOpacity
+                          key={i}
+                          style={[styles.captionRow, active && { borderColor: gold }]}
+                          onPress={() => setCaptionIndex(i)}
+                          activeOpacity={0.8}
+                        >
+                          <View
+                            style={[
+                              styles.captionRadio,
+                              { borderColor: active ? gold : 'rgba(241,235,224,0.3)' },
+                              active && { backgroundColor: gold },
+                            ]}
+                          />
+                          <Text style={styles.captionText} numberOfLines={1}>
+                            {line}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                )}
+              </>
+            ) : (
+              <TouchableOpacity style={styles.addButton} onPress={() => setShowTake(true)}>
+                <Text style={[styles.addButtonPlus, { color: gold }]}>+</Text>
+                <Text style={[styles.addButtonText, { color: gold }]}>
+                  {mode === 'track' ? 'add your take' : 'add a note'}
                 </Text>
               </TouchableOpacity>
             )}
           </View>
 
-          {/* Write a note - expandable via chip */}
-          {showTake && (
+          {/* Moments (Track mode only, optional) */}
+          {mode === 'track' && (
             <View style={styles.section}>
-              <TextInput
-                style={styles.textArea}
-                value={take}
-                onChangeText={setTake}
-                placeholder={mode === 'playlist' ? "what's this playlist for?" : "write as much as you want, one line or the whole thing…"}
-                placeholderTextColor="rgba(241,235,224,0.3)"
-                multiline
-                textAlignVertical="top"
-                autoFocus
-                onFocus={scrollToInput}
-              />
-              {mode !== 'playlist' && lines.length > 1 && (
-                <View style={styles.captionPicker}>
-                  <Text style={styles.captionLabel}>LEAD YOUR CARD WITH</Text>
-                  {lines.map((line, i) => {
-                    const active = i === captionIdx;
-                    return (
-                      <TouchableOpacity
-                        key={i}
-                        style={[
-                          styles.captionRow,
-                          active && { borderColor: `${gold}99`, backgroundColor: `${gold}14` }
-                        ]}
-                        onPress={() => setCaptionIndex(i)}
-                        activeOpacity={0.8}
-                      >
-                        <View
-                          style={[
-                            styles.captionRadio,
-                            { borderColor: active ? gold : 'rgba(241,235,224,0.3)' },
-                            active && { backgroundColor: gold },
-                          ]}
-                        >
-                          {active && <View style={styles.captionRadioDot} />}
-                        </View>
-                        <Text style={[styles.captionText, active && { color: tokens.colors.fg }]}>
-                          {line}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                  <Text style={styles.captionHint}>the rest becomes your full review. readers tap in for it</Text>
-                </View>
-              )}
-              {mode !== 'playlist' && lines.length === 1 && (
-                <Text style={styles.captionHint}>this line leads your card · write more for a full review</Text>
-              )}
-            </View>
-          )}
-
-          {/* Mark moments - track mode, expandable via chip */}
-          {mode === 'track' && showMoments && (
-            <View style={[styles.momentsCard, { borderColor: `${gold}33`, backgroundColor: `${gold}0a` }]}>
-              <View style={styles.momentsHeader}>
-                <Icon name="bookmark" size={16} color={gold} />
-                <Text style={[styles.momentsLabel, { color: gold }]}>THE MOMENTS THAT GOT YOU</Text>
-              </View>
-              <MomentsInput
-                moments={soloMoments}
-                onAdd={(m) =>
-                  setSoloMoments((prev) =>
-                    [...prev, m].sort((a, b) => a.seconds - b.seconds)
-                  )
-                }
-                onRemove={(idx) => setSoloMoments(soloMoments.filter((_, i) => i !== idx))}
-                onFieldFocus={scrollToInput}
-                gold={gold}
-              />
-            </View>
-          )}
-
-          {/* Review tracks - album mode, expandable via chip */}
-          {mode === 'album' && showTracks && albumTracks.length > 0 && (
-            <View style={[styles.tracksCard, { borderColor: 'rgba(241,235,224,0.1)' }]}>
-              <View style={styles.tracksHeader}>
-                <Text style={styles.tracksLabel}>
-                  {Object.values(tracks).every(t => !t.excluded) ? 'react to the ones that stood out' : 'tap a track to react'}
-                </Text>
-                <TouchableOpacity
-                  style={[
-                    styles.selectAllButton,
-                    Object.values(tracks).every(t => !t.excluded)
-                      ? { borderColor: 'rgba(241,235,224,0.2)' }
-                      : { borderColor: `${gold}88`, backgroundColor: `${gold}14` }
-                  ]}
-                  onPress={() => {
-                    const allSelected = Object.values(tracks).every(t => !t.excluded);
-                    setTracks(prev => {
-                      const updated = { ...prev };
-                      Object.keys(updated).forEach(key => {
-                        updated[Number(key)] = { ...updated[Number(key)], excluded: allSelected };
-                      });
-                      return updated;
-                    });
-                  }}
-                >
-                  <Text style={[
-                    styles.selectAllText,
-                    { color: Object.values(tracks).every(t => !t.excluded) ? 'rgba(241,235,224,0.65)' : gold }
-                  ]}>
-                    {Object.values(tracks).every(t => !t.excluded) ? 'clear all' : 'select all'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-              {albumTracks.map((track, index) => {
-                const trackNum = track.trackNumber || index + 1;
-                const trackData = tracks[trackNum];
-                const key = `album-${trackNum}`;
-                const setTrack = (patch: Partial<TrackData>) =>
-                  setTracks((prev) => {
-                    const base: TrackData =
-                      prev[trackNum] ?? { n: trackNum, name: track.name, reaction: null, review: '', moments: [] };
-                    return { ...prev, [trackNum]: { ...base, ...patch } };
-                  });
-                return (
-                  <EditableTrackRow
-                    key={track.id || index}
-                    number={trackNum}
-                    name={track.name}
-                    reaction={trackData?.reaction ?? null}
-                    note={trackData?.review || ''}
-                    moments={trackData?.moments || []}
-                    noteOpen={noteEditingId === key}
+              {showMoments ? (
+                <>
+                  <Text style={styles.sectionLabel}>MOMENTS</Text>
+                  <MomentsInput
+                    moments={soloMoments}
+                    onAdd={(m) =>
+                      setSoloMoments((prev) =>
+                        [...prev, m].sort((a, b) => a.seconds - b.seconds)
+                      )
+                    }
+                    onRemove={(idx) => setSoloMoments(soloMoments.filter((_, i) => i !== idx))}
+                    onFieldFocus={scrollToInput}
                     gold={gold}
-                    onCycleReaction={() => setTrack({ reaction: nextReaction(trackData?.reaction ?? null) })}
-                    onToggleNote={() => setNoteEditingId((cur) => (cur === key ? null : key))}
-                    onChangeNote={(text) => setTrack({ review: text })}
-                    onAddMoment={(m) => setTrack({ moments: [...(trackData?.moments || []), m].sort((a, b) => a.seconds - b.seconds) })}
-                    onRemoveMoment={(idx) => setTrack({ moments: (trackData?.moments || []).filter((_, i) => i !== idx) })}
-                    onFocusNote={scrollToInput}
                   />
-                );
-              })}
+                </>
+              ) : (
+                <TouchableOpacity style={styles.addButton} onPress={() => setShowMoments(true)}>
+                  <Text style={[styles.addButtonPlus, { color: gold }]}>+</Text>
+                  <Text style={[styles.addButtonText, { color: gold }]}>add moments</Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
 
@@ -1210,15 +1124,11 @@ function EditableTrackRow({
   artist,
   reaction,
   note,
-  moments = [],
   noteOpen,
   gold,
-  showArtist,
   onCycleReaction,
   onToggleNote,
   onChangeNote,
-  onAddMoment,
-  onRemoveMoment,
   onRemove,
   onFocusNote,
 }: {
@@ -1227,35 +1137,27 @@ function EditableTrackRow({
   artist?: string;
   reaction: ReactionType;
   note?: string;
-  moments?: Moment[];
   noteOpen: boolean;
   gold: string;
-  showArtist?: boolean;
   onCycleReaction: () => void;
   onToggleNote: () => void;
   onChangeNote: (text: string) => void;
-  onAddMoment?: (m: Moment) => void;
-  onRemoveMoment?: (idx: number) => void;
   onRemove?: () => void;
   onFocusNote?: () => void;
 }) {
-  const momentCount = moments.length;
-
   return (
     <View style={styles.etrItem}>
       <View style={styles.etrRow}>
-        {showArtist ? (
-          <View style={[styles.etrDot, { backgroundColor: reaction ? gold : 'rgba(241,235,224,0.25)' }]} />
-        ) : (
-          <Text style={styles.etrNum}>{String(number).padStart(2, '0')}</Text>
-        )}
-
-        <TouchableOpacity style={styles.etrInfo} onPress={onCycleReaction} activeOpacity={0.7}>
+        <Text style={styles.etrNum}>{String(number).padStart(2, '0')}</Text>
+        <View style={styles.etrInfo}>
           <Text style={styles.etrName} numberOfLines={1}>{name}</Text>
-          {showArtist && !!artist && (
+          {!!artist && (
             <Text style={styles.etrArtist} numberOfLines={1}>{artist}</Text>
           )}
-        </TouchableOpacity>
+          {!!note && !noteOpen && (
+            <Text style={styles.etrNote} numberOfLines={2}>"{note}"</Text>
+          )}
+        </View>
 
         {/* Optional reaction: tap to cycle none → flame → love → skip */}
         <TouchableOpacity style={styles.etrReact} onPress={onCycleReaction} activeOpacity={0.7}>
@@ -1266,47 +1168,34 @@ function EditableTrackRow({
           )}
         </TouchableOpacity>
 
-        {/* Bookmark → write a note and add moments for this track */}
+        {/* Bookmark → write a note for this track */}
         <TouchableOpacity
-          style={[styles.etrBookmarkBtn, (noteOpen || !!note || momentCount > 0) && styles.etrBookmarkBtnActive]}
+          style={[styles.etrBtn, (noteOpen || !!note) && { borderColor: gold, backgroundColor: `${gold}14` }]}
           onPress={onToggleNote}
           activeOpacity={0.7}
         >
-          {momentCount > 0 && !noteOpen && (
-            <Text style={[styles.etrMomentCount, { color: gold }]}>{momentCount}</Text>
-          )}
-          <Icon name="bookmark" size={16} color={noteOpen || !!note || momentCount > 0 ? gold : 'rgba(241,235,224,0.4)'} />
+          <Icon name="bookmark" size={15} color={noteOpen || !!note ? gold : 'rgba(241,235,224,0.55)'} filled={!!note} />
         </TouchableOpacity>
 
         {onRemove && (
           <TouchableOpacity style={styles.etrBtn} onPress={onRemove} activeOpacity={0.7}>
-            <Icon name="close" size={15} color="rgba(241,235,224,0.4)" />
+            <Icon name="close" size={15} color="rgba(241,235,224,0.55)" />
           </TouchableOpacity>
         )}
       </View>
 
       {noteOpen && (
-        <View style={[styles.etrExpanded, { backgroundColor: `${gold}07` }]}>
-          <TextInput
-            style={styles.etrNoteInput}
-            value={note}
-            onChangeText={onChangeNote}
-            placeholder={`a note on "${name}"…`}
-            placeholderTextColor="rgba(241,235,224,0.3)"
-            multiline
-            textAlignVertical="top"
-            onFocus={onFocusNote}
-          />
-          {onAddMoment && onRemoveMoment && (
-            <MomentsInput
-              moments={moments}
-              onAdd={onAddMoment}
-              onRemove={onRemoveMoment}
-              onFieldFocus={onFocusNote}
-              gold={gold}
-            />
-          )}
-        </View>
+        <TextInput
+          style={styles.playlistNoteInput}
+          value={note}
+          onChangeText={onChangeNote}
+          placeholder="why this track? (optional)"
+          placeholderTextColor="rgba(241,235,224,0.3)"
+          multiline
+          textAlignVertical="top"
+          autoFocus
+          onFocus={onFocusNote}
+        />
       )}
     </View>
   );
@@ -1840,350 +1729,32 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(241,235,224,0.12)',
   },
-  // Rating section - centered without label
-  ratingSection: {
-    marginTop: 22,
-    alignItems: 'center',
-  },
-  ratingRow: {
+  effortMeter: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-  },
-  ratingNumber: {
-    fontFamily: 'Menlo',
-    fontSize: 22,
-    minWidth: 36,
-    textAlign: 'left',
-  },
-  ratingHint: {
-    marginTop: 8,
-    fontFamily: 'System',
-    fontSize: 12,
-    color: 'rgba(241,235,224,0.45)',
-  },
-  // Effort meter card
-  effortCard: {
-    marginTop: 18,
-    padding: 13,
-    paddingHorizontal: 15,
-    borderRadius: 14,
-    backgroundColor: 'rgba(241,235,224,0.04)',
-    borderWidth: 1,
-  },
-  effortBars: {
-    flexDirection: 'row',
-    gap: 5,
-    marginBottom: 10,
-  },
-  effortBarFull: {
-    flex: 1,
-    height: 4,
-    borderRadius: 3,
-  },
-  effortRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  effortSummary: {
-    fontFamily: 'System',
-    fontSize: 12.5,
-    color: 'rgba(241,235,224,0.7)',
-  },
-  effortType: {
-    fontWeight: '600',
+    alignItems: 'baseline',
+    gap: 8,
+    marginTop: 14,
   },
   effortLabel: {
     fontFamily: 'Menlo',
-    fontSize: 10,
-    color: 'rgba(241,235,224,0.4)',
-    letterSpacing: 0.5,
+    fontSize: 9,
+    letterSpacing: 0.8,
     textTransform: 'uppercase',
+    color: 'rgba(241,235,224,0.45)',
   },
-  playlistBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 999,
-    alignSelf: 'flex-start',
-    marginBottom: 9,
-  },
-  playlistBadgeText: {
-    fontFamily: 'Menlo',
-    fontSize: 10,
-    letterSpacing: 0.4,
-    textTransform: 'uppercase',
-  },
-  albumReviewBadge: {
-    marginTop: 10,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-  },
-  albumBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 999,
-  },
-  albumBadgeText: {
-    fontFamily: 'Menlo',
-    fontSize: 10,
-    letterSpacing: 0.4,
-    textTransform: 'uppercase',
-  },
-  albumReviewStats: {
-    fontFamily: 'Menlo',
-    fontSize: 10,
-    color: 'rgba(241,235,224,0.55)',
-  },
-  // Chip-based expandable sections
-  chipRow: {
-    marginTop: 16,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 13,
-    paddingVertical: 9,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: 'rgba(241,235,224,0.16)',
-    backgroundColor: 'transparent',
-  },
-  chipPlus: {
-    fontSize: 15,
-    lineHeight: 15,
-  },
-  chipText: {
-    fontFamily: 'System',
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  // Moments card
-  momentsCard: {
-    marginTop: 13,
-    padding: 13,
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  momentsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 9,
-    marginBottom: 11,
-  },
-  momentsLabel: {
-    fontFamily: 'Menlo',
-    fontSize: 11,
-    letterSpacing: 0.66,
-    textTransform: 'uppercase',
-  },
-  // Tracks card (album mode)
-  tracksCard: {
-    marginTop: 13,
-    borderRadius: 14,
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
-  tracksHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-    paddingHorizontal: 13,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(241,235,224,0.08)',
-  },
-  tracksLabel: {
-    fontFamily: 'Menlo',
-    fontSize: 10,
-    letterSpacing: 0.6,
-    color: 'rgba(241,235,224,0.5)',
-    textTransform: 'uppercase',
-  },
-  selectAllButton: {
-    flexShrink: 0,
-    paddingHorizontal: 11,
-    paddingVertical: 5,
-    borderRadius: 999,
-    borderWidth: 1,
-  },
-  selectAllText: {
-    fontFamily: 'System',
-    fontSize: 11.5,
-    fontWeight: '600',
-  },
-  // Caption picker
-  captionRadioDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: tokens.colors.bg,
-  },
-  captionHint: {
-    marginTop: 8,
-    fontFamily: 'Menlo',
-    fontSize: 9.5,
-    color: 'rgba(241,235,224,0.4)',
-    letterSpacing: 0.3,
-  },
-  // Proposed content card
-  proposedCard: {
-    marginTop: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 13,
-    padding: 11,
-    borderRadius: 14,
-    backgroundColor: 'rgba(241,235,224,0.04)',
-    borderWidth: 1,
-  },
-  proposedArt: {
-    width: 58,
-    height: 58,
-    borderRadius: 9,
-    overflow: 'hidden',
-    flexShrink: 0,
-  },
-  proposedInfo: {
-    flex: 1,
-    minWidth: 0,
-  },
-  proposedLabel: {
-    fontFamily: 'Menlo',
-    fontSize: 9.5,
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-    marginBottom: 2,
-  },
-  proposedTitle: {
-    fontFamily: 'System',
-    fontWeight: '600',
-    fontSize: 17,
-    color: tokens.colors.fg,
-    lineHeight: 18.7,
-  },
-  proposedMeta: {
-    fontFamily: 'System',
-    fontSize: 12.5,
-    color: tokens.colors.muted,
-  },
-  proposedChange: {
+  effortBars: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
-  proposedChangeText: {
+  effortBar: {
+    height: 2,
+    borderRadius: 1,
+  },
+  effortDepth: {
     fontFamily: 'Menlo',
-    fontSize: 11,
-    color: 'rgba(241,235,224,0.55)',
-  },
-  playlistTitleInput: {
-    backgroundColor: 'rgba(241,235,224,0.06)',
-    borderWidth: 1,
-    borderRadius: 13,
-    padding: 12,
-    fontFamily: 'System',
-    fontSize: 17,
-    fontWeight: '600',
-    color: tokens.colors.fg,
-  },
-  // Spotify/Apple link paste
-  linkInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 9,
-    padding: 10,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    backgroundColor: 'rgba(241,235,224,0.04)',
-    borderWidth: 1,
-    marginTop: 11,
-  },
-  linkInput: {
-    flex: 1,
-    minWidth: 0,
-    fontFamily: 'Menlo',
-    fontSize: 12,
-    color: tokens.colors.fg,
-  },
-  linkHint: {
-    marginTop: 6,
-    fontFamily: 'Menlo',
-    fontSize: 9.5,
-    color: 'rgba(241,235,224,0.4)',
-    letterSpacing: 0.2,
-    lineHeight: 13,
-  },
-  // Playlist tracks
-  playlistTracksLabel: {
-    fontFamily: 'Menlo',
-    fontSize: 10,
-    letterSpacing: 0.6,
-    color: 'rgba(241,235,224,0.5)',
+    fontSize: 9,
+    letterSpacing: 0.8,
     textTransform: 'uppercase',
-  },
-  addTrackButton: {
-    width: '100%',
-    padding: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 7,
-  },
-  addTrackText: {
-    fontFamily: 'System',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  // Editable track row
-  etrDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    flexShrink: 0,
-    marginLeft: 13,
-  },
-  etrBookmarkBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    padding: 11,
-    paddingHorizontal: 12,
-    borderLeftWidth: 1,
-    borderLeftColor: 'rgba(241,235,224,0.06)',
-  },
-  etrBookmarkBtnActive: {
-    // Active state handled by color changes
-  },
-  etrMomentCount: {
-    fontFamily: 'Menlo',
-    fontSize: 10,
-  },
-  etrExpanded: {
-    padding: 2,
-    paddingHorizontal: 13,
-    paddingBottom: 13,
-    gap: 8,
-  },
-  etrNoteInput: {
-    backgroundColor: 'rgba(241,235,224,0.06)',
-    borderWidth: 1,
-    borderColor: 'rgba(241,235,224,0.14)',
-    borderRadius: 12,
-    padding: 11,
-    paddingHorizontal: 13,
-    fontFamily: 'System',
-    fontSize: 13,
-    color: tokens.colors.fg,
-    minHeight: 54,
   },
 });
