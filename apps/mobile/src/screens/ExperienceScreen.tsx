@@ -19,6 +19,10 @@ import { useAuth } from '../contexts/AuthContext';
 import { api } from '../lib/api-client';
 import type { FeedReview } from '../lib/feed-types';
 import { lastfm } from '../services/lastfm';
+import { ShareSheet } from '../components/ShareSheet';
+import { ReviewShareCard, LyricShareCard } from '../components/share';
+import { shareToInstagramStory, shareToTikTok, saveCardImage, shareToTwitter } from '../lib/share-utils';
+import * as Clipboard from 'expo-clipboard';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -59,7 +63,9 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
   const [playbackPosition, setPlaybackPosition] = useState(0); // seconds
   const [lyrics, setLyrics] = useState<SyncedLyrics | null>(null);
   const [lyricsError, setLyricsError] = useState<string | null>(null);
+  const [shareSheetVisible, setShareSheetVisible] = useState(false);
   const lyricListRef = useRef<FlatList>(null);
+  const shareCardRef = useRef<View>(null);
 
   const isAlbum = !!(album.tracks && album.tracks.length > 0);
   const isAlbumReview = album.kind === 'album';
@@ -271,6 +277,40 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
   const tapNote = (key: string) => {
     setActiveNote(key);
     setTimeout(() => setActiveNote(null), 2600);
+  };
+
+  const handleExport = async (format: 'instagram' | 'tiktok' | 'camera' | 'twitter', cardFormat?: 'story' | 'square') => {
+    if (!shareCardRef.current) {
+      Alert.alert('Error', 'Unable to capture card. Please try again.');
+      return;
+    }
+
+    try {
+      // Generate review URL (would be actual deep link in production)
+      const reviewUrl = `https://linernotes.app/review/${review.id}`;
+
+      // Copy link to clipboard for all formats
+      await Clipboard.setStringAsync(reviewUrl);
+
+      // Handle different export formats
+      switch (format) {
+        case 'instagram':
+          await shareToInstagramStory(shareCardRef.current);
+          break;
+        case 'tiktok':
+          await shareToTikTok(shareCardRef.current);
+          break;
+        case 'camera':
+          await saveCardImage(shareCardRef.current);
+          break;
+        case 'twitter':
+          await shareToTwitter(shareCardRef.current, reviewUrl);
+          break;
+      }
+    } catch (error) {
+      console.error('Export failed:', error);
+      Alert.alert('Error', 'Failed to export card. Please try again.');
+    }
   };
 
   const renderLyricLine = ({ item, index }: { item: LyricLine; index: number }) => {
@@ -538,8 +578,30 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
           <Icon name="chevdown" size={20} color="#f1ebe0" />
         </TouchableOpacity>
         <Text style={styles.experienceLabel}>the experience · Musicathon</Text>
-        <View style={{ width: 38 }} />
+        <TouchableOpacity onPress={() => setShareSheetVisible(true)} style={styles.shareButton}>
+          <Icon name="share" size={18} color="#f1ebe0" />
+        </TouchableOpacity>
       </View>
+
+      {/* Share sheet */}
+      <ShareSheet
+        visible={shareSheetVisible}
+        onClose={() => setShareSheetVisible(false)}
+        onExport={handleExport}
+        accent={gold}
+        type="review"
+        hasFull={!!review.body}
+      >
+        {({ format, linkSlot }) => (
+          <View ref={shareCardRef} collapsable={false}>
+            <ReviewShareCard
+              review={review}
+              format={format}
+              linkSlot={linkSlot}
+            />
+          </View>
+        )}
+      </ShareSheet>
     </Animated.View>
   );
 }
@@ -684,6 +746,16 @@ const styles = StyleSheet.create({
     color: '#e0762f',
   },
   closeButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(241,235,224,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(241,235,224,0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shareButton: {
     width: 38,
     height: 38,
     borderRadius: 19,
