@@ -11,6 +11,8 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    const session = await getAuthSession();
+    const currentUserId = session?.user?.id;
 
     const albumReview = await prisma.albumReview.findUnique({
       where: { id },
@@ -26,8 +28,9 @@ export async function GET(
         },
         likes: true,
         reposts: true,
+        saves: true,
         _count: {
-          select: { likes: true, reposts: true },
+          select: { likes: true, reposts: true, saves: true },
         },
       },
     });
@@ -79,6 +82,10 @@ export async function GET(
       createdAt: albumReview.createdAt.toISOString(),
       likeCount: albumReview._count.likes,
       repostCount: albumReview._count.reposts,
+      saveCount: albumReview._count.saves,
+      likedByMe: currentUserId ? albumReview.likes.some((l) => l.userId === currentUserId) : false,
+      repostedByMe: currentUserId ? albumReview.reposts.some((r) => r.userId === currentUserId) : false,
+      saved: currentUserId ? albumReview.saves.some((s) => s.userId === currentUserId) : false,
     };
 
     return NextResponse.json({ albumReview: transformedAlbumReview });

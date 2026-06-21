@@ -11,12 +11,15 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    const session = await getAuthSession();
+    const currentUserId = session?.user?.id;
 
     const review = await prisma.review.findUnique({
       where: { id },
       include: {
         user: true,
         likes: true,
+        saves: true,
         reposts: {
           include: { user: true },
         },
@@ -24,7 +27,7 @@ export async function GET(
           orderBy: { createdAt: 'asc' },
         },
         _count: {
-          select: { likes: true, reposts: true },
+          select: { likes: true, reposts: true, saves: true },
         },
       },
     });
@@ -64,6 +67,10 @@ export async function GET(
       createdAt: review.createdAt.toISOString(),
       likeCount: review._count.likes,
       repostCount: review._count.reposts,
+      saveCount: review._count.saves,
+      likedByMe: currentUserId ? review.likes.some((l) => l.userId === currentUserId) : false,
+      repostedByMe: currentUserId ? review.reposts.some((r) => r.userId === currentUserId) : false,
+      saved: currentUserId ? review.saves.some((s) => s.userId === currentUserId) : false,
     };
 
     return NextResponse.json({ review: transformedReview });

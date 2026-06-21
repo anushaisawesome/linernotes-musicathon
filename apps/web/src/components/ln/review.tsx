@@ -98,6 +98,59 @@ function SectionLabel({ children, gold }: { children: ReactNode; gold: string })
   );
 }
 
+// Like / repost / save on the open review page. Mirrors the feed-card actions:
+// optimistic toggle, reverts on error, gated to other people's reviews.
+function ReviewSocialActions({ vm, gold }: { vm: ReviewVM; gold: string }) {
+  const base = vm.kind === "album" ? `/api/album-reviews/${vm.id}` : `/api/reviews/${vm.id}`;
+  const [like, setLike] = useState({ on: !!vm.likedByMe, n: vm.likeCount || 0 });
+  const [repost, setRepost] = useState({ on: !!vm.repostedByMe, n: vm.repostCount || 0 });
+  const [saved, setSaved] = useState(!!vm.saved);
+  const [busy, setBusy] = useState({ like: false, repost: false, save: false });
+
+  // Re-sync once the page's fetch resolves with the viewer's own state.
+  useEffect(() => { setLike({ on: !!vm.likedByMe, n: vm.likeCount || 0 }); }, [vm.id, vm.likedByMe, vm.likeCount]);
+  useEffect(() => { setRepost({ on: !!vm.repostedByMe, n: vm.repostCount || 0 }); }, [vm.id, vm.repostedByMe, vm.repostCount]);
+  useEffect(() => { setSaved(!!vm.saved); }, [vm.id, vm.saved]);
+
+  const toggle = async (kind: "like" | "repost" | "save") => {
+    if (busy[kind]) return;
+    setBusy((b) => ({ ...b, [kind]: true }));
+    try {
+      if (kind === "like") {
+        const prev = like;
+        setLike((s) => ({ on: !s.on, n: s.n + (s.on ? -1 : 1) }));
+        try { await fetch(`${base}/like`, { method: "POST" }); } catch { setLike(prev); }
+      } else if (kind === "repost") {
+        const prev = repost;
+        setRepost((s) => ({ on: !s.on, n: s.n + (s.on ? -1 : 1) }));
+        try { await fetch(`${base}/repost`, { method: "POST" }); } catch { setRepost(prev); }
+      } else {
+        const prev = saved;
+        setSaved((s) => !s);
+        try { await fetch(`${base}/save`, { method: "POST" }); } catch { setSaved(prev); }
+      }
+    } finally {
+      setBusy((b) => ({ ...b, [kind]: false }));
+    }
+  };
+
+  const btn = (active: boolean) => ({ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7, padding: "10px 15px", borderRadius: 999, cursor: "pointer", border: `1px solid ${active ? gold : "rgba(241,235,224,0.18)"}`, background: active ? `${gold}1f` : "rgba(241,235,224,0.05)", color: active ? gold : INK, fontFamily: "var(--ln-body)", fontSize: 13.5, fontWeight: 600 } as const);
+
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 9 }}>
+      <button onClick={() => toggle("like")} className="ln-press" style={btn(like.on)}>
+        <LNIcon name="like" size={16} filled={like.on} color={like.on ? gold : INK} /> {like.n}
+      </button>
+      <button onClick={() => toggle("repost")} className="ln-press" style={btn(repost.on)}>
+        <LNIcon name="repost" size={16} color={repost.on ? gold : INK} /> {repost.n}
+      </button>
+      <button onClick={() => toggle("save")} className="ln-press" style={btn(saved)}>
+        <LNIcon name="save" size={16} filled={saved} color={saved ? gold : INK} /> {saved ? "Saved" : "Save"}
+      </button>
+    </div>
+  );
+}
+
 function TrackCard({ t, gold, np }: { t: TrackVM; gold: string; np: boolean }) {
   const mc = t.moments?.length || 0;
   return (
@@ -258,7 +311,7 @@ export function ImmersiveReview({
             {/* Experience button — track reviews play the one song; album reviews
                 play through every reviewed track with prev/next navigation. */}
             {(vm.kind === "track" || (vm.kind === "album" && album.tracks.length > 0)) && (
-              <button onClick={() => router.push(`/experience/${vm.id}${vm.kind === "album" ? "?type=album" : ""}`)} className="ln-press" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "15px 20px", borderRadius: 999, border: "none", background: gold, cursor: "pointer", fontFamily: "var(--ln-body)", fontSize: 16, fontWeight: 700, color: "#2c1517", boxShadow: `0 16px 34px -12px ${gold}` }}>
+              <button onClick={() => router.push(`/experience/${vm.id}${vm.kind === "album" ? "?type=album" : ""}`)} className="ln-press" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "15px 20px", borderRadius: 999, border: "none", background: gold, cursor: "pointer", fontFamily: "var(--ln-body)", fontSize: 16, fontWeight: 700, color: "#2c1517", boxShadow: `0 6px 16px -10px ${gold}99` }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                   <path d="M12 2v6M12 16v6M6 12h12M6 12l-4 4M6 12l-4-4M18 12l4 4M18 12l4-4" stroke="#2c1517" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
@@ -288,6 +341,8 @@ export function ImmersiveReview({
               </div>
               {!isSelf && vm.user.id && vm.user.id !== "anon" && <FollowButton userId={vm.user.id} />}
             </div>
+
+            {!isSelf && vm.kind !== "playlist" && <ReviewSocialActions vm={vm} gold={gold} />}
 
             {actions}
           </div>
@@ -340,7 +395,7 @@ export function ImmersiveReview({
             {isAlbum && (
               <div style={{ marginTop: 34 }}>
                 <SectionLabel gold={gold}>tracks &amp; moments</SectionLabel>
-                <div className="lnw-track-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 16, marginTop: 16 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 16, maxWidth: 620 }}>
                   {album.tracks.map((tr) => (
                     <TrackCard key={tr.n} t={tr} gold={gold} np={!!npTrack && tr.n === npTrack.n} />
                   ))}
