@@ -33,6 +33,11 @@ export type Track = {
   previewUrl?: string;
   genre?: string;
   palette?: Palette;
+  // Origin of the search result (e.g. "spotify" | "itunes" | "musicbrainz").
+  // Used to decide whether a Spotify ID lookup is needed before playback.
+  source?: string;
+  duration?: number;
+  releaseDate?: string;
 };
 
 export type Album = {
