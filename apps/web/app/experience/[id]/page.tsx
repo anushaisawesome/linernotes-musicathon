@@ -110,7 +110,7 @@ function ExperienceContent() {
     async function fetchLyrics() {
       try {
         // Use trackId (Spotify track ID) to fetch lyrics
-        const res = await fetch(`/api/lyrics?trackId=${encodeURIComponent(trackId)}`);
+        const res = await fetch(`/api/lyrics?trackId=${encodeURIComponent(trackId || '')}`);
 
         if (res.status === 401 || res.status === 403) {
           setError("Musixmatch trial key has expired. See the video for the full experience!");
