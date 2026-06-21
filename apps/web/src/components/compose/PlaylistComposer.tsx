@@ -3,15 +3,32 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import type { Track } from "@/lib/types";
+import type { Track, Review } from "@/lib/types";
 import { TrackSearch } from "./TrackSearch";
 import { searchTracks, getReviews } from "@/lib/api";
-import { LNArt } from "@/components/ln/atoms";
+import { LNArt, LNIcon } from "@/components/ln/atoms";
 import { paletteFromString } from "@/lib/palette";
 import { ModeTabs } from "./composer-ui";
 
 interface PlaylistTrack extends Track {
   note?: string;
+}
+
+// Roll a review's take + timestamped moments into a single playlist note so the
+// playlist carries your own words. It's a local copy — editing it here never
+// touches the original review.
+function reviewToNote(r: Review): string {
+  const parts: string[] = [];
+  if (r.take?.trim()) parts.push(r.take.trim());
+  for (const n of r.notes || []) {
+    const mm = Math.floor((n.seconds || 0) / 60);
+    const ss = Math.floor((n.seconds || 0) % 60);
+    const ts = `${mm}:${String(ss).padStart(2, "0")}`;
+    const lyric = n.lyric ? `“${n.lyric}” ` : "";
+    const body = (lyric + (n.note || (n.label && n.label !== "moment" ? n.label : ""))).trim();
+    if (body) parts.push(`${ts} — ${body}`);
+  }
+  return parts.join("\n");
 }
 
 const cmpInput: React.CSSProperties = {
@@ -37,21 +54,21 @@ export function PlaylistComposer() {
   const [editingNoteIndex, setEditingNoteIndex] = useState<number | null>(null);
   const [noteText, setNoteText] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [reviewedTracks, setReviewedTracks] = useState<Track[]>([]);
+  const [reviewedTracks, setReviewedTracks] = useState<{ track: Track; note: string }[]>([]);
 
-  // The tracks you've reviewed (deduped) — a quick way to build a playlist from
-  // songs you've already logged. getReviews() returns the current user's reviews.
+  // The tracks you've reviewed (deduped), each carrying your note/moments — a quick
+  // way to build a playlist from songs you've already logged.
   useEffect(() => {
     let cancelled = false;
     getReviews()
       .then((rs) => {
         if (cancelled) return;
         const seen = new Set<string>();
-        const out: Track[] = [];
+        const out: { track: Track; note: string }[] = [];
         for (const r of rs || []) {
           if (r.track?.trackId && !seen.has(r.track.trackId)) {
             seen.add(r.track.trackId);
-            out.push(r.track);
+            out.push({ track: r.track, note: reviewToNote(r) });
           }
         }
         setReviewedTracks(out);
@@ -63,13 +80,13 @@ export function PlaylistComposer() {
   const gold = "var(--ln-accent)";
   const canPost = title.trim() && tracks.length > 0;
 
-  const handleAddTrack = (track: Track) => {
+  const handleAddTrack = (track: Track, note?: string) => {
     // Check if track already exists
     if (tracks.some((t) => t.trackId === track.trackId)) {
       alert("This track is already in your playlist");
       return;
     }
-    setTracks([...tracks, { ...track, note: undefined }]);
+    setTracks([...tracks, { ...track, note: note?.trim() || undefined }]);
   };
 
   const handleRemoveTrack = (index: number) => {
@@ -195,13 +212,13 @@ export function PlaylistComposer() {
             Or pick from your reviews
           </div>
           <div className="ln-scroll" style={{ display: "flex", gap: 13, overflowX: "auto", paddingBottom: 8 }}>
-            {reviewedTracks.map((t) => {
+            {reviewedTracks.map(({ track: t, note }) => {
               const added = tracks.some((x) => x.trackId === t.trackId);
               return (
                 <button
                   key={t.trackId}
                   type="button"
-                  onClick={() => { if (!added) handleAddTrack(t); }}
+                  onClick={() => { if (!added) handleAddTrack(t, note); }}
                   className="ln-press"
                   style={{ width: 116, flexShrink: 0, display: "flex", flexDirection: "column", gap: 7, background: "none", border: "none", padding: 0, cursor: added ? "default" : "pointer", textAlign: "left", opacity: added ? 0.5 : 1 }}
                 >
@@ -230,69 +247,78 @@ export function PlaylistComposer() {
           <div style={{ fontFamily: "var(--ln-mono)", fontSize: 10, letterSpacing: "0.08em", color: gold, textTransform: "uppercase" }}>
             Your playlist
           </div>
-          {tracks.map((track, index) => (
-            <div key={`${track.trackId}-${index}`} style={{ display: "flex", gap: 12, padding: 12, borderRadius: 12, background: "var(--ln-surface)", border: "1px solid rgba(var(--ln-line-rgb),0.08)" }}>
-              {/* Order Number */}
-              <div style={{ flexShrink: 0, width: 32, height: 32, borderRadius: "50%", background: gold, color: "#2c1517", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--ln-mono)", fontSize: 14, fontWeight: 700 }}>
+          {tracks.map((track, index) => {
+            const iconBtn: React.CSSProperties = { width: 28, height: 28, borderRadius: 7, background: "rgba(var(--ln-fg-rgb),0.06)", border: "1px solid rgba(var(--ln-fg-rgb),0.12)", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, cursor: "pointer" };
+            return (
+            <div key={`${track.trackId}-${index}`} style={{ display: "flex", gap: 11, padding: 10, borderRadius: 12, background: "var(--ln-surface)", border: "1px solid rgba(var(--ln-line-rgb),0.08)" }}>
+              {/* Order number */}
+              <div style={{ flexShrink: 0, width: 22, height: 22, borderRadius: "50%", background: gold, color: "#2c1517", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--ln-mono)", fontSize: 11, fontWeight: 700, marginTop: 3 }}>
                 {index + 1}
               </div>
 
-              {/* Album Art */}
-              <div style={{ width: 60, height: 60, borderRadius: 8, overflow: "hidden", flexShrink: 0 }}>
-                <LNArt palette={paletteFromString(track.name)} src={track.artworkUrl} label="" radius={8} noTag />
+              {/* Album art */}
+              <div style={{ width: 44, height: 44, borderRadius: 8, overflow: "hidden", flexShrink: 0 }}>
+                <LNArt palette={paletteFromString(track.trackId || track.name)} src={track.artworkUrl} label="" radius={8} noTag />
               </div>
 
-              {/* Track Info */}
-              <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
-                <div style={{ fontFamily: "var(--ln-album)", fontWeight: 600, fontSize: 15, color: "var(--ln-fg)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {/* Track info */}
+              <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
+                <div style={{ fontFamily: "var(--ln-album)", fontWeight: 600, fontSize: 14, color: "var(--ln-fg)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {track.name}
                 </div>
-                <div style={{ fontFamily: "var(--ln-body)", fontSize: 12.5, color: "var(--ln-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {track.artist} · {track.album}
+                <div style={{ fontFamily: "var(--ln-body)", fontSize: 12, color: "var(--ln-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {track.artist}{track.album ? ` · ${track.album}` : ""}
                 </div>
                 {track.note && editingNoteIndex !== index && (
-                  <div style={{ fontFamily: "var(--ln-mono)", fontSize: 11, color: "rgba(var(--ln-fg-rgb),0.7)", fontStyle: "italic", marginTop: 4 }}>
-                    "{track.note}"
+                  <div style={{ fontFamily: "var(--ln-body)", fontStyle: "italic", fontSize: 12.5, lineHeight: 1.45, color: "rgba(var(--ln-fg-rgb),0.72)", marginTop: 5, whiteSpace: "pre-wrap" }}>
+                    {track.note}
                   </div>
                 )}
                 {editingNoteIndex === index && (
-                  <div style={{ marginTop: 4, display: "flex", gap: 6 }}>
-                    <input
-                      type="text"
+                  <div style={{ marginTop: 7 }}>
+                    <textarea
                       value={noteText}
                       onChange={(e) => setNoteText(e.target.value)}
-                      placeholder="Add a note about this track..."
-                      maxLength={200}
-                      style={{ ...cmpInput, fontSize: 12, padding: "8px 10px" }}
+                      placeholder="Why this track? Add a note…"
+                      maxLength={500}
+                      rows={3}
+                      style={{ ...cmpInput, fontSize: 13.5 }}
                       autoFocus
                     />
-                    <button type="button" onClick={handleSaveNote} style={{ padding: "8px 12px", borderRadius: 8, background: gold, color: "#2c1517", border: "none", cursor: "pointer", fontFamily: "var(--ln-body)", fontSize: 12, fontWeight: 600 }}>
-                      Save
-                    </button>
-                    <button type="button" onClick={() => { setEditingNoteIndex(null); setNoteText(""); }} style={{ padding: "8px 12px", borderRadius: 8, background: "rgba(var(--ln-fg-rgb),0.1)", color: "var(--ln-fg)", border: "none", cursor: "pointer", fontFamily: "var(--ln-body)", fontSize: 12, fontWeight: 600 }}>
-                      Cancel
-                    </button>
+                    <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                      <button type="button" onClick={handleSaveNote} className="ln-press" style={{ padding: "8px 16px", borderRadius: 10, background: gold, color: "#2c1517", border: "none", cursor: "pointer", fontFamily: "var(--ln-body)", fontSize: 13, fontWeight: 700 }}>
+                        Save note
+                      </button>
+                      <button type="button" onClick={() => { setEditingNoteIndex(null); setNoteText(""); }} className="ln-press" style={{ padding: "8px 14px", borderRadius: 10, background: "rgba(var(--ln-fg-rgb),0.08)", color: "var(--ln-fg)", border: "1px solid rgba(var(--ln-fg-rgb),0.16)", cursor: "pointer", fontFamily: "var(--ln-body)", fontSize: 13, fontWeight: 600 }}>
+                        Cancel
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
 
-              {/* Actions */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
-                <button type="button" onClick={() => handleMoveTrack(index, "up")} disabled={index === 0} style={{ padding: "6px 10px", borderRadius: 6, background: "rgba(var(--ln-fg-rgb),0.06)", color: "var(--ln-fg)", border: "1px solid rgba(var(--ln-fg-rgb),0.12)", cursor: index === 0 ? "default" : "pointer", opacity: index === 0 ? 0.3 : 1, fontSize: 18 }} title="Move up">
-                  ↑
-                </button>
-                <button type="button" onClick={() => handleMoveTrack(index, "down")} disabled={index === tracks.length - 1} style={{ padding: "6px 10px", borderRadius: 6, background: "rgba(var(--ln-fg-rgb),0.06)", color: "var(--ln-fg)", border: "1px solid rgba(var(--ln-fg-rgb),0.12)", cursor: index === tracks.length - 1 ? "default" : "pointer", opacity: index === tracks.length - 1 ? 0.3 : 1, fontSize: 18 }} title="Move down">
-                  ↓
-                </button>
-                <button type="button" onClick={() => editingNoteIndex === index ? handleSaveNote() : handleEditNote(index)} style={{ padding: "6px 10px", borderRadius: 6, background: "rgba(var(--ln-fg-rgb),0.06)", color: "var(--ln-fg)", border: "1px solid rgba(var(--ln-fg-rgb),0.12)", cursor: "pointer", fontSize: 12 }} title="Add note">
-                  📝
-                </button>
-                <button type="button" onClick={() => handleRemoveTrack(index)} style={{ padding: "6px 10px", borderRadius: 6, background: "rgba(220,38,38,0.1)", color: "#ef4444", border: "1px solid rgba(220,38,38,0.3)", cursor: "pointer", fontSize: 16 }} title="Remove">
-                  ×
-                </button>
+              {/* Actions — reorder chevrons side by side, then note + remove */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 5, flexShrink: 0, alignItems: "flex-end" }}>
+                <div style={{ display: "flex", gap: 4 }}>
+                  <button type="button" onClick={() => handleMoveTrack(index, "up")} disabled={index === 0} className="ln-press" style={{ ...iconBtn, cursor: index === 0 ? "default" : "pointer", opacity: index === 0 ? 0.3 : 1 }} title="Move up">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M18 15l-6-6-6 6" stroke="var(--ln-fg)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                  </button>
+                  <button type="button" onClick={() => handleMoveTrack(index, "down")} disabled={index === tracks.length - 1} className="ln-press" style={{ ...iconBtn, cursor: index === tracks.length - 1 ? "default" : "pointer", opacity: index === tracks.length - 1 ? 0.3 : 1 }} title="Move down">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="var(--ln-fg)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                  </button>
+                </div>
+                <div style={{ display: "flex", gap: 4 }}>
+                  <button type="button" onClick={() => editingNoteIndex === index ? setEditingNoteIndex(null) : handleEditNote(index)} className="ln-press" style={{ ...iconBtn, background: editingNoteIndex === index || track.note ? `${gold}1f` : iconBtn.background, borderColor: editingNoteIndex === index || track.note ? `${gold}66` : "rgba(var(--ln-fg-rgb),0.12)" }} title={track.note ? "Edit note" : "Add note"}>
+                    <LNIcon name="edit" size={14} color={editingNoteIndex === index || track.note ? gold : "var(--ln-fg)"} />
+                  </button>
+                  <button type="button" onClick={() => handleRemoveTrack(index)} className="ln-press" style={{ ...iconBtn, background: "rgba(220,38,38,0.1)", border: "1px solid rgba(220,38,38,0.3)" }} title="Remove">
+                    <LNIcon name="close" size={14} color="#ef4444" />
+                  </button>
+                </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
