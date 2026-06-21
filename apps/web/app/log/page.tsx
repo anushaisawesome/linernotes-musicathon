@@ -64,8 +64,8 @@ function LogPageContent() {
         console.log("[Log Page] No Spotify match found for", trackName, "- using Last.fm data");
         setInitialTrack({
           trackId: `lastfm-${trackName}-${artistName}`,
-          name: trackName,
-          artist: artistName,
+          name: trackName || '',
+          artist: artistName || '',
           album: albumName || "",
           artworkUrl: artworkUrl || "",
           previewUrl: "",
@@ -75,8 +75,8 @@ function LogPageContent() {
         // Fall back to Last.fm data
         setInitialTrack({
           trackId: `lastfm-${trackName}-${artistName}`,
-          name: trackName,
-          artist: artistName,
+          name: trackName || '',
+          artist: artistName || '',
           album: albumName || "",
           artworkUrl: artworkUrl || "",
           previewUrl: "",
