@@ -4,6 +4,39 @@ import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
 import { paletteFromString } from "@/lib/palette";
 import { extractPaletteFromUrl } from "@/lib/extractPaletteServer";
+import { getSpotifyAppToken, searchTracks, searchAlbums } from "@/lib/spotify";
+
+const LASTFM_PLACEHOLDER = "2a96cbd8b46e442fc41c2b86b821562f"; // Last.fm's grey-star default
+
+// Spotify Search gives 640px covers — used FIRST for prompt artwork, with
+// Last.fm as the fallback.
+async function spotifyTrackArt(query: string, token: string | null): Promise<string> {
+  if (!token) return "";
+  try {
+    const r = await searchTracks(query, token);
+    return r[0]?.artworkUrl || "";
+  } catch {
+    return "";
+  }
+}
+async function spotifyAlbumArt(query: string, token: string | null): Promise<string> {
+  if (!token) return "";
+  try {
+    const r = await searchAlbums(query, token);
+    return r[0]?.artworkUrl || "";
+  } catch {
+    return "";
+  }
+}
+// Highest-quality non-placeholder Last.fm image, or "".
+function lastFmImage(images: Array<{ "#text": string; size: string }> | undefined): string {
+  const u =
+    images?.find((i) => i.size === "mega")?.["#text"] ||
+    images?.find((i) => i.size === "extralarge")?.["#text"] ||
+    images?.find((i) => i.size === "large")?.["#text"] ||
+    images?.find((i) => i.size === "medium")?.["#text"] || "";
+  return u && !u.includes(LASTFM_PLACEHOLDER) ? u : "";
+}
 
 /**
  * Generate Last.fm API signature
@@ -213,6 +246,9 @@ export async function GET(request: Request) {
         { status: 500 }
       );
     }
+
+    // App-level Spotify token (client-credentials) for high-quality cover art.
+    const spotifyToken = await getSpotifyAppToken();
 
     // Fetch recent tracks from Last.fm (increased to 200 for more variety)
     const recentTracksUrl = `https://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=${connection.serviceUsername}&api_key=${apiKey}&format=json&limit=200`;
@@ -451,47 +487,20 @@ export async function GET(request: Request) {
         albumsInPrompts.add(albumKey);
       }
 
-      // Try to get artwork from Last.fm first (prefer highest quality)
-      let artworkUrl = track.image?.find((img) => img.size === "mega")?.["#text"] ||
-                       track.image?.find((img) => img.size === "extralarge")?.["#text"] ||
-                       track.image?.find((img) => img.size === "large")?.["#text"] ||
-                       track.image?.find((img) => img.size === "medium")?.["#text"] || "";
-
-      // Check if Last.fm actually has valid artwork (not just empty/placeholder)
-      const hasValidLastFmArt = artworkUrl && artworkUrl !== "" && !artworkUrl.includes("2a96cbd8b46e442fc41c2b86b821562f");
-
-      // If no valid artwork, try Last.fm track.getinfo API (but don't use album name from it - it can have bad user-submitted data)
-      if (!hasValidLastFmArt) {
+      // Cover art: Spotify first (640px), then Last.fm image, then Last.fm getinfo.
+      let artworkUrl = await spotifyTrackArt(`${track.name} ${artistName}`, spotifyToken);
+      if (!artworkUrl) artworkUrl = lastFmImage(track.image);
+      if (!artworkUrl) {
         const trackInfo = await fetchLastFmTrackInfo(track.name, artistName, apiKey);
-        if (trackInfo.artwork) {
-          artworkUrl = trackInfo.artwork;
-        }
-        // Don't use album name from track.getinfo - it can have corrupted/user-submitted metadata
+        if (trackInfo.artwork) artworkUrl = trackInfo.artwork;
       }
 
-      // Validate with Spotify if: (1) no artwork yet, OR (2) album name looks suspicious, OR (3) artwork is low quality
-      const suspiciousPattern = /\b(67|b4|days|before)\b/i;
-      const isLowQualityArt = artworkUrl && (artworkUrl.includes('/64s/') || artworkUrl.includes('/174s/') || artworkUrl.includes('/300x300/'));
-      const needsSpotifyValidation = !artworkUrl || (albumName && suspiciousPattern.test(albumName)) || isLowQualityArt;
-
-      if (needsSpotifyValidation) {
-        if (!artworkUrl) {
-          console.log(`[Last.fm Prompts] No artwork for "${track.name}", checking Spotify...`);
-        }
-        if (albumName && suspiciousPattern.test(albumName)) {
-          console.log(`[Last.fm Prompts] Suspicious album name detected: "${albumName}", validating with Spotify...`);
-        }
-
-        const spotifyValidation = await validateWithSpotify(track.name, artistName, albumName);
-        if (spotifyValidation.album && albumName && suspiciousPattern.test(albumName)) {
-          albumName = spotifyValidation.album;
-        }
-        if (spotifyValidation.artwork && !artworkUrl) {
-          artworkUrl = spotifyValidation.artwork;
-        }
+      // Fix obviously-bad Last.fm album names via search.
+      if (albumName && /\b(67|b4|days|before)\b/i.test(albumName)) {
+        const v = await validateWithSpotify(track.name, artistName, albumName);
+        if (v.album) albumName = v.album;
+        if (!artworkUrl && v.artwork) artworkUrl = v.artwork;
       }
-
-      // Spotify validation above handles artwork fallback, no need for additional fallbacks
 
       // Extract real colors from artwork (server-side to avoid CORS)
       const extractedPalette = artworkUrl ? await extractPaletteFromUrl(artworkUrl) : null;
@@ -557,47 +566,20 @@ export async function GET(request: Request) {
         albumsInPrompts.add(albumKey);
       }
 
-      // Try to get artwork from Last.fm first (prefer highest quality)
-      let artworkUrl = track.image?.find((img) => img.size === "mega")?.["#text"] ||
-                       track.image?.find((img) => img.size === "extralarge")?.["#text"] ||
-                       track.image?.find((img) => img.size === "large")?.["#text"] ||
-                       track.image?.find((img) => img.size === "medium")?.["#text"] || "";
-
-      // Check if Last.fm actually has valid artwork (not just empty/placeholder)
-      const hasValidLastFmArt = artworkUrl && artworkUrl !== "" && !artworkUrl.includes("2a96cbd8b46e442fc41c2b86b821562f");
-
-      // If no valid artwork, try Last.fm track.getinfo API (but don't use album name from it - it can have bad user-submitted data)
-      if (!hasValidLastFmArt) {
+      // Cover art: Spotify first (640px), then Last.fm image, then Last.fm getinfo.
+      let artworkUrl = await spotifyTrackArt(`${track.name} ${artistName}`, spotifyToken);
+      if (!artworkUrl) artworkUrl = lastFmImage(track.image);
+      if (!artworkUrl) {
         const trackInfo = await fetchLastFmTrackInfo(track.name, artistName, apiKey);
-        if (trackInfo.artwork) {
-          artworkUrl = trackInfo.artwork;
-        }
-        // Don't use album name from track.getinfo - it can have corrupted/user-submitted metadata
+        if (trackInfo.artwork) artworkUrl = trackInfo.artwork;
       }
 
-      // Validate with Spotify if: (1) no artwork yet, OR (2) album name looks suspicious, OR (3) artwork is low quality
-      const suspiciousPattern = /\b(67|b4|days|before)\b/i;
-      const isLowQualityArt = artworkUrl && (artworkUrl.includes('/64s/') || artworkUrl.includes('/174s/') || artworkUrl.includes('/300x300/'));
-      const needsSpotifyValidation = !artworkUrl || (albumName && suspiciousPattern.test(albumName)) || isLowQualityArt;
-
-      if (needsSpotifyValidation) {
-        if (!artworkUrl) {
-          console.log(`[Last.fm Prompts] No artwork for "${track.name}", checking Spotify...`);
-        }
-        if (albumName && suspiciousPattern.test(albumName)) {
-          console.log(`[Last.fm Prompts] Suspicious album name detected: "${albumName}", validating with Spotify...`);
-        }
-
-        const spotifyValidation = await validateWithSpotify(track.name, artistName, albumName);
-        if (spotifyValidation.album && albumName && suspiciousPattern.test(albumName)) {
-          albumName = spotifyValidation.album;
-        }
-        if (spotifyValidation.artwork && !artworkUrl) {
-          artworkUrl = spotifyValidation.artwork;
-        }
+      // Fix obviously-bad Last.fm album names via search.
+      if (albumName && /\b(67|b4|days|before)\b/i.test(albumName)) {
+        const v = await validateWithSpotify(track.name, artistName, albumName);
+        if (v.album) albumName = v.album;
+        if (!artworkUrl && v.artwork) artworkUrl = v.artwork;
       }
-
-      // Spotify validation above handles artwork fallback, no need for additional fallbacks
 
       // Extract real colors from artwork (server-side to avoid CORS)
       const extractedPalette = artworkUrl ? await extractPaletteFromUrl(artworkUrl) : null;
@@ -650,20 +632,9 @@ export async function GET(request: Request) {
       const playCount = parseInt(album.playcount) || 0;
       if (playCount < 15) continue; // Only show heavily-played albums (15+)
 
-      // Try to get artwork from Last.fm first
-      let artworkUrl = album.image?.find((img) => img.size === "mega")?.["#text"] ||
-                       album.image?.find((img) => img.size === "extralarge")?.["#text"] ||
-                       album.image?.find((img) => img.size === "large")?.["#text"] ||
-                       album.image?.find((img) => img.size === "medium")?.["#text"] || "";
-
-      // Validate with Spotify if no artwork or if artwork is low quality
-      const isLowQualityArt = artworkUrl && (artworkUrl.includes('/64s/') || artworkUrl.includes('/174s/') || artworkUrl.includes('/300x300/'));
-      if (!artworkUrl || isLowQualityArt) {
-        const spotifyValidation = await validateWithSpotify("", artistName, album.name);
-        if (spotifyValidation.artwork) {
-          artworkUrl = spotifyValidation.artwork;
-        }
-      }
+      // Cover art: Spotify first (640px), then Last.fm.
+      let artworkUrl = await spotifyAlbumArt(`${album.name} ${artistName}`, spotifyToken);
+      if (!artworkUrl) artworkUrl = lastFmImage(album.image);
 
       // Extract real colors from artwork (server-side to avoid CORS)
       const extractedPalette = artworkUrl ? await extractPaletteFromUrl(artworkUrl) : null;
@@ -707,21 +678,9 @@ export async function GET(request: Request) {
       if (seenAlbums.has(albumKey)) continue;
       seenAlbums.add(albumKey);
 
-      // Try to get artwork from Last.fm first
-      let artworkUrl = albumPlay.image?.find((img) => img.size === "mega")?.["#text"] ||
-                       albumPlay.image?.find((img) => img.size === "extralarge")?.["#text"] ||
-                       albumPlay.image?.find((img) => img.size === "large")?.["#text"] ||
-                       albumPlay.image?.find((img) => img.size === "medium")?.["#text"] || "";
-
-      // Validate with Spotify if no artwork or if artwork is low quality
-      const isLowQualityArt = artworkUrl && (artworkUrl.includes('/64s/') || artworkUrl.includes('/174s/') || artworkUrl.includes('/300x300/'));
-      if (!artworkUrl || isLowQualityArt) {
-        // Use first track from the album play for Spotify search
-        const spotifyValidation = await validateWithSpotify(albumPlay.tracks[0], albumPlay.artist, albumPlay.album);
-        if (spotifyValidation.artwork) {
-          artworkUrl = spotifyValidation.artwork;
-        }
-      }
+      // Cover art: Spotify first (640px), then Last.fm.
+      let artworkUrl = await spotifyAlbumArt(`${albumPlay.album} ${albumPlay.artist}`, spotifyToken);
+      if (!artworkUrl) artworkUrl = lastFmImage(albumPlay.image);
 
       // Extract real colors from artwork (server-side to avoid CORS)
       const extractedPalette = artworkUrl ? await extractPaletteFromUrl(artworkUrl) : null;
