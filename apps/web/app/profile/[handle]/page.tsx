@@ -442,7 +442,7 @@ export default function ProfilePage() {
 
         <div style={{ maxWidth: 1080, margin: "0 auto", padding: "44px 24px 96px" }}>
           <div style={{ display: "flex", gap: 26, borderBottom: "1px solid rgba(var(--ln-fg-rgb),0.1)", marginBottom: 26 }}>
-            {([["notes", `notes · ${ownNotes.length}`], ["reposts", `reposts · ${repostNotes.length}`], ["saved", `saved · ${savedVms.length}`]] as const).map(([id, label]) => (
+            {([["notes", `notes · ${ownNotes.length}`], ["reposts", `reposts · ${repostNotes.length}`], ["saved", `saved · ${savedVms.length}`]] as const).filter(([id]) => id !== "saved" || isOwnProfile).map(([id, label]) => (
               <button key={id} onClick={() => setTab(id)} style={{ background: "none", border: "none", cursor: "pointer", padding: "0 0 12px", fontFamily: "var(--ln-label)", fontSize: 12.5, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 700, color: tab === id ? "var(--ln-fg)" : "rgba(var(--ln-fg-rgb),0.4)", borderBottom: tab === id ? "2px solid var(--ln-accent)" : "2px solid transparent", marginBottom: -1 }}>{label}</button>
             ))}
           </div>
@@ -471,7 +471,7 @@ export default function ProfilePage() {
             )
           )}
 
-          {tab === "saved" && (
+          {tab === "saved" && isOwnProfile && (
             savedVms.length === 0 ? (
               <div style={{ textAlign: "center", padding: "50px 0", fontFamily: "var(--ln-mono)", fontSize: 12, color: "rgba(var(--ln-fg-rgb),0.4)" }}>Nothing saved yet</div>
             ) : (

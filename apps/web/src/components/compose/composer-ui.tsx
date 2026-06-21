@@ -254,15 +254,13 @@ export function Chip({ label, on, onToggle }: { label: string; on: boolean; onTo
 export type Depth = "floor" | "caption" | "full" | null;
 
 export function DepthMeter({ depth, badge }: { depth: Depth; badge?: string }) {
-  const label = depth === "floor" ? "A quick rating" : depth === "caption" ? "A caption" : depth === "full" ? "A full note" : "·";
+  const label = depth === "floor" ? "a quick rating" : depth === "caption" ? "a caption" : depth === "full" ? "a full note" : "·";
   return (
-    <div style={{ padding: "13px 15px", borderRadius: 14, background: "rgba(var(--ln-fg-rgb),0.04)", border: "1px solid rgba(var(--ln-fg-rgb),0.09)" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontFamily: "var(--ln-body)", fontSize: 12.5, color: "rgba(var(--ln-fg-rgb),0.7)" }}>
-          Posts as <span style={{ color: GOLD, fontWeight: 600 }}>{label}</span>
-        </span>
-        {badge && <span style={{ fontFamily: "var(--ln-mono)", fontSize: 10, color: GOLD, letterSpacing: "0.04em", textTransform: "uppercase", padding: "2px 8px", borderRadius: 999, background: `${GOLD}18` }}>{badge}</span>}
-      </div>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "2px" }}>
+      <span style={{ fontFamily: "var(--ln-body)", fontSize: 14, color: "rgba(var(--ln-fg-rgb),0.7)" }}>
+        Posts as <span style={{ color: GOLD, fontWeight: 600 }}>{label}</span>
+      </span>
+      {badge && <span style={{ fontFamily: "var(--ln-mono)", fontSize: 10, color: GOLD, letterSpacing: "0.04em", textTransform: "uppercase", padding: "2px 8px", borderRadius: 999, background: `${GOLD}18` }}>{badge}</span>}
     </div>
   );
 }
