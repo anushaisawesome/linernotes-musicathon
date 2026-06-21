@@ -58,7 +58,7 @@ function ExperienceContent() {
     fetchReview();
   }, [reviewId]);
 
-  // Initialize Spotify player
+  // Initialize Spotify player (optional - preview mode works without it)
   useEffect(() => {
     if (!review) return;
 
@@ -66,7 +66,14 @@ function ExperienceContent() {
       try {
         await WebPlaybackSDK.loadSDK();
         const tokenRes = await fetch("/api/spotify/token");
-        if (!tokenRes.ok) throw new Error("Failed to get Spotify token");
+
+        if (!tokenRes.ok) {
+          const errorData = await tokenRes.json();
+          console.warn("[Experience] Spotify not available:", errorData.error);
+          // Don't set error - just continue in preview mode
+          setLoading(false);
+          return;
+        }
 
         const { access_token } = await tokenRes.json();
 
@@ -78,7 +85,8 @@ function ExperienceContent() {
         setPlayer(sdk);
         setLoading(false);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to initialize player");
+        console.warn("[Experience] Could not initialize Spotify player:", err);
+        // Continue in preview mode - not a fatal error
         setLoading(false);
       }
     }
@@ -93,13 +101,16 @@ function ExperienceContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [review]);
 
-  // Fetch lyrics when track changes
+  // Fetch lyrics when track loads (works with or without Spotify player)
   useEffect(() => {
-    if (!playerState?.isrc) return;
+    // Try playerState first (if Spotify connected), otherwise use review track
+    const trackId = playerState?.isrc || review?.track.trackId;
+    if (!trackId || !review) return;
 
     async function fetchLyrics() {
       try {
-        const res = await fetch(`/api/lyrics?isrc=${encodeURIComponent(playerState?.isrc || '')}`);
+        // Use trackId (Spotify track ID) to fetch lyrics
+        const res = await fetch(`/api/lyrics?trackId=${encodeURIComponent(trackId)}`);
 
         if (res.status === 401 || res.status === 403) {
           setError("Musixmatch trial key has expired. See the video for the full experience!");
@@ -121,7 +132,7 @@ function ExperienceContent() {
     }
 
     fetchLyrics();
-  }, [playerState?.isrc]);
+  }, [playerState?.isrc, review?.track.trackId, review]);
 
   // Update annotations whenever player state changes
   useEffect(() => {
@@ -248,14 +259,27 @@ function ExperienceContent() {
               </div>
             </div>
 
-            {/* Transport controls */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 24 }}>
-              <button onClick={() => player?.previousTrack()} className="ln-press" style={{ width: 46, height: 46, borderRadius: "50%", border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }} aria-label="previous">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill={INK}><path d="M6 5v14h2V5H6zm3 7l9 7V5l-9 7z" /></svg>
-              </button>
-              <button onClick={() => player?.togglePlay()} className="ln-press" style={{ width: 64, height: 64, borderRadius: "50%", border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }} aria-label={playerState?.isPlaying ? "pause" : "play"}>
-                {playerState?.isPlaying ? (
-                  <svg width="42" height="42" viewBox="0 0 24 24" fill="#fff" style={{ filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.5))" }}><rect x="6.5" y="5" width="4" height="14" rx="1.7" /><rect x="13.5" y="5" width="4" height="14" rx="1.7" /></svg>
+            {/* Transport controls or connect Spotify prompt */}
+            {!player ? (
+              <div style={{ textAlign: "center", padding: "20px 16px", background: "rgba(255,255,255,0.05)", borderRadius: 12, border: `1px solid ${accent}33` }}>
+                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, color: accent }}>
+                  Connect Spotify Premium for Playback
+                </div>
+                <div style={{ fontSize: 13, opacity: 0.7, marginBottom: 16 }}>
+                  To hear the track and experience synced moments in real-time
+                </div>
+                <a href="/connect/spotify" style={{ display: "inline-block", padding: "10px 20px", background: accent, color: "#161013", borderRadius: 8, textDecoration: "none", fontWeight: 600, fontSize: 14 }}>
+                  Connect Spotify
+                </a>
+              </div>
+            ) : (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 24 }}>
+                <button onClick={() => player?.previousTrack()} className="ln-press" style={{ width: 46, height: 46, borderRadius: "50%", border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }} aria-label="previous">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill={INK}><path d="M6 5v14h2V5H6zm3 7l9 7V5l-9 7z" /></svg>
+                </button>
+                <button onClick={() => player?.togglePlay()} className="ln-press" style={{ width: 64, height: 64, borderRadius: "50%", border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }} aria-label={playerState?.isPlaying ? "pause" : "play"}>
+                  {playerState?.isPlaying ? (
+                    <svg width="42" height="42" viewBox="0 0 24 24" fill="#fff" style={{ filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.5))" }}><rect x="6.5" y="5" width="4" height="14" rx="1.7" /><rect x="13.5" y="5" width="4" height="14" rx="1.7" /></svg>
                 ) : (
                   <svg width="42" height="42" viewBox="0 0 24 24" fill="#fff" stroke="#fff" strokeWidth="3.4" strokeLinejoin="round" strokeLinecap="round" style={{ filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.5))" }}><path d="M8 6.2v11.6l10-5.8z" /></svg>
                 )}
@@ -263,7 +287,8 @@ function ExperienceContent() {
               <button onClick={() => player?.nextTrack()} className="ln-press" style={{ width: 46, height: 46, borderRadius: "50%", border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }} aria-label="next">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill={INK}><path d="M16 5v14h2V5h-2zM6 5v14l9-7-9-7z" /></svg>
               </button>
-            </div>
+              </div>
+            )}
 
             {/* Spotify attribution */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontFamily: "var(--ln-mono)", fontSize: 10.5, letterSpacing: "0.04em", color: muted(0.55) }}>
