@@ -40,14 +40,16 @@ export default function Home() {
   const { data: session } = useSession();
   const [items, setItems] = useState<ReviewVM[]>([]);
   const [lastfmPrompts, setLastfmPrompts] = useState<Prompt[]>([]);
+  const [recentReviews, setRecentReviews] = useState<ReviewVM[]>([]);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const [reviews, albumRes] = await Promise.all([
+        const [reviews, albumRes, communityReviews] = await Promise.all([
           getReviews({ feed: "friends" }).catch(() => []),
           fetch("/api/album-reviews?feed=friends", { cache: "no-store" }).then((r) => (r.ok ? r.json() : { albumReviews: [] })).catch(() => ({ albumReviews: [] })),
+          getReviews({ feed: "global" }).catch(() => []),
         ]);
         const albumReviews: AlbumReview[] = albumRes.albumReviews || [];
         const vms = [
@@ -56,7 +58,18 @@ export default function Home() {
         ]
           .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
           .slice(0, 6);
-        if (!cancelled) setItems(vms);
+
+        // Get recent community track reviews for hero artwork
+        const recentTrackReviews = communityReviews
+          .filter((r) => r.track?.artworkUrl)
+          .map((r) => toReviewVM(r))
+          .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
+          .slice(0, 3);
+
+        if (!cancelled) {
+          setItems(vms);
+          setRecentReviews(recentTrackReviews);
+        }
       } catch {
         /* hero stands on its own if nothing loads */
       }
@@ -84,11 +97,8 @@ export default function Home() {
     fetchPrompts();
   }, [fetchPrompts]);
 
-  // "Play the Experience" / the covers open the Experience for the most recent
-  // track review in the community feed (track reviews are what the player runs;
-  // falls back to the feed until the data loads or if there are none).
-  const experienceReview = items.find((vm) => vm.kind === "track");
-  const experienceHref = experienceReview ? `/experience/${experienceReview.id}` : "/feed";
+  // "Play the Experience" opens an experience playlist of recent community reviews
+  const experienceHref = "/experience/playlist";
 
   return (
     <div style={{ background: "var(--ln-bg)", color: "var(--ln-fg)", minHeight: "100vh", position: "relative", display: "flex", flexDirection: "column", flex: 1 }}>
@@ -107,7 +117,7 @@ export default function Home() {
                 Press play. The song reads along with you.
               </h1>
               <p style={{ margin: "20px 0 0", maxWidth: 520, fontFamily: "var(--ln-body)", fontSize: 18, lineHeight: 1.55, color: "var(--ln-muted)" }}>
-                The track plays while the notes and the lyrics move in time — the exact second a song gets you, lit up as it happens. Everyone built a mood app; this is what listening could feel like.
+                The track plays while the notes and the lyrics move in time — the exact second a song gets you, lit up as it happens. This is what listening could feel like.
               </p>
               <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 14, marginTop: 28 }}>
                 <Link href={experienceHref} className="ln-press" style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: "15px 26px", borderRadius: 999, textDecoration: "none", background: "var(--ln-accent)", color: "#2c1517", fontFamily: "var(--ln-body)", fontSize: 16, fontWeight: 700, boxShadow: "0 16px 34px -12px var(--ln-accent)" }}>
@@ -124,14 +134,20 @@ export default function Home() {
               </div>
             </div>
 
-            {/* hero art — stacked covers, gateway into the feed */}
+            {/* hero art — stacked covers showing recent community reviews */}
             <Link href={experienceHref} className="ln-press mu-hero-art" style={{ position: "relative", display: "block", textDecoration: "none", animation: "ln-rise 0.6s cubic-bezier(.2,.8,.2,1) 0.1s both" }}>
               <div style={{ position: "relative", height: 340, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                {HERO_ART.map((p, i) => {
+                {(recentReviews.length >= 3 ? recentReviews : HERO_ART.map((p, idx) => ({ id: `placeholder-${idx}`, album: { artworkUrl: null, palette: { deep: p.deep, mid: p.mid, lo: p.lo, accent: "#d4af37", glow: "#d4af37" } } }))).slice(0, 3).map((review, i) => {
                   const off = i - 1;
+                  const hasArt = review.album?.artworkUrl;
+                  const palette = review.album?.palette || HERO_ART[i];
                   return (
-                    <div key={i} style={{ position: "absolute", width: 220, height: 220, borderRadius: 18, overflow: "hidden", transform: `translateX(${off * 86}px) rotate(${off * 6}deg) scale(${i === 1 ? 1.06 : 0.92})`, zIndex: i === 1 ? 3 : 1, boxShadow: "0 30px 70px -28px rgba(0,0,0,0.85), 0 0 0 1px rgba(255,255,255,0.06)", background: `radial-gradient(120% 120% at 26% 18%, ${p.mid}, ${p.deep} 60%, ${p.lo})` }}>
-                      <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(135deg, rgba(255,255,255,0.05) 0 1px, transparent 1px 13px)", mixBlendMode: "overlay" }} />
+                    <div key={review.id} style={{ position: "absolute", width: 220, height: 220, borderRadius: 18, overflow: "hidden", transform: `translateX(${off * 86}px) rotate(${off * 6}deg) scale(${i === 1 ? 1.06 : 0.92})`, zIndex: i === 1 ? 3 : 1, boxShadow: "0 30px 70px -28px rgba(0,0,0,0.85), 0 0 0 1px rgba(255,255,255,0.06)", background: hasArt ? "#1a0c0d" : `radial-gradient(120% 120% at 26% 18%, ${palette.mid}, ${palette.deep} 60%, ${palette.lo})` }}>
+                      {hasArt ? (
+                        <img src={review.album.artworkUrl!} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      ) : (
+                        <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(135deg, rgba(255,255,255,0.05) 0 1px, transparent 1px 13px)", mixBlendMode: "overlay" }} />
+                      )}
                       {i === 1 && (
                         <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
                           <span style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(8,6,7,0.42)", backdropFilter: "blur(6px)", border: "1px solid rgba(255,255,255,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
