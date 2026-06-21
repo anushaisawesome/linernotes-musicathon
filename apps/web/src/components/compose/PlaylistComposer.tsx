@@ -126,7 +126,7 @@ export function PlaylistComposer() {
       <form onSubmit={handleSubmit} style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 24 }}>
         {/* Playlist title */}
         <div>
-          <label style={{ display: "block", fontFamily: "var(--ln-mono)", fontSize: 12.5, letterSpacing: "0.08em", color: gold, textTransform: "uppercase", marginBottom: 8 }}>
+          <label style={{ display: "block", fontFamily: "var(--ln-body)", fontSize: 12, fontWeight: 400, letterSpacing: "0.01em", color: gold, marginBottom: 8 }}>
             Playlist Title *
           </label>
           <input
@@ -142,7 +142,7 @@ export function PlaylistComposer() {
 
         {/* Description */}
         <div>
-          <label style={{ display: "block", fontFamily: "var(--ln-mono)", fontSize: 12.5, letterSpacing: "0.08em", color: gold, textTransform: "uppercase", marginBottom: 8 }}>
+          <label style={{ display: "block", fontFamily: "var(--ln-body)", fontSize: 12, fontWeight: 400, letterSpacing: "0.01em", color: gold, marginBottom: 8 }}>
             Description (optional)
           </label>
           <textarea
@@ -160,7 +160,7 @@ export function PlaylistComposer() {
 
       {/* Track Search */}
       <div>
-        <div style={{ fontFamily: "var(--ln-mono)", fontSize: 10, letterSpacing: "0.08em", color: gold, textTransform: "uppercase", marginBottom: 10 }}>
+        <div style={{ fontFamily: "var(--ln-body)", fontSize: 12, fontWeight: 400, letterSpacing: "0.01em", color: gold, marginBottom: 10 }}>
           Add tracks ({tracks.length})
         </div>
         <TrackSearch onTrackSelect={handleAddTrack} searchAPI={searchTracks} />
