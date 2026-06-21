@@ -108,7 +108,7 @@ export function PromptShelf({ prompts, accent, onRefresh }: PromptShelfProps) {
             <svg
               width="14"
               height="14"
-              viewBox="0 0 16 16"
+              viewBox="0 0 24 24"
               fill="none"
               style={{
                 transform: isRefreshing ? "rotate(360deg)" : "rotate(0deg)",
@@ -116,9 +116,9 @@ export function PromptShelf({ prompts, accent, onRefresh }: PromptShelfProps) {
               }}
             >
               <path
-                d="M14 8a6 6 0 01-6 6m0 0a6 6 0 01-6-6m6 6V8m0 6l2-2m-2 2l-2-2M2 8a6 6 0 016-6m0 0a6 6 0 016 6M8 2v6m0-6l2 2M8 2L6 4"
+                d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"
                 stroke="currentColor"
-                strokeWidth="1.5"
+                strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
