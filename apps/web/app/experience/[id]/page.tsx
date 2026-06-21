@@ -47,6 +47,8 @@ function ExperienceContent() {
   const [noteOpen, setNoteOpen] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [shareMoment, setShareMoment] = useState<any>(null);
+  // "Experience more" picks — recent community track posts to jump to (track mode).
+  const [moreReviews, setMoreReviews] = useState<Review[]>([]);
 
   // Lyric auto-scroll
   const lineRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -105,6 +107,24 @@ function ExperienceContent() {
 
     fetchReview();
   }, [reviewId, isAlbumExp, isFeedExp]);
+
+  // For a single-track experience, pull 4 other community posts to "Experience more".
+  useEffect(() => {
+    if (isAlbumExp || isFeedExp) return;
+    let cancelled = false;
+    getReviews()
+      .then((all) => {
+        if (cancelled) return;
+        const picks = (all || [])
+          .filter((r) => r.track?.trackId && !r.track.trackId.startsWith("lastfm-") && r.id !== reviewId)
+          .slice(0, 4);
+        setMoreReviews(picks);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [isAlbumExp, isFeedExp, reviewId]);
 
   // Jump to another song in the album experience and play it.
   const goToSegment = async (n: number) => {
@@ -289,6 +309,11 @@ function ExperienceContent() {
   const takeLines = (review.take || "").split("\n").map((s) => s.trim()).filter(Boolean);
   const caption = takeLines[0] || "";
   const hasMoreNote = takeLines.length > 1;
+
+  // Album / feed experiences are queues; show the next song. A single track
+  // experience instead offers more community posts to jump to.
+  const isPlaylist = isAlbumExp || isFeedExp;
+  const upNext = isPlaylist && idx < segments.length - 1 ? segments[idx + 1] : null;
 
   // Nearest moment to current position for sharing
   const nearestMoment = review.notes && review.notes.length > 0
@@ -543,6 +568,45 @@ function ExperienceContent() {
                 No synced lyrics available for this track
               </div>
             )}
+
+            {/* Up next — the next song in an album / feed queue */}
+            {upNext && (
+              <div style={{ marginTop: 26 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 10 }}>
+                  <span style={{ fontFamily: "var(--ln-label)", fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", fontWeight: 700, color: accent }}>up next</span>
+                  <span style={{ flex: 1, height: 1, background: "rgba(244,239,230,0.12)" }} />
+                </div>
+                <button onClick={() => goToSegment(idx + 1)} className="ln-press" style={{ width: "100%", display: "flex", alignItems: "center", gap: 13, padding: 12, borderRadius: 14, cursor: "pointer", textAlign: "left", background: "rgba(244,239,230,0.04)", border: `1px solid ${accent}26` }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={upNext.track.artworkUrl} alt="" style={{ width: 52, height: 52, borderRadius: 9, objectFit: "cover", flexShrink: 0 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontFamily: "var(--ln-album)", fontWeight: 600, fontSize: 16, color: INK, lineHeight: 1.15, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{upNext.track.name}</div>
+                    <div style={{ fontFamily: "var(--ln-body)", fontSize: 13, color: muted(0.6), overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{upNext.track.artist}</div>
+                  </div>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill={accent}><path d="M8 5v14l11-7z" /></svg>
+                </button>
+              </div>
+            )}
+
+            {/* Experience more — community posts to jump to from a single track */}
+            {!isPlaylist && moreReviews.length > 0 && (
+              <div style={{ marginTop: 26 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 12 }}>
+                  <span style={{ fontFamily: "var(--ln-label)", fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", fontWeight: 700, color: accent }}>Experience more</span>
+                  <span style={{ flex: 1, height: 1, background: "rgba(244,239,230,0.12)" }} />
+                </div>
+                <div className="mu-exp-more" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+                  {moreReviews.map((r) => (
+                    <button key={r.id} onClick={() => router.push(`/experience/${r.id}`)} className="ln-press" style={{ display: "flex", flexDirection: "column", gap: 7, padding: 0, border: "none", background: "transparent", cursor: "pointer", textAlign: "left", minWidth: 0 }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={r.track.artworkUrl} alt="" style={{ width: "100%", aspectRatio: "1 / 1", borderRadius: 11, objectFit: "cover", boxShadow: "0 14px 30px -16px rgba(0,0,0,0.8)" }} />
+                      <div style={{ fontFamily: "var(--ln-album)", fontWeight: 600, fontSize: 13, color: INK, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.track.name}</div>
+                      <div style={{ fontFamily: "var(--ln-body)", fontSize: 11.5, color: muted(0.6), overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: -3 }}>{r.track.artist}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -554,6 +618,9 @@ function ExperienceContent() {
         @media (max-width: 880px) {
           .mu-exp-grid { grid-template-columns: 1fr !important; gap: 28px !important; }
           .mu-exp-left { position: static !important; max-width: 380px; }
+        }
+        @media (max-width: 440px) {
+          .mu-exp-more { grid-template-columns: repeat(2, 1fr) !important; }
         }
         @media (prefers-reduced-motion: reduce) { [style*="mu-breathe"] { animation: none !important; } }
       `}</style>
