@@ -154,10 +154,10 @@ function ReviewSocialActions({ vm, gold }: { vm: ReviewVM; gold: string }) {
 function TrackCard({ t, gold, np }: { t: TrackVM; gold: string; np: boolean }) {
   const mc = t.moments?.length || 0;
   return (
-    <div style={{ borderRadius: 14, border: `1px solid ${np ? gold + "55" : "rgba(241,235,224,0.1)"}`, background: np ? `${gold}0d` : "rgba(241,235,224,0.03)", padding: "15px 16px", display: "flex", flexDirection: "column", gap: 11 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+    <div style={{ borderRadius: 12, border: `1px solid ${np ? gold + "55" : "rgba(241,235,224,0.1)"}`, background: np ? `${gold}0d` : "rgba(241,235,224,0.03)", padding: "11px 13px", display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         {np ? <Eq color={gold} small /> : <span style={{ fontFamily: "var(--ln-mono)", fontSize: 11, color: muted(0.4), width: 18, textAlign: "center" }}>{String(t.n).padStart(2, "0")}</span>}
-        <span style={{ flex: 1, fontFamily: "var(--ln-album)", fontWeight: 600, fontSize: 17, color: np ? gold : INK, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.name}</span>
+        <span style={{ flex: 1, fontFamily: "var(--ln-album)", fontWeight: 600, fontSize: 15.5, color: np ? gold : INK, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.name}</span>
         {mc > 0 && (
           <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontFamily: "var(--ln-mono)", fontSize: 10, color: gold, background: `${gold}16`, borderRadius: 999, padding: "2px 7px" }}>
             <LNIcon name="save" size={10} color={gold} />
@@ -168,13 +168,13 @@ function TrackCard({ t, gold, np }: { t: TrackVM; gold: string; np: boolean }) {
       </div>
 
       {t.review && (
-        <p style={{ margin: 0, fontFamily: "var(--ln-body)", fontSize: 14.5, lineHeight: 1.55, color: muted(0.84), paddingLeft: 13, borderLeft: "2px solid rgba(241,235,224,0.18)" }}>{t.review}</p>
+        <p style={{ margin: 0, fontFamily: "var(--ln-body)", fontSize: 13.5, lineHeight: 1.5, color: muted(0.84), paddingLeft: 12, borderLeft: "2px solid rgba(241,235,224,0.18)" }}>{t.review}</p>
       )}
 
       {mc > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
           {t.moments.map((m, i) => (
-            <LNMoment key={i} note={{ sec: m.sec, label: m.label || t.name, note: m.note || "", lyric: m.lyric }} accent={gold} large />
+            <LNMoment key={i} note={{ sec: m.sec, label: m.label || t.name, note: m.note || "", lyric: m.lyric }} accent={gold} />
           ))}
         </div>
       )}
@@ -238,7 +238,6 @@ export function ImmersiveReview({
   const p = coverPalette || album.palette;
   const gold = "var(--ln-accent)";
   const isAlbum = album.kind === "album" && album.tracks.length > 0;
-  const npTrack = (album.tracks || []).find((t) => t.moments && t.moments.length) || null;
 
   // The note: the first line is the caption pull-quote (quoted + italic headline);
   // everything after it is the full review, kept in the order it was written.
@@ -319,17 +318,6 @@ export function ImmersiveReview({
               </button>
             )}
 
-            {npTrack && (
-              <div style={{ padding: "13px 15px", borderRadius: 14, background: `${gold}12`, border: `1px solid ${gold}3a`, display: "flex", alignItems: "center", gap: 12 }}>
-                <Eq color={gold} />
-                <div style={{ flex: 1, minWidth: 0, lineHeight: 1.25 }}>
-                  <div style={{ fontFamily: "var(--ln-mono)", fontSize: 9.5, letterSpacing: "0.08em", textTransform: "uppercase", color: gold }}>following along</div>
-                  <div style={{ fontFamily: "var(--ln-body)", fontSize: 14, color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{npTrack.name}</div>
-                </div>
-                <span style={{ fontFamily: "var(--ln-mono)", fontSize: 9, color: muted(0.5), letterSpacing: "0.03em", textAlign: "right", flexShrink: 0 }}>via<br />last.fm</span>
-              </div>
-            )}
-
             {/* reviewer */}
             <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "11px 13px 11px 11px", borderRadius: 14, background: "rgba(241,235,224,0.05)", border: "1px solid rgba(241,235,224,0.1)" }}>
               <button onClick={() => router.push(`/profile/${vm.user.handle}`)} style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}>
@@ -395,9 +383,9 @@ export function ImmersiveReview({
             {isAlbum && (
               <div style={{ marginTop: 34 }}>
                 <SectionLabel gold={gold}>tracks &amp; moments</SectionLabel>
-                <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 16, maxWidth: 620 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 9, marginTop: 14, maxWidth: 620 }}>
                   {album.tracks.map((tr) => (
-                    <TrackCard key={tr.n} t={tr} gold={gold} np={!!npTrack && tr.n === npTrack.n} />
+                    <TrackCard key={tr.n} t={tr} gold={gold} np={false} />
                   ))}
                 </div>
               </div>
