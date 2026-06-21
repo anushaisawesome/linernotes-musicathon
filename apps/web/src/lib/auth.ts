@@ -139,34 +139,40 @@ export const authOptions: NextAuthConfig = {
       try {
         console.log("[Auth] SignIn callback - provider:", account?.provider);
 
-        // For existing Spotify users, update their token
+        // Persist the Spotify tokens as a MusicConnection so the Experience player
+        // (which reads /api/spotify/token) works for everyone who continues with
+        // Spotify — including brand-new users. Upsert: create it if missing, update
+        // it if it already exists. (Previously new users never got one, so playback
+        // never worked even though their login succeeded.)
         if (account?.provider === "spotify" && account.access_token && user.id) {
-          const existingConnection = await prisma.musicConnection.findFirst({
-            where: {
+          const sp = profile as { id?: string; display_name?: string } | undefined;
+          const expiresAt = account.expires_at ? new Date(account.expires_at * 1000) : null;
+          await prisma.musicConnection.upsert({
+            where: { userId_service: { userId: user.id, service: "spotify" } },
+            update: {
+              accessToken: account.access_token,
+              ...(account.refresh_token ? { refreshToken: account.refresh_token } : {}),
+              expiresAt,
+              ...(sp?.id ? { serviceUserId: sp.id } : {}),
+              ...(sp?.display_name ? { serviceUsername: sp.display_name } : {}),
+            },
+            create: {
               userId: user.id,
               service: "spotify",
+              accessToken: account.access_token,
+              refreshToken: account.refresh_token ?? null,
+              expiresAt,
+              serviceUserId: sp?.id ?? null,
+              serviceUsername: sp?.display_name ?? null,
             },
           });
-
-          // Only update existing connections here
-          // New connections are created in the createUser event
-          if (existingConnection) {
-            await prisma.musicConnection.update({
-              where: { id: existingConnection.id },
-              data: {
-                accessToken: account.access_token,
-                refreshToken: account.refresh_token || existingConnection.refreshToken,
-                expiresAt: account.expires_at ? new Date(account.expires_at * 1000) : null,
-              },
-            });
-            console.log("[Auth] Updated MusicConnection for Spotify login");
-          }
+          console.log("[Auth] Upserted Spotify MusicConnection for", user.id);
         }
 
         return true;
       } catch (error) {
         console.error("[Auth] SignIn callback error:", error);
-        // Don't block login if just the token update fails
+        // Don't block login if token persistence fails
         return true;
       }
     },
