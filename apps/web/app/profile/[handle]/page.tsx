@@ -121,6 +121,8 @@ export default function ProfilePage() {
   const [albumReviews, setAlbumReviews] = useState<AlbumReview[]>([]);
   const [repostedReviews, setRepostedReviews] = useState<Review[]>([]);
   const [savedReviews, setSavedReviews] = useState<Review[]>([]);
+  const [repostedAlbums, setRepostedAlbums] = useState<AlbumReview[]>([]);
+  const [savedAlbums, setSavedAlbums] = useState<AlbumReview[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [tab, setTab] = useState<"notes" | "reposts" | "saved">("notes");
@@ -163,15 +165,27 @@ export default function ProfilePage() {
         // Reposts + saved are the *current user's* own collections (the API keys
         // them off the session), so only load them when viewing your own profile.
         if (isOwnProfile) {
-          const repostsResponse = await fetch(`/api/reviews?type=reposts`, { cache: "no-store" });
+          const [repostsResponse, savedResponse, albumRepostsResponse, albumSavedResponse] = await Promise.all([
+            fetch(`/api/reviews?type=reposts`, { cache: "no-store" }),
+            fetch(`/api/reviews?type=saved`, { cache: "no-store" }),
+            fetch(`/api/album-reviews?type=reposts`, { cache: "no-store" }),
+            fetch(`/api/album-reviews?type=saved`, { cache: "no-store" }),
+          ]);
           if (repostsResponse.ok) {
             const repostsData = await repostsResponse.json();
             setRepostedReviews(repostsData.reviews || []);
           }
-          const savedResponse = await fetch(`/api/reviews?type=saved`, { cache: "no-store" });
           if (savedResponse.ok) {
             const savedData = await savedResponse.json();
             setSavedReviews(savedData.reviews || []);
+          }
+          if (albumRepostsResponse.ok) {
+            const d = await albumRepostsResponse.json();
+            setRepostedAlbums(d.albumReviews || []);
+          }
+          if (albumSavedResponse.ok) {
+            const d = await albumSavedResponse.json();
+            setSavedAlbums(d.albumReviews || []);
           }
         }
       } catch (err) {
@@ -234,20 +248,25 @@ export default function ProfilePage() {
   };
 
   // Unsave from the Saved tab: toggle the save off and drop it from the list.
+  // Works for both track and album reviews.
   const handleUnsave = async (vm: ReviewVM) => {
-    setSavedReviews((arr) => arr.filter((r) => r.id !== vm.id));
+    if (vm.kind === "album") setSavedAlbums((arr) => arr.filter((a) => a.id !== vm.id));
+    else setSavedReviews((arr) => arr.filter((r) => r.id !== vm.id));
     try {
-      if (vm.kind === "track") await fetch(`/api/reviews/${vm.id}/save`, { method: "POST" });
+      const base = vm.kind === "album" ? "/api/album-reviews" : "/api/reviews";
+      await fetch(`${base}/${vm.id}/save`, { method: "POST" });
     } catch {
       /* best-effort; resyncs on reload */
     }
   };
 
-  // Unrepost from your profile: toggle the repost off and drop it from notes.
+  // Unrepost from your profile: toggle the repost off and drop it from the list.
   const handleUnrepost = async (vm: ReviewVM) => {
-    setRepostedReviews((arr) => arr.filter((r) => r.id !== vm.id));
+    if (vm.kind === "album") setRepostedAlbums((arr) => arr.filter((a) => a.id !== vm.id));
+    else setRepostedReviews((arr) => arr.filter((r) => r.id !== vm.id));
     try {
-      if (vm.kind === "track") await fetch(`/api/reviews/${vm.id}/repost`, { method: "POST" });
+      const base = vm.kind === "album" ? "/api/album-reviews" : "/api/reviews";
+      await fetch(`${base}/${vm.id}/repost`, { method: "POST" });
     } catch {
       /* best-effort; resyncs on reload */
     }
@@ -297,8 +316,8 @@ export default function ProfilePage() {
     ...reviews.map((r) => ({ vm: toReviewVM({ ...r, user: r.user || user }), reposted: false })),
     ...albumReviews.map((ar) => ({ vm: toAlbumReviewVM({ ...ar, user: ar.user || user }), reposted: false })),
   ].sort((a, b) => new Date(b.vm.at).getTime() - new Date(a.vm.at).getTime());
-  const repostNotes = repostedReviews
-    .map((r) => ({
+  const repostNotes = [
+    ...repostedReviews.map((r) => ({
       vm: toReviewVM(
         { ...r, user: r.user || user },
         {
@@ -307,10 +326,15 @@ export default function ProfilePage() {
         }
       ),
       reposted: true,
-    }))
-    .sort((a, b) => new Date(b.vm.at).getTime() - new Date(a.vm.at).getTime());
-  // Saved reviews keep their original author (not the profile owner).
-  const savedVms: ReviewVM[] = savedReviews.map((r) => toReviewVM(r));
+    })),
+    // Album reposts keep their original author (not the profile owner).
+    ...repostedAlbums.map((a) => ({ vm: toAlbumReviewVM(a), reposted: true })),
+  ].sort((a, b) => new Date(b.vm.at).getTime() - new Date(a.vm.at).getTime());
+  // Saved reviews/albums keep their original author (not the profile owner).
+  const savedVms: ReviewVM[] = [
+    ...savedReviews.map((r) => toReviewVM(r)),
+    ...savedAlbums.map((a) => toAlbumReviewVM(a)),
+  ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
 
   const ghostBtn: React.CSSProperties = { padding: "6px 14px", borderRadius: 999, cursor: "pointer", background: "rgba(var(--ln-fg-rgb),0.05)", color: "rgba(var(--ln-fg-rgb),0.75)", border: "1px solid rgba(var(--ln-fg-rgb),0.18)", fontFamily: "var(--ln-body)", fontSize: 12.5, fontWeight: 600 };
   const goldBtn: React.CSSProperties = { padding: "6px 16px", borderRadius: 999, cursor: "pointer", background: "var(--ln-accent)", color: "#2c1517", border: "none", fontFamily: "var(--ln-body)", fontSize: 12.5, fontWeight: 700 };

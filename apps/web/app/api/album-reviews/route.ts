@@ -13,6 +13,99 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const userId = searchParams.get("userId");
     const feed = searchParams.get("feed");
+    const reviewType = searchParams.get("type"); // "reposts" or "saved" or null
+
+    // Shape an AlbumReview row (with user, trackReviews+notes, _count) into the
+    // client AlbumReview VM. Shared by the reposts/saved collections below.
+    const transformAlbumReview = (albumReview: any) => ({
+      id: albumReview.id,
+      userId: albumReview.userId,
+      user: albumReview.user,
+      album: {
+        albumId: albumReview.albumId,
+        name: albumReview.albumName,
+        artist: albumReview.albumArtist,
+        artworkUrl: albumReview.artworkUrl,
+        releaseDate: albumReview.releaseDate || undefined,
+        totalTracks: albumReview.totalTracks || undefined,
+      },
+      overallRating: albumReview.overallRating || undefined,
+      take: albumReview.take || undefined,
+      trackReviews: albumReview.trackReviews.map((review: any) => ({
+        id: review.id,
+        userId: review.userId,
+        track: {
+          trackId: review.trackId,
+          name: review.trackName,
+          artist: review.trackArtist,
+          album: review.trackAlbum,
+          artworkUrl: review.artworkUrl,
+          previewUrl: review.previewUrl || undefined,
+        },
+        rating: review.rating,
+        take: review.take || undefined,
+        reaction: review.reaction || undefined,
+        trackNumber: review.trackNumber || undefined,
+        notes: review.notes.map((note: any) => ({
+          id: note.id,
+          seconds: note.seconds,
+          label: note.label,
+          note: note.note || undefined,
+          createdAt: note.createdAt.toISOString(),
+        })),
+        featuredNoteId: review.featuredNoteId || undefined,
+        createdAt: review.createdAt.toISOString(),
+      })),
+      createdAt: albumReview.createdAt.toISOString(),
+      likeCount: albumReview._count?.likes ?? 0,
+      repostCount: albumReview._count?.reposts ?? 0,
+      saveCount: albumReview._count?.saves ?? 0,
+      likedByMe: currentUserId ? (albumReview.likes || []).some((l: any) => l.userId === currentUserId) : false,
+      repostedByMe: currentUserId ? (albumReview.reposts || []).some((r: any) => r.userId === currentUserId) : false,
+      saved: currentUserId ? (albumReview.saves || []).some((s: any) => s.userId === currentUserId) : false,
+    });
+
+    const albumCollectionInclude = {
+      user: true,
+      trackReviews: {
+        include: { notes: { orderBy: { createdAt: "asc" as const } } },
+        orderBy: { trackNumber: "asc" as const },
+      },
+      likes: true,
+      reposts: true,
+      saves: true,
+      _count: { select: { likes: true, reposts: true, saves: true } },
+    };
+
+    // Album reposts / saves — the current user's own collections (keyed off the
+    // session), mirroring /api/reviews?type=reposts|saved for track reviews.
+    if (reviewType === "reposts" || reviewType === "saved") {
+      if (!currentUserId) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+      if (reviewType === "reposts") {
+        const reposts = await prisma.albumRepost.findMany({
+          where: { userId: currentUserId },
+          include: { albumReview: { include: albumCollectionInclude } },
+          orderBy: { createdAt: "desc" },
+        });
+        const albumReviews = reposts
+          .map((r) => r.albumReview)
+          .filter(Boolean)
+          .map(transformAlbumReview);
+        return NextResponse.json({ albumReviews });
+      }
+      const saves = await prisma.albumSave.findMany({
+        where: { userId: currentUserId },
+        include: { albumReview: { include: albumCollectionInclude } },
+        orderBy: { createdAt: "desc" },
+      });
+      const albumReviews = saves
+        .map((s) => s.albumReview)
+        .filter(Boolean)
+        .map(transformAlbumReview);
+      return NextResponse.json({ albumReviews });
+    }
 
     // Public feed - show all album reviews for hackathon demo
     if (feed === "friends") {
