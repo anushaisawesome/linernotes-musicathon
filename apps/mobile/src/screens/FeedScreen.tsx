@@ -222,20 +222,44 @@ export function FeedScreen({ onOpenReview, onOpenComposer, onOpenUserProfile }: 
   // "+" on the shelf: pull more prompts from Last.fm stats and append the new
   // ones (excluding what's shown, dismissed, or already reviewed-with-notes).
   async function handleGenerateMore() {
-    if (generatingMore || !lastFmUsername) return;
+    if (generatingMore) {
+      console.log('[Feed] Already generating more prompts, skipping');
+      return;
+    }
+    if (!lastFmUsername) {
+      console.log('[Feed] No Last.fm username, cannot generate more prompts');
+      return;
+    }
+
+    console.log('[Feed] 📝 Generating more prompts for username:', lastFmUsername);
     setGeneratingMore(true);
+
     try {
       const existingIds = currentPrompts.map((p) => p.id);
+      console.log('[Feed] Current prompts count:', currentPrompts.length, 'IDs to exclude:', existingIds);
+
       const more = await askingEngine.getMorePrompts(lastFmUsername, existingIds);
+      console.log('[Feed] Got', more.length, 'new prompts from asking engine');
+
       const reviewedWithContent = await reviewedWithContentKeys();
       const fresh = more.filter((p) => !reviewedWithContent.has(promptKey(p)));
+      console.log('[Feed] After filtering reviewed content:', fresh.length, 'fresh prompts');
+
       if (fresh.length > 0) {
-        setCurrentPrompts((prev) => [...prev, ...fresh]);
+        setCurrentPrompts((prev) => {
+          const updated = [...prev, ...fresh];
+          console.log('[Feed] ✅ Updated prompts, total now:', updated.length);
+          return updated;
+        });
+      } else {
+        console.log('[Feed] ⚠️ No fresh prompts to add');
       }
     } catch (error) {
-      console.error('Failed to generate more prompts:', error);
+      console.error('[Feed] ❌ Failed to generate more prompts:', error);
+      console.error('[Feed] Error details:', error.message, error.stack);
     } finally {
       setGeneratingMore(false);
+      console.log('[Feed] Generate more complete');
     }
   }
 

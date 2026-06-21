@@ -86,32 +86,49 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
         const trackName = album.kind === 'album' && npTrack ? npTrack.name : album.title;
         const artistName = album.artist;
 
-        if (!trackName || !artistName) return;
+        console.log('[Experience] Fetching lyrics for:', trackName, 'by', artistName);
 
-        const response = await fetch(
-          `${api.baseUrl}/api/lyrics?track=${encodeURIComponent(trackName)}&artist=${encodeURIComponent(artistName)}`
-        );
+        if (!trackName || !artistName) {
+          console.log('[Experience] Missing track name or artist, skipping lyrics');
+          return;
+        }
+
+        const url = `${api.baseUrl}/api/lyrics?track=${encodeURIComponent(trackName)}&artist=${encodeURIComponent(artistName)}`;
+        console.log('[Experience] Lyrics API URL:', url);
+
+        const response = await fetch(url);
+        console.log('[Experience] Lyrics response status:', response.status);
 
         if (response.status === 401 || response.status === 403) {
-          setLyricsError('Musixmatch trial key expired. See demo video for full experience!');
+          const msg = 'Musixmatch trial key expired. See demo video for full experience!';
+          console.warn('[Experience]', msg);
+          setLyricsError(msg);
           return;
         }
 
         if (!response.ok) {
-          console.log('[Experience] No synced lyrics available');
+          const errorText = await response.text();
+          console.log('[Experience] No synced lyrics available. Status:', response.status, 'Body:', errorText);
+          setLyricsError(`No lyrics found (${response.status})`);
           return;
         }
 
         const data = await response.json();
+        console.log('[Experience] Lyrics data received:', data ? 'YES' : 'NO', 'Lines:', data?.lyrics?.length || 0);
+
         if (isMounted && data.lyrics) {
           setLyrics({
             lines: data.lyrics,
             translation: data.translation || undefined,
             language: data.track?.language || data.subtitle_language || undefined,
           });
+          console.log('[Experience] ✅ Lyrics set successfully:', data.lyrics.length, 'lines');
+        } else {
+          console.warn('[Experience] ⚠️ No lyrics in response data');
         }
       } catch (error) {
-        console.error('[Experience] Failed to fetch lyrics:', error);
+        console.error('[Experience] ❌ Failed to fetch lyrics:', error);
+        setLyricsError(`Error loading lyrics: ${error.message}`);
       }
     };
 
