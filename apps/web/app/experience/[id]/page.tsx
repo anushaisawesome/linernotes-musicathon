@@ -108,8 +108,10 @@ function ExperienceContent() {
     async function fetchLyrics() {
       try {
         // Use track name + artist to fetch lyrics from Musixmatch
-        const trackName = playerState?.trackName || review.track.name;
-        const artistName = playerState?.artistName || review.track.artist;
+        const trackName = playerState?.trackName || review?.track?.name;
+        const artistName = playerState?.artistName || review?.track?.artist;
+
+        if (!trackName || !artistName) return;
 
         const res = await fetch(`/api/lyrics?track=${encodeURIComponent(trackName)}&artist=${encodeURIComponent(artistName)}`);
 
