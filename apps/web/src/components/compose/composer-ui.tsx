@@ -139,10 +139,14 @@ export function MomentsEditor({
   moments,
   onAdd,
   onRemove,
+  featuredIdx,
+  onSetFeatured,
 }: {
   moments: DraftMoment[];
   onAdd: (m: DraftMoment) => void;
   onRemove: (idx: number) => void;
+  featuredIdx?: number;
+  onSetFeatured?: (idx: number) => void;
 }) {
   const [m, setM] = useState({ mm: "", ss: "", label: "", note: "" });
   const add = () => {
@@ -152,12 +156,32 @@ export function MomentsEditor({
     setM({ mm: "", ss: "", label: "", note: "" });
   };
   const ready = !!(m.note.trim() || m.label.trim());
+  // The card shows one moment; when there's more than one, let the author pick
+  // which gets the spotlight (it leads the card + the share preview).
+  const canFeature = !!onSetFeatured && moments.length > 1;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {canFeature && (
+        <div style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: "var(--ln-mono)", fontSize: 9.5, letterSpacing: "0.04em", color: "rgba(var(--ln-fg-rgb),0.5)", textTransform: "uppercase" }}>
+          <span style={{ color: GOLD }}>★</span> Tap a star to choose which moment leads your card
+        </div>
+      )}
       {moments.map((mm, idx) => {
         const hasLabel = !!mm.label && mm.label !== "moment";
+        const isFeatured = canFeature && featuredIdx === idx;
         return (
-          <div key={idx} style={{ display: "flex", alignItems: "center", gap: 9, padding: "9px 11px", borderRadius: 10, background: "rgba(var(--ln-fg-rgb),0.05)", border: "1px solid rgba(var(--ln-fg-rgb),0.08)" }}>
+          <div key={idx} style={{ display: "flex", alignItems: "center", gap: 9, padding: "9px 11px", borderRadius: 10, background: isFeatured ? `${GOLD}16` : "rgba(var(--ln-fg-rgb),0.05)", border: `1px solid ${isFeatured ? GOLD + "66" : "rgba(var(--ln-fg-rgb),0.08)"}` }}>
+            {canFeature && (
+              <button
+                type="button"
+                onClick={() => onSetFeatured!(idx)}
+                title={isFeatured ? "Shown on your card" : "Show this moment on your card"}
+                className="ln-press"
+                style={{ background: "none", border: "none", cursor: "pointer", padding: 0, flexShrink: 0, display: "flex", alignItems: "center", fontSize: 15, lineHeight: 1, color: isFeatured ? GOLD : "rgba(var(--ln-fg-rgb),0.3)" }}
+              >
+                {isFeatured ? "★" : "☆"}
+              </button>
+            )}
             <span style={{ fontFamily: "var(--ln-mono)", fontSize: 12, color: "#2c1517", background: GOLD, borderRadius: 6, padding: "2px 7px", flexShrink: 0, fontWeight: 600 }}>{lnFmt(mm.seconds)}</span>
             <span style={{ flex: 1, fontFamily: "var(--ln-body)", fontSize: 13.5, color: "rgba(var(--ln-fg-rgb),0.85)", minWidth: 0 }}>
               {hasLabel && <span style={{ color: GOLD, fontWeight: 600 }}>{mm.label}</span>}

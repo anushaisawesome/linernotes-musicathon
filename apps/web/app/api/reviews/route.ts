@@ -407,11 +407,22 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // If notes were created, set the first one as featured by default
+    // Feature the first submitted note (the composer puts the author's chosen
+    // moment first). Prisma's include order isn't guaranteed, so match the
+    // created row by content rather than trusting review.notes[0].
     if (review.notes && review.notes.length > 0 && !review.featuredNoteId) {
+      const want = notes[0];
+      const match =
+        review.notes.find(
+          (n) =>
+            n.seconds === want.seconds &&
+            (n.label || null) === (want.label ?? null) &&
+            (n.note || null) === (want.note || null) &&
+            (n.lyric || null) === (want.lyric || null)
+        ) || review.notes[0];
       await prisma.review.update({
         where: { id: review.id },
-        data: { featuredNoteId: review.notes[0].id },
+        data: { featuredNoteId: match.id },
       });
     }
 

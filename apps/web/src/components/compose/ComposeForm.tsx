@@ -30,6 +30,9 @@ export function ComposeForm({ onSubmit, onSuccess, searchAPI, initialTrack, init
   const [moments, setMoments] = useState<DraftMoment[]>([]);
   const [captionIdx, setCaptionIdx] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  // Which moment leads the card. Tracked by content signature (not index) so it
+  // survives the chronological re-sort that happens when a moment is added.
+  const [featuredKey, setFeaturedKey] = useState<string | null>(null);
 
   // The note: chosen caption is prepended as a pull-quote (headlines the card),
   // and the full review is kept after it in the order it was written.
@@ -39,6 +42,18 @@ export function ComposeForm({ onSubmit, onSuccess, searchAPI, initialTrack, init
   const multiline = lines.length > 1;
   const depth: Depth = multiline ? "full" : take ? "caption" : rating > 0 ? "floor" : null;
   const canPost = !!track && rating > 0;
+
+  // Featured-moment selection: resolve the stored signature to its current index,
+  // defaulting to the first moment, then order so the featured one leads.
+  const momentSig = (m: DraftMoment) => `${m.seconds}|${m.lyric || ""}|${m.note || ""}|${m.label || ""}`;
+  const featuredIdx = moments.length
+    ? (() => {
+        const i = featuredKey ? moments.findIndex((m) => momentSig(m) === featuredKey) : -1;
+        return i >= 0 ? i : 0;
+      })()
+    : -1;
+  const orderedMoments =
+    featuredIdx > 0 ? [moments[featuredIdx], ...moments.filter((_, i) => i !== featuredIdx)] : moments;
 
   const draft: ReviewVM | null = useMemo(() => {
     if (!track) return null;
@@ -58,13 +73,13 @@ export function ComposeForm({ onSubmit, onSuccess, searchAPI, initialTrack, init
       rating,
       take: take || undefined,
       body: undefined,
-      notes: moments.map((m) => ({ sec: m.seconds, label: m.label || "moment", note: m.note || "", lyric: m.lyric })),
+      notes: orderedMoments.map((m) => ({ sec: m.seconds, label: m.label || "moment", note: m.note || "", lyric: m.lyric })),
       via: null,
       likeCount: 0,
       repostCount: 0,
       at: "",
     };
-  }, [track, rating, take, moments]);
+  }, [track, rating, take, orderedMoments]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,7 +98,8 @@ export function ComposeForm({ onSubmit, onSuccess, searchAPI, initialTrack, init
         previewUrl: track.previewUrl,
         rating,
         take: take || undefined,
-        notes: moments.length > 0 ? moments.map((m) => ({ seconds: m.seconds, label: m.label || "moment", note: m.note || undefined, lyric: m.lyric || undefined })) : undefined,
+        // Featured moment leads the array; the POST route marks notes[0] featured.
+        notes: orderedMoments.length > 0 ? orderedMoments.map((m) => ({ seconds: m.seconds, label: m.label || "moment", note: m.note || undefined, lyric: m.lyric || undefined })) : undefined,
       };
 
       if (onSubmit) {
@@ -98,6 +114,7 @@ export function ComposeForm({ onSubmit, onSuccess, searchAPI, initialTrack, init
       setRating(0);
       setLine("");
       setMoments([]);
+      setFeaturedKey(null);
       setCaptionIdx(0);
       setShowLine(false);
       setShowMoments(false);
@@ -186,6 +203,8 @@ export function ComposeForm({ onSubmit, onSuccess, searchAPI, initialTrack, init
                   moments={moments}
                   onAdd={(m) => setMoments((a) => [...a, m].sort((x, y) => x.seconds - y.seconds))}
                   onRemove={(idx) => setMoments((a) => a.filter((_, i) => i !== idx))}
+                  featuredIdx={featuredIdx}
+                  onSetFeatured={(idx) => setFeaturedKey(momentSig(moments[idx]))}
                 />
               </div>
             )}
@@ -213,7 +232,7 @@ export function ComposeForm({ onSubmit, onSuccess, searchAPI, initialTrack, init
           {/* LIVE PREVIEW */}
           <div className="lnw-cmp-prev">
             <PreviewShell ready={!!draft && (rating > 0 || !!take || moments.length > 0)}>
-              {draft && <LNWCard vm={draft} preview />}
+              {draft && <LNWCard vm={draft} />}
             </PreviewShell>
           </div>
         </form>
