@@ -169,48 +169,53 @@ export async function GET(request: NextRequest) {
       console.log("[Musixmatch] Track is in", originalLanguage, "- fetching English translation");
 
       try {
-        // Try crowd-sourced translation endpoint (more reliable for free tier)
-        const translationUrl = `https://api.musixmatch.com/ws/1.1/crowd.track.translations.get?format=json&track_id=${trackId}&selected_language=en&apikey=${apiKey}`;
+        // Try multiple translation endpoints
+        // First try: track.lyrics.translation.get with comment_format=text
+        const translationUrl = `https://api.musixmatch.com/ws/1.1/track.lyrics.translation.get?format=json&track_id=${trackId}&selected_language=en&comment_format=text&apikey=${apiKey}`;
 
+        console.log("[Musixmatch] Trying translation URL:", translationUrl);
         const translationRes = await fetch(translationUrl);
         if (translationRes.ok) {
           const translationData = await translationRes.json();
           console.log("[Musixmatch] Full translation response:", JSON.stringify(translationData, null, 2));
 
-          // Try crowd-sourced translations format
-          const translationList = translationData.message?.body?.translations_list;
+          // Check multiple possible response structures
+          const lyricsBody = translationData.message?.body?.lyrics?.lyrics_body;
+          const lyricsLanguage = translationData.message?.body?.lyrics?.lyrics_language;
 
-          console.log("[Musixmatch] Translation list:", translationList ? `found (${translationList.length} items)` : "not found");
+          console.log("[Musixmatch] Lyrics body:", lyricsBody ? `found (${lyricsBody.substring(0, 100)}...)` : "not found");
+          console.log("[Musixmatch] Lyrics language:", lyricsLanguage || "unknown");
 
-          if (translationList && Array.isArray(translationList) && translationList.length > 0) {
-            // Crowd translation format - map original text to translated text
-            console.log("[Musixmatch] Processing crowd-sourced translations...");
+          if (lyricsBody && typeof lyricsBody === 'string' && lyricsBody.length > 0) {
+            // Check if the returned text is actually in English (not Korean)
+            const hasKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(lyricsBody);
+            const hasEnglish = /[a-zA-Z]/.test(lyricsBody);
 
-            // Build a map of original text to translation
-            const translationMap = new Map<string, string>();
-            for (const item of translationList) {
-              const trans = item.translation;
-              if (trans?.description && trans?.translation) {
-                translationMap.set(trans.description.trim(), trans.translation.trim());
-              }
+            console.log("[Musixmatch] Translation text analysis - hasKorean:", hasKorean, "hasEnglish:", hasEnglish);
+
+            if (!hasKorean && hasEnglish) {
+              // This looks like an actual English translation
+              console.log("[Musixmatch] Found English translation in lyrics_body");
+
+              const translatedLines = lyricsBody.split('\n').filter((line: string) => line.trim());
+
+              // Match by position since we don't have timestamps
+              translation = parsedLyrics.map((originalLine, idx) => {
+                const translatedText = translatedLines[idx];
+                if (translatedText && translatedText.trim()) {
+                  return {
+                    text: translatedText.trim(),
+                    time: originalLine.time,
+                  };
+                }
+                return originalLine;
+              });
+
+              const translatedCount = translation.filter((line, idx) => line.text !== parsedLyrics[idx].text).length;
+              console.log("[Musixmatch] Mapped", translatedCount, "of", parsedLyrics.length, "lines to English translations");
+            } else {
+              console.log("[Musixmatch] Returned text is not English (possibly Korean original), skipping");
             }
-
-            console.log("[Musixmatch] Built translation map with", translationMap.size, "entries");
-
-            // Map translations to original lyrics by text matching
-            translation = parsedLyrics.map((originalLine) => {
-              const translatedText = translationMap.get(originalLine.text.trim());
-              if (translatedText) {
-                return {
-                  text: translatedText,
-                  time: originalLine.time,
-                };
-              }
-              return originalLine;
-            });
-
-            const translatedCount = translation.filter((line, idx) => line.text !== parsedLyrics[idx].text).length;
-            console.log("[Musixmatch] Mapped", translatedCount, "of", parsedLyrics.length, "lines to translations");
           } else {
             console.log("[Musixmatch] No translation available for this track");
           }
