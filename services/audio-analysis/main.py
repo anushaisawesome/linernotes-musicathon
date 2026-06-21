@@ -89,12 +89,32 @@ async def analyze_audio(request: AnalysisRequest):
         if audio_response.status_code != 200:
             raise HTTPException(status_code=400, detail="Failed to download audio preview")
 
-        # Load audio with librosa
-        audio_data = BytesIO(audio_response.content)
-        y, sr = librosa.load(audio_data, sr=22050, mono=True)
+        # Load audio with librosa (save to temp file for M4A support)
+        import tempfile
+        import os
+
+        # Save to temp file (needed for M4A format)
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.m4a') as temp_file:
+            temp_file.write(audio_response.content)
+            temp_path = temp_file.name
+
+        try:
+            # Load with librosa (uses ffmpeg via audioread for M4A)
+            y, sr = librosa.load(temp_path, sr=22050, mono=True)
+        finally:
+            # Clean up temp file
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
 
         # 1. TEMPO & BEAT TRACKING
         tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr, units='frames')
+
+        # Handle tempo as array (newer librosa) or scalar (older librosa)
+        if isinstance(tempo, np.ndarray):
+            tempo = float(tempo[0]) if len(tempo) > 0 else 120.0
+        else:
+            tempo = float(tempo)
+
         beat_times = librosa.frames_to_time(beat_frames, sr=sr)
 
         # Convert to milliseconds
