@@ -17,6 +17,7 @@ import { getActiveAnnotations, type SyncedLyrics, type ActiveAnnotations } from 
 import type { Review, AlbumReview } from "@/lib/types";
 import { paletteFromString, type Palette } from "@/lib/palette";
 import { LNArt, lnFmt } from "@/components/ln/atoms";
+import { LyricShareModal } from "@/components/share/LyricShareModal";
 
 function ExperienceContent() {
   const params = useParams();
@@ -41,6 +42,8 @@ function ExperienceContent() {
   const [error, setError] = useState<string | null>(null);
   const [coverPalette, setCoverPalette] = useState<Palette | null>(null);
   const [noteOpen, setNoteOpen] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [shareMoment, setShareMoment] = useState<any>(null);
 
   // Lyric auto-scroll
   const lineRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -466,7 +469,7 @@ function ExperienceContent() {
                     <span style={{ flex: 1, minWidth: 0, fontFamily: "var(--ln-preview)", fontStyle: (activeMoment as any).lyric ? "italic" : "normal", fontSize: 17, fontWeight: 600, lineHeight: 1.4, wordWrap: "break-word", color: (activeMoment as any).lyric ? "#f5f1e8" : "inherit" }}>
                       {(activeMoment as any).lyric || activeMoment.label}
                     </span>
-                    <button onClick={() => alert('Share feature coming soon!')} className="ln-press" title="Share this lyric" style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 5, background: "rgba(44,21,23,0.16)", border: "none", color: "#2c1517", borderRadius: 999, padding: "6px 11px", cursor: "pointer", fontFamily: "var(--ln-body)", fontSize: 12.5, fontWeight: 700, whiteSpace: "nowrap" }}>
+                    <button onClick={() => { setShareMoment(activeMoment); setShareModalOpen(true); }} className="ln-press" title="Share this lyric" style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 5, background: "rgba(44,21,23,0.16)", border: "none", color: "#2c1517", borderRadius: 999, padding: "6px 11px", cursor: "pointer", fontFamily: "var(--ln-body)", fontSize: 12.5, fontWeight: 700, whiteSpace: "nowrap" }}>
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 15V4M12 4l-4 4M12 4l4 4M5 13v5a2 2 0 002 2h10a2 2 0 002-2v-5" stroke="#2c1517" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
                       Share
                     </button>
@@ -540,6 +543,32 @@ function ExperienceContent() {
         }
         @media (prefers-reduced-motion: reduce) { [style*="mu-breathe"] { animation: none !important; } }
       `}</style>
+
+      {/* Share Modal */}
+      {shareModalOpen && shareMoment && review?.track && (
+        <LyricShareModal
+          track={{
+            name: review.track.name,
+            artist: review.track.artist,
+            album: review.track.album || "",
+            artworkUrl: review.track.artworkUrl || "",
+            palette: coverPalette || paletteFromString(review.track.trackId || review.track.name),
+            trackId: review.track.trackId,
+          }}
+          moment={{
+            seconds: shareMoment.sec,
+            label: shareMoment.label,
+            note: shareMoment.note,
+            lyric: shareMoment.lyric,
+          }}
+          reviewer={{
+            name: review.user?.displayName || review.user?.handle || "Listener",
+            handle: review.user?.handle || "listener",
+          }}
+          accent={coverPalette?.accent || "#d5896f"}
+          onClose={() => setShareModalOpen(false)}
+        />
+      )}
     </main>
   );
 }
