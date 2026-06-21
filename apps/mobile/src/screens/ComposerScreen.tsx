@@ -764,6 +764,35 @@ export function ComposerScreen({
             <View style={styles.section}>
               <Text style={styles.sectionLabel}>YOUR RATING</Text>
               <StarsInput rating={rating} onChange={setRating} size={34} />
+              {/* Effort meter - shows post depth (floor/caption/full) */}
+              {rating > 0 && (
+                <View style={styles.effortMeter}>
+                  <Text style={styles.effortLabel}>effort</Text>
+                  <View style={styles.effortBars}>
+                    {['floor', 'caption', 'full'].map((d) => {
+                      const isActive =
+                        d === depth ||
+                        (depth === 'full' && d !== 'floor') ||
+                        (depth === 'caption' && d === 'floor');
+                      return (
+                        <View
+                          key={d}
+                          style={[
+                            styles.effortBar,
+                            {
+                              width: isActive ? 18 : 6,
+                              backgroundColor: isActive ? gold : 'rgba(241,235,224,0.12)',
+                            },
+                          ]}
+                        />
+                      );
+                    })}
+                  </View>
+                  <Text style={[styles.effortDepth, { color: depth ? gold : 'rgba(241,235,224,0.45)' }]}>
+                    {depth || 'none'}
+                  </Text>
+                </View>
+              )}
             </View>
           )}
 
@@ -1697,5 +1726,33 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(241,235,224,0.06)',
     borderWidth: 1,
     borderColor: 'rgba(241,235,224,0.12)',
+  },
+  effortMeter: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 8,
+    marginTop: 14,
+  },
+  effortLabel: {
+    fontFamily: 'Menlo',
+    fontSize: 9,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    color: 'rgba(241,235,224,0.45)',
+  },
+  effortBars: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  effortBar: {
+    height: 2,
+    borderRadius: 1,
+  },
+  effortDepth: {
+    fontFamily: 'Menlo',
+    fontSize: 9,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
   },
 });
