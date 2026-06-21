@@ -372,16 +372,57 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Look up Spotify ID if track is from iTunes/MusicBrainz/Last.fm
+    let finalTrackId = trackId;
+    let finalArtworkUrl = artworkUrl || '';
+    let finalAlbum = trackAlbum || '';
+
+    // Check if trackId is NOT a Spotify ID (Spotify IDs are 22-char alphanumeric)
+    const isSpotifyId = /^[a-zA-Z0-9]{22}$/.test(trackId);
+
+    if (!isSpotifyId) {
+      console.log("[Reviews] Looking up Spotify ID for non-Spotify track:", trackId);
+      try {
+        // Get user's Spotify token for lookup
+        const connection = await prisma.musicConnection.findUnique({
+          where: { userId_service: { userId: currentUserId, service: "spotify" } },
+        });
+
+        if (connection?.accessToken) {
+          const query = encodeURIComponent(`${trackName} ${trackArtist}`);
+          const searchUrl = `https://api.spotify.com/v1/search?q=${query}&type=track&limit=1`;
+          const searchResponse = await fetch(searchUrl, {
+            headers: { Authorization: `Bearer ${connection.accessToken}` },
+          });
+
+          if (searchResponse.ok) {
+            const searchData = await searchResponse.json();
+            const spotifyTrack = searchData.tracks?.items?.[0];
+
+            if (spotifyTrack) {
+              finalTrackId = spotifyTrack.id;
+              const images = spotifyTrack.album.images || [];
+              finalArtworkUrl = images.find((img: any) => img.width >= 640)?.url || images[0]?.url || finalArtworkUrl;
+              finalAlbum = spotifyTrack.album.name || finalAlbum;
+              console.log("[Reviews] Found Spotify ID:", finalTrackId);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("[Reviews] Spotify lookup failed, using original track data:", error);
+      }
+    }
+
     // Create review with notes
     const review = await prisma.review.create({
       data: {
         userId: currentUserId,
-        trackId,
+        trackId: finalTrackId,
         trackName,
         trackArtist,
         // Columns are non-null; default to '' when album/artwork are absent.
-        trackAlbum: trackAlbum || '',
-        artworkUrl: artworkUrl || '',
+        trackAlbum: finalAlbum,
+        artworkUrl: finalArtworkUrl,
         previewUrl,
         rating,
         take: take || null,
