@@ -705,19 +705,31 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
       {/* Share sheet */}
       <ShareSheet
         visible={shareSheetVisible}
-        onClose={() => setShareSheetVisible(false)}
+        onClose={() => {
+          setShareSheetVisible(false);
+          // Don't clear armedMoment here - let user re-share if needed
+        }}
         onExport={handleExport}
         accent={gold}
-        type="review"
+        type={armedMoment ? "moment" : "review"}
         hasFull={!!review.body}
       >
         {({ format, linkSlot }) => (
           <View ref={shareCardRef} collapsable={false}>
-            <ReviewShareCard
-              review={review}
-              format={format}
-              linkSlot={linkSlot}
-            />
+            {armedMoment ? (
+              <LyricShareCard
+                review={review}
+                moment={armedMoment}
+                format={format}
+                linkSlot={linkSlot}
+              />
+            ) : (
+              <ReviewShareCard
+                review={review}
+                format={format}
+                linkSlot={linkSlot}
+              />
+            )}
           </View>
         )}
       </ShareSheet>
