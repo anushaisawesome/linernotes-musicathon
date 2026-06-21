@@ -412,11 +412,8 @@ function ExperienceContent() {
                 connect-later flow. */}
             {!player ? (
               <div style={{ textAlign: "center", padding: "20px 16px", background: "rgba(255,255,255,0.05)", borderRadius: 12, border: `1px solid ${accent}33` }}>
-                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, color: accent }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: accent }}>
                   Sign up with your Spotify account to get the full experience
-                </div>
-                <div style={{ fontSize: 13, opacity: 0.7 }}>
-                  Playback only works when you continue with Spotify. The synced lyrics and notes below still play along.
                 </div>
               </div>
             ) : (
