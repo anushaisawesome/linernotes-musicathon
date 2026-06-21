@@ -111,7 +111,9 @@ function LoginForm() {
 
           {(errorParam || error) && (
             <div style={{ marginTop: 18, padding: "11px 13px", borderRadius: 12, background: "rgba(220,38,38,0.12)", border: "1px solid rgba(220,38,38,0.45)", color: "#ffb4b4", fontFamily: "var(--ln-body)", fontSize: 13.5 }}>
-              {error || "Authentication error. Please try again."}
+              {/* A Spotify/OAuth failure comes back as a URL ?error= (errorParam);
+                  credentials errors set the error state directly. */}
+              {errorParam ? "Authentication error. Please try again." : error}
             </div>
           )}
 
