@@ -143,6 +143,7 @@ function drawBaseGradient(
 
 /**
  * Apply texture overlay based on texture type.
+ * Enhanced to be more visible and genre-specific.
  */
 function applyTexture(
   ctx: CanvasRenderingContext2D,
@@ -151,11 +152,11 @@ function applyTexture(
 ) {
   switch (texture) {
     case 'grain':
-      // Grainy texture (random noise)
+      // Grainy film texture (Folk, Indie, Lo-fi)
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const data = imageData.data;
       for (let i = 0; i < data.length; i += 4) {
-        const noise = (Math.random() - 0.5) * 30;
+        const noise = (Math.random() - 0.5) * 50; // Increased from 30
         data[i] += noise;     // R
         data[i + 1] += noise; // G
         data[i + 2] += noise; // B
@@ -164,58 +165,230 @@ function applyTexture(
       break;
 
     case 'sharp':
-      // Geometric patterns (lines)
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+      // Hard geometric grid (Trap, Metal, Electronic)
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)'; // Increased from 0.05
       ctx.lineWidth = 2;
-      for (let i = 0; i < 10; i++) {
+
+      // Vertical lines
+      for (let i = 0; i < 15; i++) {
         ctx.beginPath();
-        ctx.moveTo(i * canvas.width / 10, 0);
-        ctx.lineTo(i * canvas.width / 10, canvas.height);
+        ctx.moveTo(i * canvas.width / 15, 0);
+        ctx.lineTo(i * canvas.width / 15, canvas.height);
         ctx.stroke();
       }
+
+      // Horizontal lines
+      for (let i = 0; i < 15; i++) {
+        ctx.beginPath();
+        ctx.moveTo(0, i * canvas.height / 15);
+        ctx.lineTo(canvas.width, i * canvas.height / 15);
+        ctx.stroke();
+      }
+
+      ctx.restore();
       break;
 
     case 'glow':
-      // Soft glow overlay
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
+      // Soft luminous glow (Pop, Dance)
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+      const maxDim = Math.max(canvas.width, canvas.height);
+
+      const glowGradient = ctx.createRadialGradient(
+        centerX, centerY, 0,
+        centerX, centerY, maxDim * 0.6
+      );
+      glowGradient.addColorStop(0, 'rgba(255, 255, 255, 0.08)');
+      glowGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.04)');
+      glowGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+      ctx.fillStyle = glowGradient;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       break;
 
     case 'soft':
-    default:
-      // No additional texture
+      // Subtle vignette (R&B, Jazz, Soul)
+      const vignetteCenterX = canvas.width / 2;
+      const vignetteCenterY = canvas.height / 2;
+      const vignetteRadius = Math.max(canvas.width, canvas.height) * 0.7;
+
+      const vignetteGradient = ctx.createRadialGradient(
+        vignetteCenterX, vignetteCenterY, vignetteRadius * 0.3,
+        vignetteCenterX, vignetteCenterY, vignetteRadius
+      );
+      vignetteGradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+      vignetteGradient.addColorStop(1, 'rgba(0, 0, 0, 0.25)');
+
+      ctx.fillStyle = vignetteGradient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
       break;
   }
 }
 
 /**
- * Draw beat pulse (radial pulse synced to beatPhase).
+ * Draw beat pulse (genre-appropriate pulse synced to beatPhase).
+ * Pulse style varies based on texture (sharp vs soft) and motion type.
  */
 function drawBeatPulse(
   ctx: CanvasRenderingContext2D,
   canvas: HTMLCanvasElement,
   state: VisualState
 ) {
-  const { beatPhase, baseIntensity, energyMultiplier } = state;
+  const { beatPhase, baseIntensity, energyMultiplier, texture, motion } = state;
 
-  // Pulse radius expands/contracts with beat phase
   const centerX = canvas.width / 2;
   const centerY = canvas.height / 2;
   const maxRadius = Math.min(canvas.width, canvas.height) * 0.4;
 
-  // Ease function for pulse (peaks at beatPhase = 0, fades by 0.3)
-  const pulseIntensity = beatPhase < 0.3 ? 1 - (beatPhase / 0.3) : 0;
-  const radius = maxRadius * (0.5 + pulseIntensity * 0.5) * energyMultiplier;
-  const opacity = pulseIntensity * baseIntensity * 0.3;
+  // ──────────────────────────────────────────────────────────────────────
+  // TEXTURE-BASED TIMING (sharp vs soft)
+  // ──────────────────────────────────────────────────────────────────────
+  let pulseDuration = 0.3; // default
+  let baseOpacity = 0.3;   // default
 
-  if (opacity > 0.01) {
-    ctx.save();
-    ctx.globalAlpha = opacity;
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+  switch (texture) {
+    case 'sharp':
+      // Fast, aggressive pulse (Trap, Metal, Electronic)
+      pulseDuration = 0.2;
+      baseOpacity = 0.5;
+      break;
+    case 'soft':
+      // Slow, smooth fade (R&B, Jazz, Ambient)
+      pulseDuration = 0.6;
+      baseOpacity = 0.15;
+      break;
+    case 'glow':
+      // Medium, glowing pulse (Pop, Dance)
+      pulseDuration = 0.4;
+      baseOpacity = 0.25;
+      break;
+    case 'grain':
+      // Subtle, textured pulse (Folk, Indie)
+      pulseDuration = 0.5;
+      baseOpacity = 0.2;
+      break;
+  }
+
+  // Ease function for pulse (peaks at beatPhase = 0, fades by pulseDuration)
+  const pulseIntensity = beatPhase < pulseDuration
+    ? 1 - (beatPhase / pulseDuration)
+    : 0;
+
+  const radius = maxRadius * (0.5 + pulseIntensity * 0.5) * energyMultiplier;
+  const opacity = pulseIntensity * baseIntensity * baseOpacity;
+
+  if (opacity < 0.01) return;
+
+  ctx.save();
+  ctx.globalAlpha = opacity;
+
+  // ──────────────────────────────────────────────────────────────────────
+  // MOTION-BASED RENDERING (angular vs undulating vs pulse vs drift)
+  // ──────────────────────────────────────────────────────────────────────
+  switch (motion) {
+    case 'angular':
+      // Geometric shapes (rectangles/diamonds) for hard-hitting tracks
+      drawAngularPulse(ctx, centerX, centerY, radius, texture);
+      break;
+
+    case 'undulating':
+      // Multiple expanding wave rings (organic, flowing)
+      drawUndulatingPulse(ctx, centerX, centerY, radius, pulseIntensity);
+      break;
+
+    case 'drift':
+      // Floating particles instead of centered pulse
+      drawDriftParticles(ctx, canvas, radius, pulseIntensity, energyMultiplier);
+      break;
+
+    case 'pulse':
+    default:
+      // Standard radial pulse (classic circle)
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+  }
+
+  ctx.restore();
+}
+
+/**
+ * Draw angular geometric pulse (for sharp, aggressive genres).
+ */
+function drawAngularPulse(
+  ctx: CanvasRenderingContext2D,
+  centerX: number,
+  centerY: number,
+  radius: number,
+  texture: 'sharp' | 'soft' | 'grain' | 'glow'
+) {
+  ctx.fillStyle = texture === 'sharp'
+    ? 'rgba(255, 255, 255, 0.9)'
+    : 'rgba(255, 255, 255, 0.6)';
+
+  // Draw rotated diamond/square
+  const size = radius * 1.2;
+  ctx.save();
+  ctx.translate(centerX, centerY);
+  ctx.rotate(Math.PI / 4); // 45-degree rotation
+  ctx.fillRect(-size / 2, -size / 2, size, size);
+  ctx.restore();
+}
+
+/**
+ * Draw undulating wave rings (for smooth, flowing genres).
+ */
+function drawUndulatingPulse(
+  ctx: CanvasRenderingContext2D,
+  centerX: number,
+  centerY: number,
+  radius: number,
+  intensity: number
+) {
+  // Draw 3 expanding rings with offset
+  for (let i = 0; i < 3; i++) {
+    const offset = i * 0.15;
+    const ringIntensity = Math.max(0, intensity - offset);
+    if (ringIntensity <= 0) continue;
+
+    const ringRadius = radius * (0.7 + i * 0.15);
+    const ringOpacity = ringIntensity * 0.3;
+
+    ctx.globalAlpha = ringOpacity;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+    ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+    ctx.arc(centerX, centerY, ringRadius, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}
+
+/**
+ * Draw drifting particles (for ambient, spacey genres).
+ */
+function drawDriftParticles(
+  ctx: CanvasRenderingContext2D,
+  canvas: HTMLCanvasElement,
+  baseRadius: number,
+  intensity: number,
+  energyMultiplier: number
+) {
+  const particleCount = Math.floor(8 * energyMultiplier);
+
+  for (let i = 0; i < particleCount; i++) {
+    const angle = (i / particleCount) * Math.PI * 2;
+    const distance = baseRadius * (0.5 + intensity * 0.5);
+    const x = canvas.width / 2 + Math.cos(angle) * distance;
+    const y = canvas.height / 2 + Math.sin(angle) * distance;
+    const size = 4 + intensity * 6;
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.beginPath();
+    ctx.arc(x, y, size, 0, Math.PI * 2);
     ctx.fill();
-    ctx.restore();
   }
 }
 
