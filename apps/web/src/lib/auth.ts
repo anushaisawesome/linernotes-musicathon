@@ -116,7 +116,20 @@ export const authOptions: NextAuthConfig = {
   ],
   session: {
     strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
+  cookies: {
+    sessionToken: {
+      name: `__Secure-next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: true,
+      },
+    },
+  },
+  useSecureCookies: true,
   pages: {
     signIn: "/login",
     error: "/login", // Error code passed in query string as ?error=
@@ -124,6 +137,8 @@ export const authOptions: NextAuthConfig = {
   callbacks: {
     async signIn({ user, account, profile }) {
       try {
+        console.log("[Auth] SignIn callback - provider:", account?.provider);
+
         // For existing Spotify users, update their token
         if (account?.provider === "spotify" && account.access_token && user.id) {
           const existingConnection = await prisma.musicConnection.findFirst({
@@ -150,8 +165,9 @@ export const authOptions: NextAuthConfig = {
 
         return true;
       } catch (error) {
-        console.error("SignIn callback error:", error);
-        return false;
+        console.error("[Auth] SignIn callback error:", error);
+        // Don't block login if just the token update fails
+        return true;
       }
     },
     async session({ session, token }) {
