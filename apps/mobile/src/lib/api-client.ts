@@ -48,6 +48,10 @@ class APIClient {
     this.baseURL = baseURL;
   }
 
+  get baseUrl(): string {
+    return this.baseURL;
+  }
+
   setAuthToken(token: string | null) {
     this.authToken = token;
     // Persist (fire-and-forget) so the session survives app restarts.
