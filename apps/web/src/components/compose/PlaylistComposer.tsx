@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import type { Track } from "@/lib/types";
 import { TrackSearch } from "./TrackSearch";
-import { searchTracks } from "@/lib/api";
+import { searchTracks, getReviews } from "@/lib/api";
 import { LNArt } from "@/components/ln/atoms";
 import { paletteFromString } from "@/lib/palette";
 import { ModeTabs } from "./composer-ui";
@@ -37,6 +37,28 @@ export function PlaylistComposer() {
   const [editingNoteIndex, setEditingNoteIndex] = useState<number | null>(null);
   const [noteText, setNoteText] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [reviewedTracks, setReviewedTracks] = useState<Track[]>([]);
+
+  // The tracks you've reviewed (deduped) — a quick way to build a playlist from
+  // songs you've already logged. getReviews() returns the current user's reviews.
+  useEffect(() => {
+    let cancelled = false;
+    getReviews()
+      .then((rs) => {
+        if (cancelled) return;
+        const seen = new Set<string>();
+        const out: Track[] = [];
+        for (const r of rs || []) {
+          if (r.track?.trackId && !seen.has(r.track.trackId)) {
+            seen.add(r.track.trackId);
+            out.push(r.track);
+          }
+        }
+        setReviewedTracks(out);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
 
   const gold = "var(--ln-accent)";
   const canPost = title.trim() && tracks.length > 0;
@@ -165,6 +187,42 @@ export function PlaylistComposer() {
         </div>
         <TrackSearch onTrackSelect={handleAddTrack} searchAPI={searchTracks} />
       </div>
+
+      {/* Pick from tracks you've reviewed */}
+      {reviewedTracks.length > 0 && (
+        <div>
+          <div style={{ fontFamily: "var(--ln-body)", fontSize: 14.5, fontWeight: 400, letterSpacing: "0.01em", color: gold, marginBottom: 10 }}>
+            Or pick from your reviews
+          </div>
+          <div className="ln-scroll" style={{ display: "flex", gap: 13, overflowX: "auto", paddingBottom: 8 }}>
+            {reviewedTracks.map((t) => {
+              const added = tracks.some((x) => x.trackId === t.trackId);
+              return (
+                <button
+                  key={t.trackId}
+                  type="button"
+                  onClick={() => { if (!added) handleAddTrack(t); }}
+                  className="ln-press"
+                  style={{ width: 116, flexShrink: 0, display: "flex", flexDirection: "column", gap: 7, background: "none", border: "none", padding: 0, cursor: added ? "default" : "pointer", textAlign: "left", opacity: added ? 0.5 : 1 }}
+                >
+                  <div style={{ position: "relative", borderRadius: 10, overflow: "hidden", border: added ? `2px solid ${gold}` : "2px solid transparent" }}>
+                    <LNArt palette={paletteFromString(t.trackId || t.name)} src={t.artworkUrl} label="" radius={10} noTag />
+                    <div style={{ position: "absolute", top: 6, right: 6, width: 22, height: 22, borderRadius: "50%", background: added ? gold : "rgba(8,7,6,0.62)", border: added ? "none" : "1px solid rgba(255,255,255,0.4)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                        {added
+                          ? <path d="M5 13l4 4L19 7" stroke="#2c1517" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                          : <path d="M12 5v14M5 12h14" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" />}
+                      </svg>
+                    </div>
+                  </div>
+                  <div style={{ fontFamily: "var(--ln-album)", fontWeight: 600, fontSize: 13, color: "var(--ln-fg)", lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.name}</div>
+                  <div style={{ fontFamily: "var(--ln-body)", fontSize: 11.5, color: "var(--ln-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: -3 }}>{t.artist}</div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Track List */}
       {tracks.length > 0 && (
