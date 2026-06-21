@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { TopBar, Footer } from "@/components/ln/nav";
@@ -94,9 +94,15 @@ export default function Home() {
     }
   }, [session]);
 
+  // Fetch the prompts ONCE per visit. The API reshuffles every call, so
+  // re-fetching on every session revalidation made the shelf appear to
+  // auto-refresh — only the Refresh button should change them now.
+  const promptsLoaded = useRef(false);
   useEffect(() => {
+    if (!session || promptsLoaded.current) return;
+    promptsLoaded.current = true;
     fetchPrompts();
-  }, [fetchPrompts]);
+  }, [session, fetchPrompts]);
 
   // "Play the Experience" / the hero covers compile the GLOBAL community feed into
   // a playlist and open the Experience starting at the most recent track post

@@ -513,9 +513,10 @@ export async function GET(request: Request) {
     }
 
     // Priority 2: Recently played unique tracks - Limit to 2 (lower weight since they're one-offs)
-    // Sample from wider range (0-100) for more variety on refresh
-    const recentSample = tracks.slice(0, 100).sort(() => Math.random() - 0.5);
-    for (const track of recentSample.slice(0, 30)) {
+    // Last.fm returns recent tracks newest-first, so use the genuine top of the
+    // list (skipping any now-playing entry) — "JUST PLAYED" should mean it.
+    const recentSample = tracks.filter((t) => !(t as { "@attr"?: { nowplaying?: string } })["@attr"]?.nowplaying).slice(0, 30);
+    for (const track of recentSample) {
       const artistName = getArtistName(track.artist);
       let albumName = getAlbumName(track.album);
 

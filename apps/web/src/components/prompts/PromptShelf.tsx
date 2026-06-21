@@ -160,6 +160,7 @@ function PromptCard({
   const [hover, setHover] = useState(false);
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
+  const [imgError, setImgError] = useState(false);
   const p = prompt.palette;
 
   const handleRatingClick = (newRating: number, e: React.MouseEvent) => {
@@ -196,16 +197,19 @@ function PromptCard({
           <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
             {/* Album art thumbnail */}
             <div style={{ width: 42, height: 42, borderRadius: 9, overflow: "hidden", flexShrink: 0, background: `radial-gradient(120% 120% at 22% 18%, ${p.mid} 0%, ${p.deep} 55%, ${p.lo} 100%)` }}>
-              {prompt.artworkUrl ? (
+              {prompt.artworkUrl && !imgError ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={prompt.artworkUrl}
                   alt={prompt.album}
                   style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                  crossOrigin="anonymous"
+                  onError={() => setImgError(true)}
                 />
               ) : (
-                <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: p.accent, fontSize: 20 }}>★</div>
+                // No artwork (or it failed to load) — show the album-colour tile.
+                <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#f4ecdd", fontSize: 18, fontFamily: "var(--ln-album)", fontWeight: 700, textShadow: "0 1px 4px rgba(0,0,0,0.5)" }}>
+                  {(prompt.album || prompt.track || prompt.artist || "♪").trim()[0]?.toUpperCase() || "♪"}
+                </div>
               )}
             </div>
             <span style={{ fontFamily: "var(--ln-mono)", fontSize: 9.5, letterSpacing: "0.4px", lineHeight: "12px", color: accent }}>
