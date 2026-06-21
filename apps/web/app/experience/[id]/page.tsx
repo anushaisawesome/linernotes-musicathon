@@ -86,7 +86,7 @@ function ExperienceContent() {
         setLoading(false);
 
         // Auto-play the track once player is ready
-        if (review.track.trackId) {
+        if (review?.track?.trackId) {
           const spotifyUri = `spotify:track:${review.track.trackId}`;
           console.log("[Experience] Auto-playing track:", spotifyUri);
           try {
