@@ -344,15 +344,17 @@ export function LNArt({
 export function LNMoment({
   note,
   accent,
+  large = false,
 }: {
   note: { sec: number; label?: string; note: string; lyric?: string };
   accent?: string;
+  large?: boolean; // larger type for the open review page
 }) {
   const gold = accent || "var(--ln-accent)";
   const ts = lnFmt(note.sec);
-  const headSize = 12.5;
-  const lyricSize = 15;
-  const noteSize = 13.5;
+  const headSize = large ? 15 : 12.5;
+  const lyricSize = large ? 18.5 : 15;
+  const noteSize = large ? 16.5 : 13.5;
   const lyricText = (note.lyric || "").trim();
   const isLyric = !!lyricText;
   const labelText = (note.label || "").trim();

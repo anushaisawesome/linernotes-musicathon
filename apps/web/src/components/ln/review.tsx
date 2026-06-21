@@ -121,7 +121,7 @@ function TrackCard({ t, gold, np }: { t: TrackVM; gold: string; np: boolean }) {
       {mc > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {t.moments.map((m, i) => (
-            <LNMoment key={i} note={{ sec: m.sec, label: m.label || t.name, note: m.note || "", lyric: m.lyric }} accent={gold} />
+            <LNMoment key={i} note={{ sec: m.sec, label: m.label || t.name, note: m.note || "", lyric: m.lyric }} accent={gold} large />
           ))}
         </div>
       )}
@@ -305,7 +305,7 @@ export function ImmersiveReview({
             </div>
 
             {caption && (
-              <p style={{ margin: "30px 0 0", fontFamily: "var(--ln-preview)", fontStyle: "italic", fontWeight: 500, fontSize: "clamp(24px, 2.6vw, 34px)", lineHeight: 1.32, color: INK, borderLeft: `3px solid ${gold}`, paddingLeft: 22 }}>
+              <p style={{ margin: "30px 0 0", fontFamily: "var(--ln-preview)", fontStyle: "italic", fontWeight: 500, fontSize: "clamp(19px, 2vw, 26px)", lineHeight: 1.32, color: INK, borderLeft: `3px solid ${gold}`, paddingLeft: 22 }}>
                 “{caption}”
               </p>
             )}
@@ -313,9 +313,9 @@ export function ImmersiveReview({
             {(restLines.length > 0 || vm.body) && (
               <div style={{ marginTop: 26, maxWidth: 620, display: "flex", flexDirection: "column", gap: 16 }}>
                 {restLines.map((ln, i) => (
-                  <p key={i} style={{ margin: 0, fontFamily: "var(--ln-body)", fontStyle: "normal", fontSize: 18.5, lineHeight: 1.72, color: muted(0.86) }}>{ln}</p>
+                  <p key={i} style={{ margin: 0, fontFamily: "var(--ln-body)", fontStyle: "normal", fontSize: 16, lineHeight: 1.7, color: muted(0.86) }}>{ln}</p>
                 ))}
-                {vm.body && <p style={{ margin: 0, fontFamily: "var(--ln-body)", fontStyle: "normal", fontSize: 18.5, lineHeight: 1.72, color: muted(0.86) }}>{vm.body}</p>}
+                {vm.body && <p style={{ margin: 0, fontFamily: "var(--ln-body)", fontStyle: "normal", fontSize: 16, lineHeight: 1.7, color: muted(0.86) }}>{vm.body}</p>}
               </div>
             )}
 
@@ -331,7 +331,7 @@ export function ImmersiveReview({
                 <SectionLabel gold={gold}>the moment{vm.notes.length > 1 ? "s" : ""}</SectionLabel>
                 <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 16, maxWidth: 620 }}>
                   {vm.notes.map((m, i) => (
-                    <LNMoment key={i} note={{ sec: m.sec, label: m.label, note: m.note || "", lyric: m.lyric }} accent={gold} />
+                    <LNMoment key={i} note={{ sec: m.sec, label: m.label, note: m.note || "", lyric: m.lyric }} accent={gold} large />
                   ))}
                 </div>
               </div>
