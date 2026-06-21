@@ -3,9 +3,22 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ComposeForm } from "@/components/compose";
-import { searchTracks } from "@/lib/api";
 import { TopBar, Footer } from "@/components/ln/nav";
 import type { Track } from "@/lib/types";
+
+// Search Spotify for tracks (returns real Spotify track IDs for playback)
+async function searchSpotifyTracks(query: string): Promise<Track[]> {
+  try {
+    const response = await fetch(`/api/spotify/search?q=${encodeURIComponent(query)}&limit=20`);
+    if (!response.ok) return [];
+
+    const data = await response.json();
+    return data.tracks || [];
+  } catch (error) {
+    console.error("[Search] Spotify search failed:", error);
+    return [];
+  }
+}
 
 function LogPageContent() {
   const searchParams = useSearchParams();
@@ -28,26 +41,35 @@ function LogPageContent() {
     async function lookupSpotifyTrack() {
       setIsLookingUpSpotify(true);
       try {
-        // Search Spotify for this track to get real track ID
-        const results = await searchTracks(`${trackName} ${artistName}`);
+        // Clean up track name (remove trailing periods)
+        const cleanTrack = trackName.trim().replace(/\.\s*$/, '').trim();
+        const cleanArtist = artistName.trim();
 
-        if (results.length > 0) {
-          // Use first match (best match)
-          const spotifyTrack = results[0];
-          console.log("[Log Page] Found Spotify track:", spotifyTrack.trackId, "for", trackName);
-          setInitialTrack(spotifyTrack);
-        } else {
-          // No Spotify match - use Last.fm data with fake ID (Experience will show preview mode)
-          console.log("[Log Page] No Spotify match found for", trackName, "- using Last.fm data");
-          setInitialTrack({
-            trackId: `lastfm-${trackName}-${artistName}`,
-            name: trackName,
-            artist: artistName,
-            album: albumName || "",
-            artworkUrl: artworkUrl || "",
-            previewUrl: "",
-          });
+        // Search Spotify directly for real track ID
+        const query = encodeURIComponent(`${cleanTrack} ${cleanArtist}`);
+        const response = await fetch(`/api/spotify/search?q=${query}&limit=1`);
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.tracks && data.tracks.length > 0) {
+            const spotifyTrack = data.tracks[0];
+            console.log("[Log Page] Found Spotify track:", spotifyTrack.trackId, "for", trackName);
+            setInitialTrack(spotifyTrack);
+            setIsLookingUpSpotify(false);
+            return;
+          }
         }
+
+        // No Spotify match - use Last.fm data with fake ID (Experience will show preview mode)
+        console.log("[Log Page] No Spotify match found for", trackName, "- using Last.fm data");
+        setInitialTrack({
+          trackId: `lastfm-${trackName}-${artistName}`,
+          name: trackName,
+          artist: artistName,
+          album: albumName || "",
+          artworkUrl: artworkUrl || "",
+          previewUrl: "",
+        });
       } catch (error) {
         console.error("[Log Page] Failed to lookup Spotify track:", error);
         // Fall back to Last.fm data
@@ -84,7 +106,7 @@ function LogPageContent() {
           )}
 
           <ComposeForm
-            searchAPI={searchTracks}
+            searchAPI={searchSpotifyTracks}
             initialTrack={initialTrack}
             initialRating={initialRating ? parseInt(initialRating) : undefined}
           />

@@ -28,7 +28,7 @@ async function searchSpotifyTrack(trackName: string, artistName: string): Promis
     console.log(`   Searching Spotify: "${cleanTrack}" by ${cleanArtist}`);
 
     const query = encodeURIComponent(`${cleanTrack} ${cleanArtist}`);
-    const url = `${process.env.NEXTAUTH_URL}/api/music/search/tracks?q=${query}&limit=1`;
+    const url = `${process.env.NEXTAUTH_URL}/api/spotify/search?q=${query}&limit=1`;
 
     const response = await fetch(url);
     if (!response.ok) {
