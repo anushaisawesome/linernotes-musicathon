@@ -216,15 +216,15 @@ const styles = StyleSheet.create({
   card: {
     position: 'relative',
     borderRadius: 18,
-    backgroundColor: tokens.colors.bg,
+    backgroundColor: tokens.colors.surface, // Musicathon oxblood surface
     borderWidth: 1,
-    borderColor: 'rgba(218,183,133,0.07)',
+    borderColor: `rgba(${tokens.colors.fgRgb},0.09)`, // Subtle warm sand border
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 0,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.45,
+    shadowRadius: 24,
+    elevation: 8,
   },
   tint: {
     position: 'absolute',
