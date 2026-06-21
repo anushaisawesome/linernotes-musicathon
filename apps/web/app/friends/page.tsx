@@ -82,6 +82,8 @@ export default function FriendsPage() {
   const [adding, setAdding] = useState(false);
   const [addMsg, setAddMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [shareMsg, setShareMsg] = useState("");
+  const [confirmRemove, setConfirmRemove] = useState<User | null>(null);
+  const [removing, setRemoving] = useState(false);
 
   useEffect(() => {
     if (status === "loading") return;
@@ -118,15 +120,20 @@ export default function FriendsPage() {
     }
   };
 
-  // Remove an accepted friend — confirm first, then drop the friendship.
-  const handleRemove = async (f: User) => {
-    if (!window.confirm(`Remove @${f.handle} from your friends?`)) return;
+  // Remove an accepted friend — opens an on-screen confirmation first.
+  const confirmRemoveFriend = async () => {
+    if (!confirmRemove) return;
+    const f = confirmRemove;
+    setRemoving(true);
     try {
       await removeFriend(f.id);
       setFriends((arr) => arr.filter((x) => x.id !== f.id));
+      setConfirmRemove(null);
     } catch (error) {
       console.error("Failed to remove friend:", error);
       alert("Couldn't remove friend. Please try again.");
+    } finally {
+      setRemoving(false);
     }
   };
 
@@ -272,7 +279,7 @@ export default function FriendsPage() {
                         user={f}
                         onOpen={() => router.push(`/profile/${f.handle}`)}
                         right={
-                          <button onClick={() => handleRemove(f)} className="ln-press" title="Remove friend" style={{ flexShrink: 0, padding: "7px 13px", borderRadius: 999, border: "1px solid rgba(var(--ln-line-rgb),0.2)", background: "transparent", cursor: "pointer", color: "rgba(var(--ln-fg-rgb),0.6)", fontFamily: "var(--ln-body)", fontSize: 12.5, fontWeight: 600 }}>
+                          <button onClick={() => setConfirmRemove(f)} className="ln-press" title="Remove friend" style={{ flexShrink: 0, padding: "7px 13px", borderRadius: 999, border: "1px solid rgba(var(--ln-line-rgb),0.2)", background: "transparent", cursor: "pointer", color: "rgba(var(--ln-fg-rgb),0.6)", fontFamily: "var(--ln-body)", fontSize: 12.5, fontWeight: 600 }}>
                             Remove
                           </button>
                         }
@@ -342,6 +349,35 @@ export default function FriendsPage() {
           )}
         </section>
       </main>
+
+      {/* Remove-friend confirmation — an on-screen dialog, not a native prompt */}
+      {confirmRemove && (
+        <div
+          onClick={() => !removing && setConfirmRemove(null)}
+          style={{ position: "fixed", inset: 0, zIndex: 400, background: "rgba(6,4,4,0.66)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 20px", animation: "ln-fade 0.2s ease both" }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ width: "100%", maxWidth: 380, background: "var(--ln-bg)", borderRadius: 20, border: "1px solid rgba(var(--ln-line-rgb),0.14)", boxShadow: "0 50px 110px -34px rgba(0,0,0,0.8)", padding: "24px 22px", animation: "ln-pop 0.3s cubic-bezier(.16,1,.3,1) both" }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+              <LNAvatar user={avatarUser(confirmRemove)} size={40} />
+              <div style={{ minWidth: 0, lineHeight: 1.3 }}>
+                <div style={{ fontFamily: "var(--ln-body)", fontSize: 14, fontWeight: 600, color: "var(--ln-fg)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{confirmRemove.displayName || confirmRemove.handle}</div>
+                <div style={{ fontFamily: "var(--ln-mono)", fontSize: 10.5, color: "rgba(var(--ln-fg-rgb),0.5)" }}>@{confirmRemove.handle}</div>
+              </div>
+            </div>
+            <h3 style={{ margin: 0, fontFamily: "var(--ln-display)", fontSize: 20, fontWeight: 600, color: "var(--ln-fg)" }}>Remove this friend?</h3>
+            <p style={{ margin: "8px 0 18px", fontFamily: "var(--ln-body)", fontSize: 14, lineHeight: 1.45, color: "rgba(var(--ln-fg-rgb),0.65)" }}>
+              You&apos;ll no longer see @{confirmRemove.handle} in your friends or your feed. You can always add them again.
+            </p>
+            <div style={{ display: "flex", gap: 11 }}>
+              <button onClick={() => setConfirmRemove(null)} disabled={removing} className="ln-press" style={{ flex: 1, padding: "12px", borderRadius: 12, cursor: removing ? "default" : "pointer", background: "rgba(var(--ln-fg-rgb),0.06)", color: "var(--ln-fg)", border: "1px solid rgba(var(--ln-fg-rgb),0.16)", fontFamily: "var(--ln-body)", fontSize: 14, fontWeight: 600 }}>Cancel</button>
+              <button onClick={confirmRemoveFriend} disabled={removing} className="ln-press" style={{ flex: 1, padding: "12px", borderRadius: 12, cursor: removing ? "default" : "pointer", background: "#dc2626", color: "#fff", border: "none", fontFamily: "var(--ln-body)", fontSize: 14, fontWeight: 700, opacity: removing ? 0.6 : 1 }}>{removing ? "Removing…" : "Remove"}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Footer />
     </div>
