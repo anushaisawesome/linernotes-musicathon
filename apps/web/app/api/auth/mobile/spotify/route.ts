@@ -40,9 +40,23 @@ export async function POST(req: NextRequest) {
 
     if (!tokenResponse.ok) {
       const error = await tokenResponse.text();
-      console.error('Spotify token exchange failed:', error);
+      console.error('[Mobile Spotify Auth] Spotify token exchange failed:', {
+        status: tokenResponse.status,
+        statusText: tokenResponse.statusText,
+        error,
+        clientIdSet: !!process.env.SPOTIFY_CLIENT_ID,
+        clientSecretSet: !!process.env.SPOTIFY_CLIENT_SECRET,
+      });
       return NextResponse.json(
-        { error: 'Failed to exchange authorization code' },
+        {
+          error: 'Failed to exchange authorization code',
+          details: error,
+          debug: {
+            status: tokenResponse.status,
+            hasClientId: !!process.env.SPOTIFY_CLIENT_ID,
+            hasClientSecret: !!process.env.SPOTIFY_CLIENT_SECRET,
+          }
+        },
         { status: 401 }
       );
     }
