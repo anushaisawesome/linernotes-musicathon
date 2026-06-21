@@ -344,12 +344,17 @@ export function LNArt({
 export function LNMoment({
   note,
   accent,
+  large = false,
 }: {
   note: { sec: number; label?: string; note: string; lyric?: string };
   accent?: string;
+  large?: boolean; // larger type for the open review page
 }) {
   const gold = accent || "var(--ln-accent)";
   const ts = lnFmt(note.sec);
+  const headSize = large ? 14.5 : 12.5;
+  const lyricSize = large ? 18 : 15;
+  const noteSize = large ? 16 : 13.5;
   const lyricText = (note.lyric || "").trim();
   const isLyric = !!lyricText;
   const labelText = (note.label || "").trim();
@@ -379,7 +384,7 @@ export function LNMoment({
       <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingTop: 1, minWidth: 0, flex: 1 }}>
         {/* header: vibrant timestamp + label, with a lyric tag when it's a quote */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <span style={{ fontFamily: "var(--ln-mono)", fontSize: 14.5, fontWeight: 600, color: gold, letterSpacing: "0.03em" }}>
+          <span style={{ fontFamily: "var(--ln-mono)", fontSize: headSize, fontWeight: 600, color: gold, letterSpacing: "0.03em" }}>
             {ts}
             {showLabel ? <span> · {labelText}</span> : null}
           </span>
@@ -393,7 +398,7 @@ export function LNMoment({
         {/* the lyric quote — italic serif in an accent-tinted card, unmistakably a quote */}
         {isLyric && (
           <div style={{ borderLeft: `2px solid ${gold}`, background: `${gold}10`, borderRadius: "0 8px 8px 0", padding: "8px 12px" }}>
-            <span style={{ fontFamily: "var(--ln-preview)", fontStyle: "italic", fontSize: 18, lineHeight: 1.5, color: "rgba(var(--ln-fg-rgb),0.92)", whiteSpace: "pre-wrap" }}>
+            <span style={{ fontFamily: "var(--ln-preview)", fontStyle: "italic", fontSize: lyricSize, lineHeight: 1.5, color: "rgba(var(--ln-fg-rgb),0.92)", whiteSpace: "pre-wrap" }}>
               {`“${lyricText}”`}
             </span>
           </div>
@@ -407,7 +412,7 @@ export function LNMoment({
                 note
               </span>
             )}
-            <span style={{ fontFamily: "var(--ln-body)", fontSize: 16, lineHeight: 1.45, color: "rgba(var(--ln-fg-rgb),0.85)" }}>
+            <span style={{ fontFamily: "var(--ln-body)", fontSize: noteSize, lineHeight: 1.45, color: "rgba(var(--ln-fg-rgb),0.85)" }}>
               {annotation}
             </span>
           </div>
