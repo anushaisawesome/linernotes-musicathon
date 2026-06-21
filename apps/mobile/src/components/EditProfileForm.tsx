@@ -16,6 +16,7 @@ import {
   Animated,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as WebBrowser from 'expo-web-browser';
 import { api } from '../lib/api-client';
 import { lastfm } from '../services/lastfm';
 import { tokens } from '../lib/tokens';
@@ -37,7 +38,6 @@ export function EditProfileForm({
 
   const [lastFmStatus, setLastFmStatus] = useState<LastFmStatus>('idle');
   const [lastFmUsername, setLastFmUsername] = useState('');
-  const [lastFmInput, setLastFmInput] = useState('');
 
   const handleClean = handle.replace(/[^a-z0-9_]/gi, '').toLowerCase();
   const canSave = displayName.trim().length > 0 && handleClean.length >= 3;
@@ -67,39 +67,50 @@ export function EditProfileForm({
   }, []);
 
   const connectLastFm = async () => {
-    const username = lastFmInput.trim();
-    if (!username || lastFmStatus === 'linking') return;
+    if (lastFmStatus === 'linking') return;
 
     setLastFmStatus('linking');
 
     try {
-      // Verify the username exists by fetching recent tracks
-      const tracks = await lastfm.getRecentTracks(username, 1);
+      // Step 1: Get an auth token from Last.fm
+      const token = await lastfm.getAuthToken();
 
-      if (tracks && tracks.length > 0) {
-        await lastfm.setUsername(username);
-        setLastFmUsername(username);
-        setLastFmStatus('linked');
-        setLastFmInput('');
-        Alert.alert('Connected', `Successfully connected to Last.fm as ${username}`);
-      } else {
+      // Step 2: Open Last.fm authorization page
+      const authUrl = lastfm.getAuthUrl(token);
+      const result = await WebBrowser.openBrowserAsync(authUrl);
+
+      // If user cancelled, reset status
+      if (result.type === 'cancel') {
         setLastFmStatus('idle');
-        Alert.alert('Error', 'Could not find that Last.fm username. Please check and try again.');
+        return;
       }
-    } catch (error) {
+
+      // Step 3: Exchange token for session key
+      // Give user a moment to complete auth before checking
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      const { username } = await lastfm.getSessionKey(token);
+      setLastFmUsername(username);
+      setLastFmStatus('linked');
+      Alert.alert('Connected', `Successfully connected to Last.fm as ${username}`);
+    } catch (error: any) {
       setLastFmStatus('idle');
-      Alert.alert('Error', 'Failed to connect to Last.fm. Please check the username and try again.');
+      console.error('Last.fm auth error:', error);
+      Alert.alert(
+        'Connection Failed',
+        error?.message || 'Failed to connect to Last.fm. Please try again.'
+      );
     }
   };
 
   const disconnectLastFm = async () => {
     setLastFmStatus('disconnecting');
     try {
-      await api.disconnectService('lastfm');
-      await lastfm.clearUsername();
+      // Clear local Last.fm session
+      await lastfm.clearSession();
       setLastFmStatus('idle');
       setLastFmUsername('');
-      Alert.alert('Disconnected', 'Last.fm has been disconnected');
+      Alert.alert('Disconnected', 'Last.fm has been disconnected. You can reconnect anytime.');
     } catch (error) {
       setLastFmStatus('linked');
       Alert.alert('Error', 'Failed to disconnect Last.fm');
@@ -219,31 +230,19 @@ export function EditProfileForm({
           ) : (
             <View>
               <Text style={styles.lastFmDescription}>
-                Connect Last.fm to see prompts based on what you're listening to
+                Connect Last.fm to see prompts based on what you're listening to. You'll be redirected to Last.fm to authorize LinerNotes.
               </Text>
-              <TextInput
-                value={lastFmInput}
-                onChangeText={setLastFmInput}
-                placeholder="your last.fm username"
-                placeholderTextColor="rgba(241,235,224,0.3)"
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={lastFmStatus !== 'linking'}
-                onSubmitEditing={connectLastFm}
-                style={[styles.input, { marginTop: 8, marginBottom: 8 }]}
-              />
               <TouchableOpacity
                 onPress={connectLastFm}
-                disabled={
-                  lastFmStatus === 'linking' || lastFmInput.trim().length === 0
-                }
+                disabled={lastFmStatus === 'linking'}
                 style={[
                   styles.lastFmButton,
                   {
                     backgroundColor:
-                      lastFmStatus === 'linking' || lastFmInput.trim().length === 0
+                      lastFmStatus === 'linking'
                         ? 'rgba(241,235,224,0.12)'
                         : tokens.colors.gold,
+                    marginTop: 12,
                   },
                 ]}
               >
@@ -252,7 +251,7 @@ export function EditProfileForm({
                     styles.lastFmButtonText,
                     {
                       color:
-                        lastFmStatus === 'linking' || lastFmInput.trim().length === 0
+                        lastFmStatus === 'linking'
                           ? 'rgba(241,235,224,0.4)'
                           : tokens.colors.nearBlack,
                     },

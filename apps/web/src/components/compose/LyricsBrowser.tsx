@@ -18,6 +18,8 @@ interface LyricsBrowserProps {
 
 export function LyricsBrowser({ trackIsrc, trackName, artistName, onBookmark, bookmarkedLines }: LyricsBrowserProps) {
   const [lyrics, setLyrics] = useState<LyricLine[]>([]);
+  const [translation, setTranslation] = useState<LyricLine[]>([]);
+  const [showTranslation, setShowTranslation] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedLines, setSelectedLines] = useState<Set<number>>(new Set());
@@ -63,6 +65,21 @@ export function LyricsBrowser({ trackIsrc, trackName, artistName, onBookmark, bo
 
           console.log("[LyricsBrowser] Parsed lyrics count:", parsedLyrics.length);
           setLyrics(parsedLyrics);
+
+          // Check for translation
+          if (data.translation && Array.isArray(data.translation)) {
+            const parsedTranslation = data.translation.map((line: any) => ({
+              text: line.text || "",
+              seconds: line.time?.total ? line.time.total / 1000 : 0,
+            })).filter((line: LyricLine) => line.text.trim() !== "");
+
+            setTranslation(parsedTranslation);
+            setShowTranslation(true); // Show translation by default
+            console.log("[LyricsBrowser] Translation available:", parsedTranslation.length, "lines");
+          } else {
+            setTranslation([]);
+            setShowTranslation(false);
+          }
         } else if (data.message) {
           setError(data.message);
         } else {
@@ -104,9 +121,12 @@ export function LyricsBrowser({ trackIsrc, trackName, artistName, onBookmark, bo
   const commitBookmark = (noteText: string) => {
     if (selectedLines.size === 0) return;
 
+    // Use the currently displayed lyrics (original or translation)
+    const displayedLyrics = showTranslation && translation.length > 0 ? translation : lyrics;
+
     const selectedLyrics = Array.from(selectedLines)
       .sort((a, b) => a - b)
-      .map(idx => lyrics[idx]);
+      .map(idx => displayedLyrics[idx]);
 
     const firstLine = selectedLyrics[0];
     const combinedLyric = selectedLyrics.map(l => l.text).join("\n");
@@ -178,10 +198,36 @@ export function LyricsBrowser({ trackIsrc, trackName, artistName, onBookmark, bo
 
   return (
     <div>
-      <div style={{ marginBottom: 12, fontFamily: "var(--ln-body)", fontSize: 13, color: "rgba(var(--ln-fg-rgb),0.6)" }}>
-        {selectedLines.size > 0
-          ? `${selectedLines.size} line${selectedLines.size > 1 ? "s" : ""} selected. Click to add/remove lines.`
-          : "Click lines to select them, then save — adding an annotation is optional. Select multiple lines to bookmark a verse or chorus together."}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+        <div style={{ flex: 1, fontFamily: "var(--ln-body)", fontSize: 13, color: "rgba(var(--ln-fg-rgb),0.6)" }}>
+          {selectedLines.size > 0
+            ? `${selectedLines.size} line${selectedLines.size > 1 ? "s" : ""} selected. Click to add/remove lines.`
+            : "Click lines to select them, then save — adding an annotation is optional. Select multiple lines to bookmark a verse or chorus together."}
+        </div>
+        {translation.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowTranslation(!showTranslation)}
+            className="ln-press"
+            style={{
+              marginLeft: 12,
+              background: "rgba(var(--ln-fg-rgb),0.06)",
+              border: `1px solid ${showTranslation ? gold : "rgba(var(--ln-fg-rgb),0.16)"}`,
+              borderRadius: 6,
+              padding: "5px 10px",
+              cursor: "pointer",
+              fontFamily: "var(--ln-mono)",
+              fontSize: 10,
+              letterSpacing: "0.04em",
+              color: showTranslation ? gold : "rgba(var(--ln-fg-rgb),0.6)",
+              fontWeight: 600,
+              transition: "all 0.2s",
+              flexShrink: 0,
+            }}
+          >
+            {showTranslation ? "EN" : "ORIG"}
+          </button>
+        )}
       </div>
 
       {selectedLines.size > 0 && !isAnnotating && (
@@ -315,7 +361,7 @@ export function LyricsBrowser({ trackIsrc, trackName, artistName, onBookmark, bo
       )}
 
       <div style={{ maxHeight: 400, overflowY: "auto", border: "1px solid rgba(var(--ln-fg-rgb),0.1)", borderRadius: 12, background: "rgba(var(--ln-fg-rgb),0.02)" }}>
-        {lyrics.map((line, index) => {
+        {(showTranslation && translation.length > 0 ? translation : lyrics).map((line, index) => {
           const isBookmarked = bookmarkedLines.has(line.text);
           const isSelected = selectedLines.has(index);
           const minutes = Math.floor(line.seconds / 60);

@@ -38,6 +38,8 @@ function ExperienceContent() {
   const [playlistLabel, setPlaylistLabel] = useState<string | null>(null);
   const [review, setReview] = useState<Review | null>(null);
   const [lyrics, setLyrics] = useState<SyncedLyrics | null>(null);
+  const [translation, setTranslation] = useState<SyncedLyrics | null>(null);
+  const [showTranslation, setShowTranslation] = useState(false);
   const [playerState, setPlayerState] = useState<PlayerState | null>(null);
   const [annotations, setAnnotations] = useState<ActiveAnnotations | null>(null);
   const [player, setPlayer] = useState<WebPlaybackSDK | null>(null);
@@ -232,12 +234,26 @@ function ExperienceContent() {
         if (data.lyrics && Array.isArray(data.lyrics)) {
           setLyrics({ lines: data.lyrics });
           console.log("[Experience] Loaded", data.lyrics.length, "synced lyric lines");
+
+          // Check if translation is available
+          if (data.translation && Array.isArray(data.translation)) {
+            setTranslation({ lines: data.translation });
+            setShowTranslation(true); // Show translation by default
+            console.log("[Experience] Translation available");
+          } else {
+            setTranslation(null);
+            setShowTranslation(false);
+          }
         } else {
           setLyrics(null);
+          setTranslation(null);
+          setShowTranslation(false);
         }
       } catch (err) {
         console.error("Failed to fetch lyrics:", err);
         setLyrics(null);
+        setTranslation(null);
+        setShowTranslation(false);
       }
     }
 
@@ -515,12 +531,33 @@ function ExperienceContent() {
                 <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 6 }}>
                   <span style={{ fontFamily: "var(--ln-label)", fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", fontWeight: 700, color: accent }}>lyrics</span>
                   <span style={{ flex: 1, height: 1, background: "rgba(244,239,230,0.12)" }} />
+                  {translation && (
+                    <button
+                      onClick={() => setShowTranslation(!showTranslation)}
+                      className="ln-press"
+                      style={{
+                        background: "rgba(244,239,230,0.08)",
+                        border: `1px solid ${showTranslation ? accent : "rgba(244,239,230,0.16)"}`,
+                        borderRadius: 6,
+                        padding: "4px 8px",
+                        cursor: "pointer",
+                        fontFamily: "var(--ln-mono)",
+                        fontSize: 9,
+                        letterSpacing: "0.04em",
+                        color: showTranslation ? accent : muted(0.6),
+                        fontWeight: 600,
+                        transition: "all 0.2s",
+                      }}
+                    >
+                      {showTranslation ? "EN" : "ORIG"}
+                    </button>
+                  )}
                   <span style={{ fontFamily: "var(--ln-mono)", fontSize: 9.5, letterSpacing: "0.04em", color: muted(0.45) }}>synced · Musixmatch</span>
                 </div>
 
                 <div ref={colRef} className="ln-scroll" style={{ position: "relative", height: "clamp(360px, 52vh, 560px)", overflow: "hidden", WebkitMaskImage: "linear-gradient(180deg, transparent, #000 16%, #000 80%, transparent)" }}>
                   <div style={{ transform: `translateY(${lyricShift}px)`, transition: "transform 0.5s cubic-bezier(.2,.8,.2,1)", display: "flex", flexDirection: "column", gap: 4, paddingTop: 8 }}>
-                    {lyrics.lines.map((line, i) => {
+                    {(showTranslation && translation ? translation.lines : lyrics.lines).map((line, i) => {
                       const lineSec = line.time.total / 1000;
                       const isActive = i === annotations?.activeLineIndex;
                       const passed = annotations?.activeLineIndex !== undefined && i < annotations.activeLineIndex;
