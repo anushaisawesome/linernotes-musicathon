@@ -6,10 +6,11 @@ import { ComposeForm } from "@/components/compose";
 import { TopBar, Footer } from "@/components/ln/nav";
 import type { Track } from "@/lib/types";
 
-// Search Spotify for tracks (returns real Spotify track IDs for playback)
-async function searchSpotifyTracks(query: string): Promise<Track[]> {
+// Search Spotify for tracks (returns real Spotify track IDs for playback).
+// offset pages through results for the "show more" control.
+async function searchSpotifyTracks(query: string, offset = 0): Promise<Track[]> {
   try {
-    const response = await fetch(`/api/spotify/search?q=${encodeURIComponent(query)}&limit=20`);
+    const response = await fetch(`/api/spotify/search?q=${encodeURIComponent(query)}&limit=10&offset=${offset}`);
     if (!response.ok) return [];
 
     const data = await response.json();

@@ -230,7 +230,7 @@ export function ImmersiveReview({
           </button>
           <span style={{ opacity: 0.5 }}>·</span>
           <span>a note by</span>
-          <button onClick={() => router.push(`/profile/${vm.user.handle}`)} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: gold, fontFamily: "inherit", fontSize: "inherit", letterSpacing: "inherit", textTransform: "inherit" }}>@{vm.user.handle}</button>
+          <button onClick={() => router.push(`/profile/${vm.user.handle}`)} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: gold, fontFamily: "inherit", fontSize: "inherit", letterSpacing: "inherit", textTransform: "none" }}>@{vm.user.handle}</button>
         </div>
 
         {/* hero */}

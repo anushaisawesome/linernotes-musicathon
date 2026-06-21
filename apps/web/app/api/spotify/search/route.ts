@@ -12,6 +12,10 @@ export async function GET(request: NextRequest) {
   // ask for more (e.g. the log composer requests 20) don't 400 on every keystroke.
   const requestedLimit = parseInt(searchParams.get("limit") || "10");
   const limit = Math.min(Math.max(Number.isFinite(requestedLimit) ? requestedLimit : 10, 1), 10);
+  // Offset lets the UI page through results ("show more"). Spotify requires
+  // offset + limit <= 1000, so cap accordingly.
+  const requestedOffset = parseInt(searchParams.get("offset") || "0");
+  const offset = Math.min(Math.max(Number.isFinite(requestedOffset) ? requestedOffset : 0, 0), 1000 - limit);
 
   if (!query || query.trim().length < 1) {
     return NextResponse.json(
@@ -53,7 +57,7 @@ export async function GET(request: NextRequest) {
     const { access_token } = await tokenResponse.json();
 
     // Search Spotify
-    const searchUrl = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=${limit}`;
+    const searchUrl = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=${limit}&offset=${offset}`;
     const searchResponse = await fetch(searchUrl, {
       headers: {
         Authorization: `Bearer ${access_token}`,

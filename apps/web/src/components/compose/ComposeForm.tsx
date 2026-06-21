@@ -14,7 +14,7 @@ import type { ReviewVM } from "@/lib/view-adapter";
 interface ComposeFormProps {
   onSubmit?: (review: Partial<Review>) => Promise<void>;
   onSuccess?: (review: Review) => void;
-  searchAPI?: (query: string) => Promise<Track[]>;
+  searchAPI?: (query: string, offset?: number) => Promise<Track[]>;
   initialTrack?: Track;
   initialRating?: number;
 }
