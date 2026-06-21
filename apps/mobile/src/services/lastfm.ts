@@ -6,8 +6,10 @@
 
 import axios, { AxiosInstance } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Crypto } from 'expo-crypto';
 
 const LASTFM_API_KEY = 'f558803f6e340f1288504471025e60aa'; // Hardcoded for now to avoid React Native env issues
+const LASTFM_SHARED_SECRET = '89b98d9cac0dfd73bfe2ea19a1c60a73'; // Last.fm API shared secret
 const LASTFM_API_URL = 'https://ws.audioscrobbler.com/2.0/';
 const LASTFM_SESSION_KEY = '@linernotes:lastfm_session';
 const LASTFM_USERNAME_KEY = '@linernotes:lastfm_username';
@@ -136,6 +138,104 @@ class LastFmService {
    */
   async clearUsername() {
     await this.clearSession();
+  }
+
+  /**
+   * Generate API signature for authenticated requests
+   * Last.fm requires signing authenticated requests with MD5(params + secret)
+   */
+  private async generateSignature(params: Record<string, string>): Promise<string> {
+    // Sort params alphabetically and concatenate
+    const sortedKeys = Object.keys(params).sort();
+    const sigString = sortedKeys.map(key => `${key}${params[key]}`).join('') + LASTFM_SHARED_SECRET;
+
+    // Generate MD5 hash
+    const digest = await Crypto.digestStringAsync(
+      Crypto.CryptoDigestAlgorithm.MD5,
+      sigString
+    );
+
+    return digest;
+  }
+
+  /**
+   * Step 1: Get an authentication token from Last.fm
+   * This token is used to build the auth URL
+   */
+  async getAuthToken(): Promise<string> {
+    try {
+      const params = {
+        method: 'auth.getToken',
+        api_key: LASTFM_API_KEY,
+      };
+
+      const signature = await this.generateSignature(params);
+
+      const { data } = await this.client.get('', {
+        params: {
+          ...params,
+          api_sig: signature,
+          format: 'json',
+        },
+      });
+
+      if (!data.token) {
+        throw new Error('No token returned from Last.fm');
+      }
+
+      return data.token;
+    } catch (error) {
+      console.error('Failed to get auth token:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Step 2: Generate the Last.fm authorization URL
+   * User must visit this URL to authorize the app
+   */
+  getAuthUrl(token: string): string {
+    return `https://www.last.fm/api/auth/?api_key=${LASTFM_API_KEY}&token=${token}`;
+  }
+
+  /**
+   * Step 3: Exchange the authorized token for a session key
+   * Call this after user has authorized the app
+   */
+  async getSessionKey(token: string): Promise<{ sessionKey: string; username: string }> {
+    try {
+      const params = {
+        method: 'auth.getSession',
+        api_key: LASTFM_API_KEY,
+        token,
+      };
+
+      const signature = await this.generateSignature(params);
+
+      const { data } = await this.client.get('', {
+        params: {
+          ...params,
+          api_sig: signature,
+          format: 'json',
+        },
+      });
+
+      if (!data.session) {
+        throw new Error('No session returned from Last.fm');
+      }
+
+      const sessionKey = data.session.key;
+      const username = data.session.name;
+
+      // Store the session key and username
+      await this.setSessionKey(sessionKey);
+      await this.setUsername(username);
+
+      return { sessionKey, username };
+    } catch (error) {
+      console.error('Failed to get session key:', error);
+      throw error;
+    }
   }
 
   /**

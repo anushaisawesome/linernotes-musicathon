@@ -38,6 +38,8 @@ function ExperienceContent() {
   const [playlistLabel, setPlaylistLabel] = useState<string | null>(null);
   const [review, setReview] = useState<Review | null>(null);
   const [lyrics, setLyrics] = useState<SyncedLyrics | null>(null);
+  const [translation, setTranslation] = useState<SyncedLyrics | null>(null);
+  const [showTranslation, setShowTranslation] = useState(false);
   const [playerState, setPlayerState] = useState<PlayerState | null>(null);
   const [annotations, setAnnotations] = useState<ActiveAnnotations | null>(null);
   const [player, setPlayer] = useState<WebPlaybackSDK | null>(null);
@@ -232,12 +234,26 @@ function ExperienceContent() {
         if (data.lyrics && Array.isArray(data.lyrics)) {
           setLyrics({ lines: data.lyrics });
           console.log("[Experience] Loaded", data.lyrics.length, "synced lyric lines");
+
+          // Check if translation is available
+          if (data.translation && Array.isArray(data.translation)) {
+            setTranslation({ lines: data.translation });
+            setShowTranslation(true); // Show translation by default
+            console.log("[Experience] Translation available");
+          } else {
+            setTranslation(null);
+            setShowTranslation(false);
+          }
         } else {
           setLyrics(null);
+          setTranslation(null);
+          setShowTranslation(false);
         }
       } catch (err) {
         console.error("Failed to fetch lyrics:", err);
         setLyrics(null);
+        setTranslation(null);
+        setShowTranslation(false);
       }
     }
 
@@ -515,6 +531,27 @@ function ExperienceContent() {
                 <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 6 }}>
                   <span style={{ fontFamily: "var(--ln-label)", fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", fontWeight: 700, color: accent }}>lyrics</span>
                   <span style={{ flex: 1, height: 1, background: "rgba(244,239,230,0.12)" }} />
+                  {translation && (
+                    <button
+                      onClick={() => setShowTranslation(!showTranslation)}
+                      className="ln-press"
+                      style={{
+                        background: "rgba(244,239,230,0.08)",
+                        border: `1px solid ${showTranslation ? accent : "rgba(244,239,230,0.16)"}`,
+                        borderRadius: 6,
+                        padding: "4px 8px",
+                        cursor: "pointer",
+                        fontFamily: "var(--ln-mono)",
+                        fontSize: 9,
+                        letterSpacing: "0.04em",
+                        color: showTranslation ? accent : muted(0.6),
+                        fontWeight: 600,
+                        transition: "all 0.2s",
+                      }}
+                    >
+                      {showTranslation ? "EN" : "ORIG"}
+                    </button>
+                  )}
                   <span style={{ fontFamily: "var(--ln-mono)", fontSize: 9.5, letterSpacing: "0.04em", color: muted(0.45) }}>synced · Musixmatch</span>
                 </div>
 
@@ -525,6 +562,7 @@ function ExperienceContent() {
                       const isActive = i === annotations?.activeLineIndex;
                       const passed = annotations?.activeLineIndex !== undefined && i < annotations.activeLineIndex;
                       const dist = Math.abs(i - (annotations?.activeLineIndex || 0));
+                      const translatedLine = translation?.lines?.[i];
 
                       return (
                         <div key={i} ref={(el) => { lineRefs.current[i] = el; }}
@@ -532,6 +570,8 @@ function ExperienceContent() {
                           style={{
                             cursor: "pointer",
                             padding: "7px 2px",
+                          }}>
+                          <div style={{
                             fontFamily: "var(--ln-album)",
                             fontWeight: isActive ? 600 : 500,
                             fontSize: isActive ? 22 : 18,
@@ -542,8 +582,25 @@ function ExperienceContent() {
                             transition: "all 0.4s cubic-bezier(.2,.8,.2,1)",
                             wordWrap: "break-word",
                           }}>
-                          {isActive && <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: accent, marginRight: 12, verticalAlign: "middle", boxShadow: `0 0 0 4px ${accent}33` }} />}
-                          {line.text}
+                            {isActive && <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: accent, marginRight: 12, verticalAlign: "middle", boxShadow: `0 0 0 4px ${accent}33` }} />}
+                            {line.text}
+                          </div>
+                          {showTranslation && translatedLine && translatedLine.text !== line.text && (
+                            <div style={{
+                              fontFamily: "var(--ln-body)",
+                              fontSize: isActive ? 14 : 12,
+                              lineHeight: 1.4,
+                              color: muted(0.45),
+                              marginTop: 4,
+                              marginLeft: isActive ? 32 : 0,
+                              fontStyle: "italic",
+                              opacity: isActive ? 0.9 : Math.max(0.2, 1 - dist * 0.2),
+                              transition: "all 0.4s cubic-bezier(.2,.8,.2,1)",
+                              wordWrap: "break-word",
+                            }}>
+                              {translatedLine.text}
+                            </div>
+                          )}
                         </div>
                       );
                     })}

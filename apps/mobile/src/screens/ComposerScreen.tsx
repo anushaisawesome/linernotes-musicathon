@@ -554,7 +554,7 @@ export function ComposerScreen({
                 {playlistLink.trim() && <Icon name="bookmark" size={14} color={gold} filled />}
               </View>
               <Text style={styles.linkHint}>
-                we can't read the tracklist yet. paste the link to share it, then add the tracks you want to annotate below.
+                paste your playlist link, then add the tracks you want to feature and annotate.
               </Text>
             </View>
           ) : (

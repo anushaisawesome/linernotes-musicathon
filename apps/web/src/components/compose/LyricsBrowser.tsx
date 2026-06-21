@@ -18,6 +18,8 @@ interface LyricsBrowserProps {
 
 export function LyricsBrowser({ trackIsrc, trackName, artistName, onBookmark, bookmarkedLines }: LyricsBrowserProps) {
   const [lyrics, setLyrics] = useState<LyricLine[]>([]);
+  const [translation, setTranslation] = useState<LyricLine[]>([]);
+  const [showTranslation, setShowTranslation] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedLines, setSelectedLines] = useState<Set<number>>(new Set());
@@ -63,6 +65,21 @@ export function LyricsBrowser({ trackIsrc, trackName, artistName, onBookmark, bo
 
           console.log("[LyricsBrowser] Parsed lyrics count:", parsedLyrics.length);
           setLyrics(parsedLyrics);
+
+          // Check for translation
+          if (data.translation && Array.isArray(data.translation)) {
+            const parsedTranslation = data.translation.map((line: any) => ({
+              text: line.text || "",
+              seconds: line.time?.total ? line.time.total / 1000 : 0,
+            })).filter((line: LyricLine) => line.text.trim() !== "");
+
+            setTranslation(parsedTranslation);
+            setShowTranslation(true); // Show translation by default
+            console.log("[LyricsBrowser] Translation available:", parsedTranslation.length, "lines");
+          } else {
+            setTranslation([]);
+            setShowTranslation(false);
+          }
         } else if (data.message) {
           setError(data.message);
         } else {
@@ -104,6 +121,7 @@ export function LyricsBrowser({ trackIsrc, trackName, artistName, onBookmark, bo
   const commitBookmark = (noteText: string) => {
     if (selectedLines.size === 0) return;
 
+    // Always save original lyrics (not translation)
     const selectedLyrics = Array.from(selectedLines)
       .sort((a, b) => a - b)
       .map(idx => lyrics[idx]);
@@ -118,7 +136,7 @@ export function LyricsBrowser({ trackIsrc, trackName, artistName, onBookmark, bo
       seconds: firstLine.seconds,
       label,
       note: noteText.trim(),
-      lyric: combinedLyric, // The lyric line(s)
+      lyric: combinedLyric, // The lyric line(s) - always original
     });
 
     setSelectedLines(new Set());
@@ -178,10 +196,36 @@ export function LyricsBrowser({ trackIsrc, trackName, artistName, onBookmark, bo
 
   return (
     <div>
-      <div style={{ marginBottom: 12, fontFamily: "var(--ln-body)", fontSize: 13, color: "rgba(var(--ln-fg-rgb),0.6)" }}>
-        {selectedLines.size > 0
-          ? `${selectedLines.size} line${selectedLines.size > 1 ? "s" : ""} selected. Click to add/remove lines.`
-          : "Click lines to select them, then save — adding an annotation is optional. Select multiple lines to bookmark a verse or chorus together."}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+        <div style={{ flex: 1, fontFamily: "var(--ln-body)", fontSize: 13, color: "rgba(var(--ln-fg-rgb),0.6)" }}>
+          {selectedLines.size > 0
+            ? `${selectedLines.size} line${selectedLines.size > 1 ? "s" : ""} selected. Click to add/remove lines.`
+            : "Click lines to select them, then save — adding an annotation is optional. Select multiple lines to bookmark a verse or chorus together."}
+        </div>
+        {translation.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowTranslation(!showTranslation)}
+            className="ln-press"
+            style={{
+              marginLeft: 12,
+              background: "rgba(var(--ln-fg-rgb),0.06)",
+              border: `1px solid ${showTranslation ? gold : "rgba(var(--ln-fg-rgb),0.16)"}`,
+              borderRadius: 6,
+              padding: "5px 10px",
+              cursor: "pointer",
+              fontFamily: "var(--ln-mono)",
+              fontSize: 10,
+              letterSpacing: "0.04em",
+              color: showTranslation ? gold : "rgba(var(--ln-fg-rgb),0.6)",
+              fontWeight: 600,
+              transition: "all 0.2s",
+              flexShrink: 0,
+            }}
+          >
+            {showTranslation ? "EN" : "ORIG"}
+          </button>
+        )}
       </div>
 
       {selectedLines.size > 0 && !isAnnotating && (
@@ -321,6 +365,7 @@ export function LyricsBrowser({ trackIsrc, trackName, artistName, onBookmark, bo
           const minutes = Math.floor(line.seconds / 60);
           const seconds = Math.floor(line.seconds % 60);
           const timestamp = `${minutes}:${seconds.toString().padStart(2, "0")}`;
+          const translatedLine = translation[index];
 
           return (
             <button
@@ -354,11 +399,18 @@ export function LyricsBrowser({ trackIsrc, trackName, artistName, onBookmark, bo
                 }
               }}
             >
-              <div style={{ fontFamily: "var(--ln-mono)", fontSize: 11, color: isBookmarked ? gold : isSelected ? gold : "rgba(var(--ln-fg-rgb),0.4)", minWidth: 40 }}>
+              <div style={{ fontFamily: "var(--ln-mono)", fontSize: 11, color: isBookmarked ? gold : isSelected ? gold : "rgba(var(--ln-fg-rgb),0.4)", minWidth: 40, flexShrink: 0 }}>
                 {timestamp}
               </div>
-              <div style={{ flex: 1, fontFamily: "var(--ln-body)", fontSize: 14.5, lineHeight: 1.5, color: isBookmarked ? gold : isSelected ? gold : "var(--ln-fg)" }}>
-                {line.text}
+              <div style={{ flex: 1 }}>
+                <div style={{ fontFamily: "var(--ln-body)", fontSize: 14.5, lineHeight: 1.5, color: isBookmarked ? gold : isSelected ? gold : "var(--ln-fg)" }}>
+                  {line.text}
+                </div>
+                {showTranslation && translatedLine && translatedLine.text !== line.text && (
+                  <div style={{ fontFamily: "var(--ln-body)", fontSize: 12, lineHeight: 1.4, color: "rgba(var(--ln-fg-rgb),0.5)", marginTop: 4, fontStyle: "italic" }}>
+                    {translatedLine.text}
+                  </div>
+                )}
               </div>
               {isBookmarked && (
                 <div style={{ fontSize: 16, color: gold }}>★</div>
