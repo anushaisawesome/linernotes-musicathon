@@ -254,15 +254,9 @@ export function Chip({ label, on, onToggle }: { label: string; on: boolean; onTo
 export type Depth = "floor" | "caption" | "full" | null;
 
 export function DepthMeter({ depth, badge }: { depth: Depth; badge?: string }) {
-  const idx = { floor: 0, caption: 1, full: 2 } as const;
   const label = depth === "floor" ? "A quick rating" : depth === "caption" ? "A caption" : depth === "full" ? "A full note" : "·";
   return (
     <div style={{ padding: "13px 15px", borderRadius: 14, background: "rgba(var(--ln-fg-rgb),0.04)", border: "1px solid rgba(var(--ln-fg-rgb),0.09)" }}>
-      <div style={{ display: "flex", gap: 5, marginBottom: 10 }}>
-        {(["floor", "caption", "full"] as const).map((dd, i) => (
-          <div key={dd} style={{ flex: 1, height: 4, borderRadius: 3, background: depth && idx[depth] >= i ? GOLD : "rgba(var(--ln-fg-rgb),0.12)", transition: "background 0.2s" }} />
-        ))}
-      </div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <span style={{ fontFamily: "var(--ln-body)", fontSize: 12.5, color: "rgba(var(--ln-fg-rgb),0.7)" }}>
           Posts as <span style={{ color: GOLD, fontWeight: 600 }}>{label}</span>

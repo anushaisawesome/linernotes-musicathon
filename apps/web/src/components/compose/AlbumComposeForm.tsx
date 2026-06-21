@@ -234,7 +234,7 @@ export function AlbumComposeForm({ onSubmit, onSuccess, searchAPI }: AlbumCompos
                 <div style={{ fontFamily: "var(--ln-mono)", fontSize: 10.5, letterSpacing: "0.1em", color: "rgba(var(--ln-fg-rgb),0.5)", textTransform: "uppercase" }}>overall rating</div>
                 <div style={{ marginTop: 12, display: "flex", justifyContent: "center", alignItems: "center", gap: 12 }}>
                   <StarsInput rating={overallRating} onChange={setOverallRating} />
-                  <span style={{ fontFamily: "var(--ln-mono)", fontSize: 23, color: overallRating ? gold : "rgba(var(--ln-fg-rgb),0.3)", minWidth: 38, textAlign: "left" }}>{overallRating ? overallRating.toFixed(1) : "·"}</span>
+                  <span style={{ fontFamily: "var(--ln-mono)", fontSize: 23, color: overallRating ? gold : "rgba(var(--ln-fg-rgb),0.3)", minWidth: 38, textAlign: "left" }}>{overallRating ? overallRating.toFixed(1) : ""}</span>
                 </div>
                 {overallRating > 0 && (
                   <button type="button" onClick={() => setOverallRating(0)} style={{ marginTop: 8, background: "none", border: "none", cursor: "pointer", fontFamily: "var(--ln-body)", fontSize: 12, color: "rgba(var(--ln-fg-rgb),0.5)" }}>Clear · auto-calculate from tracks</button>

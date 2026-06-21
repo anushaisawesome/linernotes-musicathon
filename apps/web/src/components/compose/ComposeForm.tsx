@@ -164,7 +164,7 @@ export function ComposeForm({ onSubmit, onSuccess, searchAPI, initialTrack, init
               <div style={{ fontFamily: "var(--ln-mono)", fontSize: 10.5, letterSpacing: "0.1em", color: "rgba(var(--ln-fg-rgb),0.5)", textTransform: "uppercase" }}>rate the track</div>
               <div style={{ marginTop: 12, display: "flex", justifyContent: "center", alignItems: "center", gap: 12 }}>
                 <StarsInput rating={rating} onChange={setRating} />
-                <span style={{ fontFamily: "var(--ln-mono)", fontSize: 23, color: rating ? gold : "rgba(var(--ln-fg-rgb),0.3)", minWidth: 38, textAlign: "left" }}>{rating ? rating.toFixed(1) : "·"}</span>
+                <span style={{ fontFamily: "var(--ln-mono)", fontSize: 23, color: rating ? gold : "rgba(var(--ln-fg-rgb),0.3)", minWidth: 38, textAlign: "left" }}>{rating ? rating.toFixed(1) : ""}</span>
               </div>
               <div style={{ marginTop: 8, fontFamily: "var(--ln-body)", fontSize: 12.5, color: "rgba(var(--ln-fg-rgb),0.45)" }}>Tap to rate. That alone is a valid post.</div>
             </div>
