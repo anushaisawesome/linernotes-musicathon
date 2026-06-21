@@ -784,7 +784,7 @@ function ActionButton({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: tokens.colors.nearBlack,
+    backgroundColor: tokens.colors.bg, // Musicathon deep maroon background
   },
   editModal: {
     flex: 1,
@@ -973,7 +973,7 @@ const styles = StyleSheet.create({
   },
   top4Container: {
     marginTop: 30,
-    backgroundColor: tokens.colors.nearBlack,
+    backgroundColor: tokens.colors.surface, // Musicathon oxblood surface
     paddingVertical: 16,
     paddingHorizontal: 16,
     borderRadius: 16,

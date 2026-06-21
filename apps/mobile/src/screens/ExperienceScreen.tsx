@@ -812,7 +812,7 @@ function AlbumTrackStrip({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: tokens.colors.nearBlack,
+    backgroundColor: tokens.colors.bg, // Musicathon deep maroon background
   },
   blurContainer: {
     position: 'absolute',
