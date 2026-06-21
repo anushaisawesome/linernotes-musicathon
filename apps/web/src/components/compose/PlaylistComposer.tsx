@@ -280,7 +280,12 @@ export function PlaylistComposer() {
             const visibleMoments = all ? moments : moments.slice(0, 1);
             return (
             <div key={`${track.trackId}-${index}`} style={{ borderRadius: 12, background: "var(--ln-surface)", border: "1px solid rgba(var(--ln-line-rgb),0.08)", overflow: "hidden" }}>
-              <div style={{ display: "flex", gap: 11, padding: 10 }}>
+              <div style={{ display: "flex", gap: 9, padding: 10 }}>
+                {/* Remove track — small cross on the left, out of the way */}
+                <button type="button" onClick={() => handleRemoveTrack(index)} className="ln-press" title="Remove track" style={{ flexShrink: 0, width: 18, height: 18, alignSelf: "center", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, background: "none", border: "none", cursor: "pointer" }}>
+                  <LNIcon name="close" size={15} color="rgba(var(--ln-fg-rgb),0.4)" />
+                </button>
+
                 {/* Order number */}
                 <div style={{ flexShrink: 0, width: 22, height: 22, borderRadius: "50%", background: gold, color: "#2c1517", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--ln-mono)", fontSize: 11, fontWeight: 700, marginTop: 3 }}>
                   {index + 1}
@@ -310,7 +315,7 @@ export function PlaylistComposer() {
                       ))}
                       {totalItems > collapsedShown && (
                         <button type="button" onClick={() => toggleShowAll(index)} className="ln-press" style={{ alignSelf: "flex-start", marginTop: 1, padding: 0, background: "none", border: "none", cursor: "pointer", fontFamily: "var(--ln-mono)", fontSize: 10.5, letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--ln-muted)" }}>
-                          {all ? "Show less" : `+${totalItems - collapsedShown} more`}
+                          {all ? "Show less" : "Show more"}
                         </button>
                       )}
                     </div>
@@ -356,14 +361,6 @@ export function PlaylistComposer() {
                   </div>
                 </div>
               )}
-
-              {/* Delete track — at the bottom of the block */}
-              <div style={{ borderTop: "1px solid rgba(var(--ln-fg-rgb),0.07)", display: "flex", justifyContent: "center" }}>
-                <button type="button" onClick={() => handleRemoveTrack(index)} className="ln-press" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%", padding: "9px 12px", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--ln-mono)", fontSize: 10.5, letterSpacing: "0.07em", textTransform: "uppercase", color: "rgba(239,68,68,0.85)" }} title="Remove track">
-                  <LNIcon name="close" size={13} color="rgba(239,68,68,0.85)" />
-                  Remove track
-                </button>
-              </div>
             </div>
             );
           })}
