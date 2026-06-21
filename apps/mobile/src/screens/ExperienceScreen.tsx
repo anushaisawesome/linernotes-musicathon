@@ -23,6 +23,7 @@ import { ShareSheet } from '../components/ShareSheet';
 import { ReviewShareCard, LyricShareCard } from '../components/share';
 import { shareToInstagramStory, shareToTikTok, saveCardImage, shareToTwitter } from '../lib/share-utils';
 import * as Clipboard from 'expo-clipboard';
+import { EQVisualizer } from '../components/atoms/EQVisualizer';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -64,6 +65,10 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
   const [lyrics, setLyrics] = useState<SyncedLyrics | null>(null);
   const [lyricsError, setLyricsError] = useState<string | null>(null);
   const [shareSheetVisible, setShareSheetVisible] = useState(false);
+  const [reviewerNoteOpen, setReviewerNoteOpen] = useState(true);
+  const [armedMoment, setArmedMoment] = useState<any | null>(null);
+  const [showTranslation, setShowTranslation] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
   const lyricListRef = useRef<FlatList>(null);
   const shareCardRef = useRef<View>(null);
 
@@ -188,6 +193,18 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
   const activeMoment = review.notes?.find((m) =>
     playbackPosition >= m.sec && playbackPosition < m.sec + 5
   ) || null;
+
+  // Arm the moment for sharing when it becomes active
+  useEffect(() => {
+    if (activeMoment) {
+      setArmedMoment(activeMoment);
+    }
+  }, [activeMoment]);
+
+  // Update isPlaying based on Last.fm nowPlaying status
+  useEffect(() => {
+    setIsPlaying(!!nowPlayingTrack);
+  }, [nowPlayingTrack]);
 
   const isOwn = !!user?.handle && review.user?.handle === user.handle;
 
@@ -319,9 +336,43 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
     const distance = Math.abs(index - activeLineIndex);
     const hasTranslation = lyrics?.translation && lyrics.translation[index];
 
+    // Check if this line has an associated moment (annotation)
+    const lineSec = item.time.total / 1000;
+    const hasAnnotation = review.notes?.some((m) => {
+      // Find lyric line closest to moment timestamp
+      let closestIndex = 0;
+      let closestDiff = Infinity;
+      lyrics?.lines?.forEach((l, i) => {
+        const diff = Math.abs((l.time.total / 1000) - m.sec);
+        if (diff < closestDiff) {
+          closestDiff = diff;
+          closestIndex = i;
+        }
+      });
+      return closestIndex === index;
+    });
+
     return (
       <TouchableOpacity
-        onPress={() => setPlaybackPosition(item.time.total / 1000)}
+        onPress={() => {
+          setPlaybackPosition(item.time.total / 1000);
+          // If this line has annotation, arm it
+          if (hasAnnotation) {
+            const moment = review.notes?.find((m) => {
+              let closestIndex = 0;
+              let closestDiff = Infinity;
+              lyrics?.lines?.forEach((l, i) => {
+                const diff = Math.abs((l.time.total / 1000) - m.sec);
+                if (diff < closestDiff) {
+                  closestDiff = diff;
+                  closestIndex = i;
+                }
+              });
+              return closestIndex === index;
+            });
+            if (moment) setArmedMoment(moment);
+          }
+        }}
         style={[
           styles.lyricLine,
           {
@@ -344,6 +395,12 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
             ]}
           >
             {item.text}
+            {hasAnnotation && !isActive && (
+              <View style={[styles.lyricAnnotationBadge, { backgroundColor: `${gold}1c`, borderColor: `${gold}44` }]}>
+                <Icon name="bookmark" size={8} color={gold} />
+                <Text style={[styles.lyricAnnotationText, { color: gold }]}>lyric</Text>
+              </View>
+            )}
           </Text>
           {hasTranslation && (
             <View style={styles.translationLine}>
@@ -413,6 +470,10 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
                 <Text style={styles.coverLabel}>{album.title?.toLowerCase()}</Text>
               </View>
             )}
+            {/* EQ visualizer badge */}
+            <View style={styles.eqBadge}>
+              <EQVisualizer color={gold} isPlaying={isPlaying} size={15} />
+            </View>
           </TouchableOpacity>
 
           {/* Title + artist */}
@@ -452,16 +513,53 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
             </View>
           )}
 
-          {/* Active moment live callout */}
-          {activeMoment && (
-            <View style={[styles.activeMoment, { backgroundColor: gold }]}>
-              <Text style={styles.activeMomentTime}>{formatTimestamp(activeMoment.sec)}</Text>
-              <View style={styles.activeMomentDivider} />
-              <Text style={styles.activeMomentText} numberOfLines={2}>
-                {activeMoment.label || activeMoment.note}
-              </Text>
+          {/* Reviewer note card */}
+          {review.take && (
+            <View style={[styles.reviewerNote, { backgroundColor: `${gold}10`, borderColor: `${gold}33` }]}>
+              <View style={styles.reviewerNoteHeader}>
+                <View style={[styles.reviewerAvatar, { backgroundColor: `${review.user?.tint || gold}26`, borderColor: `${review.user?.tint || gold}66` }]}>
+                  <Text style={[styles.reviewerAvatarText, { color: review.user?.tint || gold }]}>
+                    {review.user?.displayName?.[0] || review.user?.handle?.[0] || '?'}
+                  </Text>
+                </View>
+                <View style={styles.reviewerInfo}>
+                  <Text style={[styles.reviewerLabel, { color: gold }]}>
+                    what {review.user?.displayName?.split(' ')[0] || review.user?.handle || 'they'} wrote
+                  </Text>
+                  <Text style={styles.reviewerHandle}>@{review.user?.handle || 'user'}</Text>
+                </View>
+                <TouchableOpacity onPress={() => setReviewerNoteOpen(!reviewerNoteOpen)} style={styles.reviewerToggle}>
+                  <Text style={styles.reviewerToggleText}>{reviewerNoteOpen ? 'hide' : 'show'}</Text>
+                </TouchableOpacity>
+              </View>
+              {reviewerNoteOpen && (
+                <Text style={styles.reviewerNoteText}>{review.take}</Text>
+              )}
             </View>
           )}
+
+          {/* Active moment live callout */}
+          <View style={{ width: '100%', height: 46, marginTop: 10, position: 'relative' }}>
+            {activeMoment && (
+              <View style={[styles.activeMoment, { backgroundColor: gold, boxShadow: `0 12px 26px -12px ${gold}` }]}>
+                <Text style={styles.activeMomentTime}>{formatTimestamp(activeMoment.sec)}</Text>
+                <View style={styles.activeMomentDivider} />
+                <Text style={styles.activeMomentText} numberOfLines={1}>
+                  {activeMoment.label} — {activeMoment.note}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setArmedMoment(activeMoment);
+                    setShareSheetVisible(true);
+                  }}
+                  style={styles.activeMomentShareButton}
+                >
+                  <Icon name="share" size={12} color="#1a0d0e" />
+                  <Text style={styles.activeMomentShareText}>Share</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
 
           {/* The caption */}
           {review.take && (
@@ -480,10 +578,31 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
           {lyrics && lyrics.lines.length > 0 && (
             <View style={styles.section}>
               <View style={styles.lyricsHeader}>
-                <Text style={[styles.sectionLabel, { color: gold }]}>lyrics</Text>
-                <Text style={styles.musixmatchAttr}>
-                  synced{lyrics.translation ? ' + translated' : ''} · Musixmatch
-                </Text>
+                <View style={styles.lyricsHeaderLeft}>
+                  <Text style={[styles.sectionLabel, { color: gold }]}>lyrics</Text>
+                  <View style={{ flex: 1, height: 1, backgroundColor: 'rgba(244,239,230,0.12)', marginHorizontal: 8 }} />
+                  {review.notes && review.notes.length > 0 && (
+                    <TouchableOpacity
+                      onPress={() => armedMoment && setShareSheetVisible(true)}
+                      disabled={!armedMoment}
+                      style={[
+                        styles.shareLyricButton,
+                        {
+                          backgroundColor: armedMoment ? `${gold}1a` : 'rgba(244,239,230,0.05)',
+                          borderColor: armedMoment ? `${gold}55` : 'rgba(244,239,230,0.14)',
+                        },
+                      ]}
+                    >
+                      <Icon name="share" size={11} color={armedMoment ? gold : 'rgba(241,235,224,0.38)'} />
+                      <Text style={[styles.shareLyricButtonText, { color: armedMoment ? gold : 'rgba(241,235,224,0.38)' }]}>
+                        Share lyric
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                  <Text style={styles.musixmatchAttr}>
+                    synced · Musixmatch
+                  </Text>
+                </View>
               </View>
               <View style={styles.lyricsContainer}>
                 <FlatList
@@ -785,6 +904,20 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.85,
     shadowRadius: 40,
     elevation: 20,
+    position: 'relative',
+  },
+  eqBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(8,6,7,0.5)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   coverPlaceholder: {
     width: 168,
@@ -890,32 +1023,112 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
     textAlign: 'right',
   },
-  activeMoment: {
+  reviewerNote: {
     width: '100%',
-    marginTop: 16,
+    marginTop: 20,
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 13,
+  },
+  reviewerNoteHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    padding: 14,
+    gap: 9,
+  },
+  reviewerAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reviewerAvatarText: {
+    fontFamily: 'System',
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  reviewerInfo: {
+    flex: 1,
+    minWidth: 0,
+  },
+  reviewerLabel: {
+    fontFamily: 'Menlo',
+    fontSize: 9,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  reviewerHandle: {
+    fontFamily: 'System',
+    fontSize: 12.5,
+    color: 'rgba(241,235,224,0.7)',
+  },
+  reviewerToggle: {
+    padding: 4,
+  },
+  reviewerToggleText: {
+    fontFamily: 'Menlo',
+    fontSize: 11,
+    color: 'rgba(241,235,224,0.55)',
+  },
+  reviewerNoteText: {
+    marginTop: 9,
+    fontFamily: 'System',
+    fontStyle: 'italic',
+    fontWeight: '500',
+    fontSize: 16,
+    lineHeight: 23,
+    color: '#f1ebe0',
+  },
+  activeMoment: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    paddingLeft: 13,
+    paddingRight: 8,
+    paddingVertical: 10,
     borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 8,
   },
   activeMomentTime: {
     fontFamily: 'Menlo',
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: '700',
-    color: '#2c1517',
+    color: '#1a0d0e',
   },
   activeMomentDivider: {
     width: 1,
-    height: 18,
-    backgroundColor: 'rgba(44,21,23,0.3)',
+    height: 16,
+    backgroundColor: 'rgba(26,13,14,0.3)',
   },
   activeMomentText: {
     flex: 1,
     fontFamily: 'System',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
-    color: '#2c1517',
+    color: '#1a0d0e',
+  },
+  activeMomentShareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(26,13,14,0.16)',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  activeMomentShareText: {
+    fontFamily: 'System',
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1a0d0e',
   },
   quote: {
     marginTop: 24,
@@ -947,14 +1160,30 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   lyricsHeader: {
+    marginBottom: 4,
+  },
+  lyricsHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
+    gap: 8,
+  },
+  shareLyricButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  shareLyricButtonText: {
+    fontFamily: 'System',
+    fontSize: 11,
+    fontWeight: '600',
   },
   musixmatchAttr: {
     fontFamily: 'Menlo',
-    fontSize: 9.5,
+    fontSize: 9,
     color: 'rgba(241,235,224,0.45)',
     letterSpacing: 0.4,
   },
@@ -987,6 +1216,22 @@ const styles = StyleSheet.create({
     fontFamily: 'System',
     lineHeight: 28,
     letterSpacing: -0.2,
+  },
+  lyricAnnotationBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginLeft: 9,
+  },
+  lyricAnnotationText: {
+    fontFamily: 'Menlo',
+    fontSize: 8,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
   },
   translationLine: {
     flexDirection: 'row',
