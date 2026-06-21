@@ -155,7 +155,7 @@ class APIClient {
     handle: string;
     displayName: string;
   }): Promise<{ user: User; token: string }> {
-    return this.request('/auth/signup', {
+    return this.request('/api/auth/signup', {
       method: 'POST',
       body: data,
     });
@@ -165,7 +165,7 @@ class APIClient {
     email: string;
     password: string;
   }): Promise<{ user: User; token: string }> {
-    return this.request('/auth/login', {
+    return this.request('/api/auth/login', {
       method: 'POST',
       body: data,
     });
@@ -174,7 +174,7 @@ class APIClient {
   async loginWithGoogle(token: string, isAccessToken = false): Promise<{ user: User; token: string }> {
     // For mobile, we need to exchange the Google token for a JWT
     // This calls the Next.js API which handles both ID tokens and access tokens
-    return this.request('/auth/mobile/google', {
+    return this.request('/api/auth/mobile/google', {
       method: 'POST',
       body: isAccessToken ? { accessToken: token } : { idToken: token },
     });
@@ -183,7 +183,7 @@ class APIClient {
   async loginWithSpotify(code: string, codeVerifier?: string): Promise<{ user: User; token: string }> {
     // For mobile, we exchange the Spotify authorization code for a JWT
     // This calls the Next.js API which handles the token exchange and user creation
-    return this.request('/auth/mobile/spotify', {
+    return this.request('/api/auth/mobile/spotify', {
       method: 'POST',
       body: { code, codeVerifier },
     });
@@ -193,7 +193,7 @@ class APIClient {
     // /auth/me returns { authenticated, user } — unwrap it, and treat an
     // unauthenticated response as an error so it never overwrites a good user
     // with a garbage object (which left user.id undefined → blank profile).
-    const res = await this.request<{ authenticated?: boolean; user?: User }>('/auth/me');
+    const res = await this.request<{ authenticated?: boolean; user?: User }>('/api/auth/me');
     if (!res?.user?.id) {
       throw new Error('Not authenticated');
     }

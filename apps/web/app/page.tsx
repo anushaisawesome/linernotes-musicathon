@@ -63,9 +63,8 @@ export default function Home() {
         const recentTrackReviews = communityReviews
           .filter((r) => r.track) // Check track exists
           .map((r) => toReviewVM(r))
-          .filter((vm) => vm.album.artworkUrl) // Filter for reviews with artwork
           .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
-          .slice(0, 3);
+          .slice(0, 3); // No artwork filter - use gradient fallback if missing
 
         if (!cancelled) {
           setItems(vms);
