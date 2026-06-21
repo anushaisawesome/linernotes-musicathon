@@ -336,9 +336,43 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
     const distance = Math.abs(index - activeLineIndex);
     const hasTranslation = lyrics?.translation && lyrics.translation[index];
 
+    // Check if this line has an associated moment (annotation)
+    const lineSec = item.time.total / 1000;
+    const hasAnnotation = review.notes?.some((m) => {
+      // Find lyric line closest to moment timestamp
+      let closestIndex = 0;
+      let closestDiff = Infinity;
+      lyrics?.lines?.forEach((l, i) => {
+        const diff = Math.abs((l.time.total / 1000) - m.sec);
+        if (diff < closestDiff) {
+          closestDiff = diff;
+          closestIndex = i;
+        }
+      });
+      return closestIndex === index;
+    });
+
     return (
       <TouchableOpacity
-        onPress={() => setPlaybackPosition(item.time.total / 1000)}
+        onPress={() => {
+          setPlaybackPosition(item.time.total / 1000);
+          // If this line has annotation, arm it
+          if (hasAnnotation) {
+            const moment = review.notes?.find((m) => {
+              let closestIndex = 0;
+              let closestDiff = Infinity;
+              lyrics?.lines?.forEach((l, i) => {
+                const diff = Math.abs((l.time.total / 1000) - m.sec);
+                if (diff < closestDiff) {
+                  closestDiff = diff;
+                  closestIndex = i;
+                }
+              });
+              return closestIndex === index;
+            });
+            if (moment) setArmedMoment(moment);
+          }
+        }}
         style={[
           styles.lyricLine,
           {
@@ -361,6 +395,12 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
             ]}
           >
             {item.text}
+            {hasAnnotation && !isActive && (
+              <View style={[styles.lyricAnnotationBadge, { backgroundColor: `${gold}1c`, borderColor: `${gold}44` }]}>
+                <Icon name="bookmark" size={8} color={gold} />
+                <Text style={[styles.lyricAnnotationText, { color: gold }]}>lyric</Text>
+              </View>
+            )}
           </Text>
           {hasTranslation && (
             <View style={styles.translationLine}>
@@ -538,10 +578,31 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
           {lyrics && lyrics.lines.length > 0 && (
             <View style={styles.section}>
               <View style={styles.lyricsHeader}>
-                <Text style={[styles.sectionLabel, { color: gold }]}>lyrics</Text>
-                <Text style={styles.musixmatchAttr}>
-                  synced{lyrics.translation ? ' + translated' : ''} · Musixmatch
-                </Text>
+                <View style={styles.lyricsHeaderLeft}>
+                  <Text style={[styles.sectionLabel, { color: gold }]}>lyrics</Text>
+                  <View style={{ flex: 1, height: 1, backgroundColor: 'rgba(244,239,230,0.12)', marginHorizontal: 8 }} />
+                  {review.notes && review.notes.length > 0 && (
+                    <TouchableOpacity
+                      onPress={() => armedMoment && setShareSheetVisible(true)}
+                      disabled={!armedMoment}
+                      style={[
+                        styles.shareLyricButton,
+                        {
+                          backgroundColor: armedMoment ? `${gold}1a` : 'rgba(244,239,230,0.05)',
+                          borderColor: armedMoment ? `${gold}55` : 'rgba(244,239,230,0.14)',
+                        },
+                      ]}
+                    >
+                      <Icon name="share" size={11} color={armedMoment ? gold : 'rgba(241,235,224,0.38)'} />
+                      <Text style={[styles.shareLyricButtonText, { color: armedMoment ? gold : 'rgba(241,235,224,0.38)' }]}>
+                        Share lyric
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                  <Text style={styles.musixmatchAttr}>
+                    synced · Musixmatch
+                  </Text>
+                </View>
               </View>
               <View style={styles.lyricsContainer}>
                 <FlatList
@@ -1099,14 +1160,30 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   lyricsHeader: {
+    marginBottom: 4,
+  },
+  lyricsHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
+    gap: 8,
+  },
+  shareLyricButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  shareLyricButtonText: {
+    fontFamily: 'System',
+    fontSize: 11,
+    fontWeight: '600',
   },
   musixmatchAttr: {
     fontFamily: 'Menlo',
-    fontSize: 9.5,
+    fontSize: 9,
     color: 'rgba(241,235,224,0.45)',
     letterSpacing: 0.4,
   },
@@ -1139,6 +1216,22 @@ const styles = StyleSheet.create({
     fontFamily: 'System',
     lineHeight: 28,
     letterSpacing: -0.2,
+  },
+  lyricAnnotationBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginLeft: 9,
+  },
+  lyricAnnotationText: {
+    fontFamily: 'Menlo',
+    fontSize: 8,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
   },
   translationLine: {
     flexDirection: 'row',
