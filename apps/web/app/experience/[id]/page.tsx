@@ -236,19 +236,51 @@ function ExperienceContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playerState, segments.length, idx]);
 
-  // Initialize visualiser engine when track changes
+  // Initialize visualiser engine when track changes - fetch REAL audio analysis
   useEffect(() => {
     if (!review?.track) return;
 
-    // Derive base aesthetic from genre (default to "Pop" if not available)
-    const genre = (review.track as any).genre || 'Pop';
-    const baseAesthetic = deriveBaseAesthetic(genre);
+    async function initializeVisualiser() {
+      if (!review?.track) return;
 
-    // Create mock rhythm (120 BPM default - replace with real librosa data later)
-    const rhythm = createMockRhythm(120);
+      try {
+        // Fetch real audio analysis from API (genre + BPM)
+        const trackName = encodeURIComponent(review.track.name);
+        const artistName = encodeURIComponent(review.track.artist);
+        const response = await fetch(`/api/audio-analysis?track=${trackName}&artist=${artistName}`);
 
-    // Initialize engine
-    engineRef.current = new VisualiserEngine(baseAesthetic, rhythm);
+        let genre = 'Pop';
+        let bpm = 120;
+        let audioFeatures = undefined;
+
+        if (response.ok) {
+          const data = await response.json();
+          genre = data.genre || 'Pop';
+          bpm = data.bpm || 120;
+          audioFeatures = data.audioFeatures;
+          console.log(`[Visualiser] Loaded audio analysis: ${genre} @ ${bpm} BPM`);
+        } else {
+          console.warn('[Visualiser] Audio analysis failed, using defaults');
+        }
+
+        // Derive base aesthetic from real genre + audio features
+        const baseAesthetic = deriveBaseAesthetic(genre, audioFeatures);
+
+        // Create rhythm from real BPM
+        const rhythm = createMockRhythm(bpm);
+
+        // Initialize engine
+        engineRef.current = new VisualiserEngine(baseAesthetic, rhythm);
+      } catch (error) {
+        console.error('[Visualiser] Failed to initialize:', error);
+        // Fallback to defaults
+        const baseAesthetic = deriveBaseAesthetic('Pop');
+        const rhythm = createMockRhythm(120);
+        engineRef.current = new VisualiserEngine(baseAesthetic, rhythm);
+      }
+    }
+
+    initializeVisualiser();
   }, [review]);
 
   // Fetch lyrics when track loads (works with or without Spotify player)
