@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Album, Track, Reaction, AlbumReview } from "@/lib/types";
 import { AlbumSearch } from "./AlbumSearch";
 import { StarsInput, MomentsEditor, CaptionPicker, Chip, DepthMeter, ModeTabs, PreviewShell, cmpInput, type Depth } from "./composer-ui";
@@ -13,6 +13,9 @@ interface AlbumComposeFormProps {
   onSubmit?: (albumReview: Partial<AlbumReview>) => Promise<void>;
   onSuccess?: (albumReview: AlbumReview) => void;
   searchAPI?: (query: string) => Promise<Album[]>;
+  // Deep-link pre-fill (e.g. from a "worth a note" album prompt). The album is
+  // looked up + its tracklist loaded; the user still picks which tracks to react to.
+  initialAlbum?: { album: string; artist: string; artworkUrl?: string };
 }
 
 interface TrackNote { seconds: number; label: string; note?: string }
@@ -27,7 +30,7 @@ interface TrackReaction {
   included: boolean; // explicitly shown on the review even without a reaction/note
 }
 
-export function AlbumComposeForm({ onSubmit, onSuccess, searchAPI }: AlbumComposeFormProps) {
+export function AlbumComposeForm({ onSubmit, onSuccess, searchAPI, initialAlbum }: AlbumComposeFormProps) {
   const [selectedAlbum, setSelectedAlbum] = useState<Album | null>(null);
   const [albumWithTracks, setAlbumWithTracks] = useState<Album | null>(null);
   const [overallRating, setOverallRating] = useState(0);
@@ -70,6 +73,31 @@ export function AlbumComposeForm({ onSubmit, onSuccess, searchAPI }: AlbumCompos
       setLoadingTracks(false);
     }
   };
+
+  // Pre-fill from a prompt: resolve the album (search → albumId), then load it so
+  // the user lands on the tracklist ready to pick what stuck.
+  useEffect(() => {
+    if (!initialAlbum?.album || !initialAlbum?.artist) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const q = `${initialAlbum.album} ${initialAlbum.artist}`.trim();
+        let albums: Album[] = [];
+        if (searchAPI) {
+          albums = await searchAPI(q);
+        } else {
+          const res = await fetch(`/api/search?q=${encodeURIComponent(q)}&type=album`);
+          if (res.ok) albums = (await res.json()).albums || [];
+        }
+        if (cancelled || !albums[0]) return;
+        await handleAlbumSelect(albums[0]);
+      } catch {
+        /* fall back to manual search */
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialAlbum?.album, initialAlbum?.artist]);
 
   const upd = (i: number, patch: Partial<TrackReaction>) =>
     setTrackReactions((arr) => arr.map((t, j) => (j === i ? { ...t, ...patch } : t)));

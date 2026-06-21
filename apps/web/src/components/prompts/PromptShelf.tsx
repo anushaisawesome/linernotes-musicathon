@@ -57,7 +57,17 @@ export function PromptShelf({ prompts, accent, onRefresh }: PromptShelfProps) {
   };
 
   const handleOpenComposer = (prompt: Prompt, rating?: number) => {
-    // Navigate to compose with pre-filled track data via URL params
+    // Album prompts open the album composer pre-filled with the album (the user
+    // still picks which tracks to react to). Track prompts open the note composer.
+    if (prompt.type === "album") {
+      const params = new URLSearchParams({
+        album: prompt.album,
+        artist: prompt.artist,
+        artwork: prompt.artworkUrl || "",
+      });
+      router.push(`/log/album?${params.toString()}`);
+      return;
+    }
     const params = new URLSearchParams({
       track: prompt.track,
       artist: prompt.artist,
