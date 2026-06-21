@@ -407,36 +407,17 @@ function ExperienceContent() {
               </div>
             </div>
 
-            {/* Transport controls or connect Spotify prompt */}
+            {/* Transport controls, or a note for non-Spotify accounts. Playback is
+                only available to users who continued with Spotify — there's no
+                connect-later flow. */}
             {!player ? (
               <div style={{ textAlign: "center", padding: "20px 16px", background: "rgba(255,255,255,0.05)", borderRadius: 12, border: `1px solid ${accent}33` }}>
                 <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, color: accent }}>
-                  Connect Spotify Premium for Playback
+                  Sign up with your Spotify account to get the full experience
                 </div>
-                <div style={{ fontSize: 13, opacity: 0.7, marginBottom: 16 }}>
-                  To hear the track and experience synced moments in real-time
+                <div style={{ fontSize: 13, opacity: 0.7 }}>
+                  Playback only works when you continue with Spotify. The synced lyrics and notes below still play along.
                 </div>
-                <button
-                  onClick={async () => {
-                    try {
-                      const res = await fetch("/api/connect/spotify", { method: "POST" });
-                      const data = await res.json().catch(() => ({}));
-                      if (res.ok && data.authUrl) {
-                        window.location.href = data.authUrl;
-                      } else if (res.status === 401) {
-                        window.location.href = "/login";
-                      } else {
-                        alert(data.error || "Couldn't start the Spotify connection. Please try again.");
-                      }
-                    } catch (err) {
-                      console.error("Failed to connect Spotify:", err);
-                      alert("Couldn't reach Spotify. Please try again.");
-                    }
-                  }}
-                  style={{ display: "inline-block", padding: "10px 20px", background: accent, color: "#161013", borderRadius: 8, border: "none", fontWeight: 600, fontSize: 14, cursor: "pointer" }}
-                >
-                  Connect Spotify
-                </button>
               </div>
             ) : (
               // Album experience gets prev/next to move between songs; a single

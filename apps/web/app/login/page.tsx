@@ -125,6 +125,10 @@ function LoginForm() {
               Continue with Spotify
             </button>
 
+            <p style={{ margin: "2px 2px 0", fontFamily: "var(--ln-body)", fontSize: 12, lineHeight: 1.5, color: muted(0.6) }}>
+              The Experience — real playback with synced lyrics and notes — only works if you continue with Spotify. You can&apos;t connect Spotify later. With email you can still write and read reviews.
+            </p>
+
             <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "3px 0" }}>
               <span style={{ flex: 1, height: 1, background: LINE }} />
               <span style={{ fontFamily: "var(--ln-mono)", fontSize: 10, color: muted(0.45), letterSpacing: "0.05em" }}>or</span>
@@ -150,7 +154,7 @@ function LoginForm() {
             </div>
 
             <p style={{ textAlign: "center", marginTop: 8, fontFamily: "var(--ln-mono)", fontSize: 9.5, lineHeight: 1.5, color: muted(0.38), letterSpacing: "0.02em" }}>
-              No Spotify or Last.fm account needed. Connect your listening later, in the app.
+              Email lets you write and read reviews. Last.fm connects later for prompts — but the Experience needs Spotify at sign-up.
             </p>
           </div>
         </div>
