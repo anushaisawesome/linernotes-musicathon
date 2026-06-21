@@ -1,7 +1,7 @@
 /**
- * LinerNotes Onboarding Screen
+ * LinerNotes Onboarding Screen - Musicathon Edition
  * Two-step profile creation: (1) identity, (2) Last.fm connect (optional)
- * Based on Claude Design handoff: onboarding.jsx
+ * Based on Musicathon design: mu-onboarding.jsx
  */
 
 import React, { useState, useRef } from 'react';
@@ -26,23 +26,17 @@ import { api } from '../lib/api-client';
 import { useAuth } from '../contexts/AuthContext';
 import { tokens } from '../lib/tokens';
 
-// Warm gradient colors for auth screens
-const AUTH_COLORS = {
-  deep: '#1a1512',
-  mid: '#2a1f18',
-  lo: '#1a1512',
-  accent: tokens.colors.gold,
-  glow: '#c8a45c',
-};
-
+// Musicathon onboarding colors - coral accent
 const COLORS = {
-  gold: tokens.colors.gold,
+  coral: tokens.colors.coral, // Musicathon coral accent (#d5896f)
   confirmGreen: '#7fcf9b',
   fg: tokens.colors.fg,
-  bg: tokens.colors.nearBlack,
+  bg: tokens.colors.bg, // Use Musicathon deep maroon bg
+  surface: tokens.colors.surface, // Musicathon oxblood surface
 };
 
-type OnboardingStep = 1 | 2 | 3;
+// Musicathon: only 2 steps (profile + Last.fm)
+type OnboardingStep = 1 | 2;
 type LastFmStatus = 'idle' | 'linking' | 'linked';
 type AlbumPick = { name: string; artist: string; artworkUrl: string };
 
@@ -60,70 +54,7 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
   const [lastFmStatus, setLastFmStatus] = useState<LastFmStatus>('idle');
   const [lastFmUsername, setLastFmUsername] = useState('');
   const [lastFmInput, setLastFmInput] = useState('');
-  const [top4, setTop4] = useState<AlbumPick[]>([]);
-  const [albumQuery, setAlbumQuery] = useState('');
-  const [albumResults, setAlbumResults] = useState<AlbumPick[]>([]);
-  const [searching, setSearching] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Album search - try backend API, fallback to iTunes if not deployed yet
-  const runAlbumSearch = async (q: string) => {
-    setSearching(true);
-    try {
-      let results = [];
-
-      try {
-        // Try backend API first
-        const data = await api.searchAlbums(q, 15);
-        results = data.results || data || [];
-      } catch (backendError) {
-        console.log('Backend search failed, falling back to iTunes API');
-
-        // Fallback to iTunes Search API directly
-        const res = await fetch(
-          `https://itunes.apple.com/search?term=${encodeURIComponent(q)}&entity=album&limit=15`
-        );
-        const data = await res.json();
-        results = data.results || [];
-      }
-
-      const albums: AlbumPick[] = results.map((r: any) => ({
-        name: r.name || r.collectionName,
-        artist: r.artist || r.artistName,
-        artworkUrl: r.artworkUrl || (r.artworkUrl100 || '').replace('100x100', '300x300'),
-      }));
-
-      setAlbumResults(albums);
-    } catch (error) {
-      console.error('Album search failed:', error);
-      setAlbumResults([]);
-    } finally {
-      setSearching(false);
-    }
-  };
-
-  const onAlbumQueryChange = (q: string) => {
-    setAlbumQuery(q);
-    if (searchTimer.current) clearTimeout(searchTimer.current);
-    if (q.trim().length < 1) {
-      setAlbumResults([]);
-      return;
-    }
-    searchTimer.current = setTimeout(() => runAlbumSearch(q.trim()), 350);
-  };
-
-  const addAlbum = (album: AlbumPick) => {
-    if (top4.length >= 4) return;
-    if (top4.some((a) => a.name === album.name && a.artist === album.artist)) return;
-    setTop4((prev) => [...prev, album]);
-    setAlbumQuery('');
-    setAlbumResults([]);
-  };
-
-  const removeAlbum = (index: number) => {
-    setTop4((prev) => prev.filter((_, i) => i !== index));
-  };
 
   // Handle validation - must match backend: lowercase letters, numbers, underscores only, 3-20 chars
   const handleClean = handle.replace(/[^a-z0-9_]/gi, '').toLowerCase();
@@ -204,6 +135,8 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
       if (tracks && tracks.length > 0) {
         await lastfm.setUsername(username);
         setLastFmStatus('linked');
+        // Musicathon: finish onboarding after connecting Last.fm
+        setTimeout(() => finishOnboarding(), 600);
       } else {
         setLastFmStatus('idle');
         Alert.alert('Error', 'Could not find that Last.fm username. Please check and try again.');
@@ -214,50 +147,23 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
     }
   };
 
-  // Persist any filled-in Top 4 albums, then finish. Always completes onboarding
-  // even if saving fails — favourites are optional and editable later.
-  const saveFavouritesAndFinish = async () => {
-    const albums = top4.map((a, i) => ({
-      id: `fav-${i}`,
-      name: a.name,
-      artist: a.artist,
-      artworkUrl: a.artworkUrl,
-    }));
-
-    try {
-      setIsSaving(true);
-      if (albums.length > 0) {
-        await api.updateUser({ favourites: { albums } });
-        await refreshUser();
-      }
-    } catch (error) {
-      console.error('Failed to save favourites:', error);
-    } finally {
-      setIsSaving(false);
-      onComplete();
-    }
+  // Musicathon: finish onboarding (no Top 4 step)
+  const finishOnboarding = () => {
+    onComplete();
   };
 
   return (
     <View style={styles.container}>
-      {/* Warm flood background */}
+      {/* Musicathon background - deep maroon */}
       <View style={StyleSheet.absoluteFill}>
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: COLORS.bg }]} />
+        {/* Musicathon accent glow header */}
         <LinearGradient
-          colors={[AUTH_COLORS.mid, AUTH_COLORS.deep, COLORS.bg]}
-          locations={[0, 0.55, 1]}
-          style={StyleSheet.absoluteFill}
-        />
-        <LinearGradient
-          colors={[`${AUTH_COLORS.glow}aa`, 'transparent']}
-          locations={[0, 0.6]}
-          start={{ x: 0.75, y: 0.08 }}
-          end={{ x: 0.5, y: 0.6 }}
-          style={StyleSheet.absoluteFill}
-        />
-        <LinearGradient
-          colors={['rgba(8,7,6,0.2)', 'rgba(8,7,6,0.7)', COLORS.bg]}
-          locations={[0, 0.6, 1]}
-          style={StyleSheet.absoluteFill}
+          colors={[`${COLORS.coral}33`, 'transparent']}
+          locations={[0, 0.7]}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 0.4 }}
+          style={[StyleSheet.absoluteFill, { height: 150 }]}
         />
       </View>
 
@@ -282,14 +188,14 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
         <View style={{ width: 34 }} />
       </View>
 
-      {/* Progress bar */}
+      {/* Progress bar - Musicathon 2 steps */}
       <View style={styles.progressContainer}>
-        {[1, 2, 3].map((s) => (
+        {[1, 2].map((s) => (
           <View
             key={s}
             style={[
               styles.progressSegment,
-              { backgroundColor: step >= s ? COLORS.gold : 'rgba(241,235,224,0.14)' },
+              { backgroundColor: step >= s ? COLORS.coral : 'rgba(241,235,224,0.14)' },
             ]}
           />
         ))}
@@ -308,12 +214,12 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
           {step === 1 && (
             <View style={styles.stepContainer}>
               <View>
-                <Text style={styles.stepLabel}>SET UP · 1 OF 3</Text>
+                <Text style={styles.stepLabel}>SET UP · 1 OF 2</Text>
                 <Text style={styles.heading}>
-                  make yourself{'\n'}at home
+                  Make your profile
                 </Text>
                 <Text style={styles.description}>
-                  this is how friends will find you when you start logging.
+                  This is how friends find you and read your notes.
                 </Text>
               </View>
 
@@ -321,40 +227,32 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
               <View style={styles.avatarContainer}>
                 <TouchableOpacity onPress={pickImage} activeOpacity={0.8}>
                   <View style={styles.avatar}>
-                    <View style={[styles.avatarCircle, { borderColor: `${COLORS.gold}66` }]}>
+                    <View style={[styles.avatarCircle, { borderColor: displayName.trim() ? `${COLORS.coral}` : 'rgba(241,235,224,0.2)', backgroundColor: `${COLORS.coral}1e` }]}>
                       {avatarUri ? (
                         <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
                       ) : displayName.trim() ? (
-                        <Text style={styles.avatarMonogram}>
+                        <Text style={[styles.avatarMonogram, { color: COLORS.coral }]}>
                           {displayName.trim()[0].toUpperCase()}
                         </Text>
                       ) : (
-                        <Svg width={34} height={34} viewBox="0 0 24 24" fill="none">
-                          <Circle cx={12} cy={8.5} r={3.6} stroke={COLORS.gold} strokeWidth={1.6} />
-                          <Path
-                            d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6"
-                            stroke={COLORS.gold}
-                            strokeWidth={1.6}
-                            strokeLinecap="round"
-                          />
+                        <Svg width={30} height={30} viewBox="0 0 24 24" fill="none">
+                          <Path d="M12 15a4 4 0 100-8 4 4 0 000 8z" stroke={COLORS.coral} strokeWidth={1.7} />
+                          <Path d="M4 20c1.5-3.2 4.4-5 8-5s6.5 1.8 8 5" stroke={COLORS.coral} strokeWidth={1.7} strokeLinecap="round" />
                         </Svg>
                       )}
                     </View>
-                    <View style={styles.cameraBadge}>
-                      <Svg width={15} height={15} viewBox="0 0 24 24" fill="none">
+                    <View style={[styles.cameraBadge, { backgroundColor: COLORS.coral }]}>
+                      <Svg width={13} height={13} viewBox="0 0 24 24" fill="none">
                         <Path
-                          d="M3 8a2 2 0 012-2h1.5l1-2h7l1 2H18a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"
-                          stroke={COLORS.bg}
-                          strokeWidth={2}
+                          d="M3 8h3l2-2h8l2 2h3v11H3z"
+                          stroke="#2c1517"
+                          strokeWidth={1.8}
                           strokeLinejoin="round"
                         />
-                        <Circle cx={12} cy={12.5} r={3} stroke={COLORS.bg} strokeWidth={2} />
+                        <Circle cx={12} cy={13} r={3} stroke="#2c1517" strokeWidth={1.8} />
                       </Svg>
                     </View>
                   </View>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={pickImage}>
-                  <Text style={styles.addPhotoButton}>Add a photo</Text>
                 </TouchableOpacity>
               </View>
 
@@ -432,7 +330,8 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
                 style={[
                   styles.continueButton,
                   {
-                    backgroundColor: (canContinue && !isSaving) ? COLORS.gold : 'rgba(241,235,224,0.12)',
+                    backgroundColor: (canContinue && !isSaving) ? COLORS.coral : 'rgba(241,235,224,0.12)',
+                    shadowColor: (canContinue && !isSaving) ? COLORS.coral : 'transparent',
                   },
                 ]}
                 activeOpacity={0.8}
@@ -449,17 +348,16 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
             </View>
           )}
 
-          {/* STEP 2 - Last.fm */}
+          {/* STEP 2 - Last.fm (Musicathon) */}
           {step === 2 && (
             <View style={styles.stepContainer}>
               <View>
-                <Text style={styles.stepLabel}>SET UP · 2 OF 3</Text>
+                <Text style={styles.stepLabel}>SET UP · 2 OF 2</Text>
                 <Text style={styles.heading}>
-                  connect your{'\n'}listening
+                  Connect your listening
                 </Text>
-                <Text style={[styles.description, { fontSize: 14.5, lineHeight: 21.75 }]}>
-                  LinerNotes notices what you played, so when a song hits, the note is already
-                  half-written. it's the easiest way to start.
+                <Text style={[styles.description, { fontSize: 14, lineHeight: 21 }]}>
+                  Link Last.fm and LinerNotes knows what you've already played — so it can ask about the songs that actually moved you, not blank pages.
                 </Text>
               </View>
 
@@ -541,13 +439,15 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
                   )}
 
                   <TouchableOpacity
-                    onPress={lastFmStatus === 'linked' ? () => setStep(3) : connectLastFm}
+                    onPress={lastFmStatus === 'linked' ? finishOnboarding : connectLastFm}
                     disabled={lastFmStatus === 'linking' || (lastFmStatus !== 'linked' && lastFmInput.trim().length === 0)}
                     style={[
                       styles.lastFmButton,
                       {
                         backgroundColor:
-                          lastFmStatus === 'linking' ? 'rgba(241,235,224,0.12)' : COLORS.gold,
+                          lastFmStatus === 'linked' ? COLORS.confirmGreen :
+                          lastFmStatus === 'linking' ? 'rgba(241,235,224,0.12)' : '#d51007',
+                        shadowColor: lastFmStatus === 'linked' ? COLORS.confirmGreen : '#d51007',
                       },
                     ]}
                     activeOpacity={0.8}
@@ -557,12 +457,12 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
                         styles.lastFmButtonText,
                         {
                           color:
-                            lastFmStatus === 'linking' ? 'rgba(241,235,224,0.6)' : COLORS.bg,
+                            lastFmStatus === 'linking' ? 'rgba(241,235,224,0.6)' : '#fff',
                         },
                       ]}
                     >
                       {lastFmStatus === 'linked'
-                        ? 'Continue'
+                        ? 'Connected ✓'
                         : lastFmStatus === 'linking'
                           ? 'Connecting…'
                           : 'Connect Last.fm'}
@@ -571,119 +471,17 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
                 </View>
               </View>
 
-              {/* Skip button */}
+              {/* Skip button - Musicathon: finish onboarding */}
               {lastFmStatus !== 'linked' && (
                 <View style={styles.skipContainer}>
-                  <TouchableOpacity onPress={() => setStep(3)} activeOpacity={0.8}>
-                    <Text style={styles.skipButton}>I'll connect later</Text>
+                  <TouchableOpacity onPress={finishOnboarding} activeOpacity={0.8}>
+                    <Text style={styles.skipButton}>Skip for now</Text>
                   </TouchableOpacity>
-                  <Text style={styles.skipDescription}>
-                    you can link it anytime from your profile. nothing here needs it.
-                  </Text>
                 </View>
               )}
             </View>
           )}
 
-          {/* STEP 3 - Top 4 favourites */}
-          {step === 3 && (
-            <View style={styles.stepContainer}>
-              <View>
-                <Text style={styles.stepLabel}>SET UP · 3 OF 3</Text>
-                <Text style={styles.heading}>
-                  your top{'\n'}four
-                </Text>
-                <Text style={styles.description}>
-                  four albums that are you — we'll nudge you to write about them. skip it and add
-                  them anytime from your profile.
-                </Text>
-              </View>
-
-              {/* Chosen albums */}
-              {top4.length > 0 && (
-                <View style={styles.top4Selected}>
-                  {top4.map((album, i) => (
-                    <TouchableOpacity
-                      key={`${album.name}-${i}`}
-                      style={styles.top4Chip}
-                      onPress={() => removeAlbum(i)}
-                      activeOpacity={0.8}
-                    >
-                      <Image source={{ uri: album.artworkUrl }} style={styles.top4ChipArt} />
-                      <View style={styles.top4ChipRemove}>
-                        <Text style={styles.top4ChipRemoveText}>×</Text>
-                      </View>
-                      <Text style={styles.top4ChipName} numberOfLines={1}>
-                        {album.name}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-
-              {/* Search + results */}
-              {top4.length < 4 && (
-                <View style={styles.searchSection}>
-                  <TextInput
-                    value={albumQuery}
-                    onChangeText={onAlbumQueryChange}
-                    placeholder="search albums…"
-                    placeholderTextColor="rgba(241,235,224,0.3)"
-                    autoCorrect={false}
-                    style={styles.input}
-                  />
-                  {searching && <Text style={styles.searchHint}>searching…</Text>}
-                  {albumResults.map((album, i) => (
-                    <TouchableOpacity
-                      key={`${album.name}-${album.artist}-${i}`}
-                      style={styles.resultRow}
-                      onPress={() => addAlbum(album)}
-                      activeOpacity={0.7}
-                    >
-                      <Image source={{ uri: album.artworkUrl }} style={styles.resultArt} />
-                      <View style={styles.resultInfo}>
-                        <Text style={styles.resultName} numberOfLines={1}>
-                          {album.name}
-                        </Text>
-                        <Text style={styles.resultArtist} numberOfLines={1}>
-                          {album.artist}
-                        </Text>
-                      </View>
-                      <Text style={styles.resultAdd}>+</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-
-              <TouchableOpacity
-                onPress={saveFavouritesAndFinish}
-                disabled={isSaving}
-                style={[
-                  styles.continueButton,
-                  { backgroundColor: isSaving ? 'rgba(241,235,224,0.12)' : COLORS.gold },
-                ]}
-                activeOpacity={0.8}
-              >
-                <Text
-                  style={[
-                    styles.continueButtonText,
-                    { color: isSaving ? 'rgba(241,235,224,0.4)' : COLORS.bg },
-                  ]}
-                >
-                  {isSaving ? 'Saving…' : 'Finish'}
-                </Text>
-              </TouchableOpacity>
-
-              <View style={styles.skipContainer}>
-                <TouchableOpacity onPress={onComplete} activeOpacity={0.8} disabled={isSaving}>
-                  <Text style={styles.skipButton}>I'll add later</Text>
-                </TouchableOpacity>
-                <Text style={styles.skipDescription}>
-                  top four prompts only show up once you've filled them in.
-                </Text>
-              </View>
-            </View>
-          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </View>

@@ -1,8 +1,8 @@
 import { tokens } from '../lib/tokens';
 /**
  * LinerNotes Experience Screen - Musicathon Edition
- * Immersive read-along with:
- * - Album-color background gradients
+ * Immersive read-along with Musicathon visual treatment:
+ * - Multi-layered radial-approximated gradients with blur effect
  * - Synced lyrics from Musixmatch (fetched live, never cached per contest rules)
  * - Auto-scrolling lyrics with active line highlighting
  * - Live moment callouts that pulse when hit

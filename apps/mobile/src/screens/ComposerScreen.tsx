@@ -1,7 +1,7 @@
 /**
- * LinerNotes Composer Screen
+ * LinerNotes Composer Screen - Musicathon Edition
  * Three modes: Track / Album / Playlist
- * Based on Claude Design handoff: composer.jsx
+ * Uses Musicathon color palette (deep maroon bg, oxblood surfaces, gold accents)
  */
 
 import React, { useState, useRef, useEffect } from 'react';
