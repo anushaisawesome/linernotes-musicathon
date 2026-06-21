@@ -11,18 +11,27 @@
  */
 
 import { useEffect, useState, useRef, useLayoutEffect, Suspense } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { WebPlaybackSDK, type PlayerState } from "@/lib/spotify-player";
 import { getActiveAnnotations, type SyncedLyrics, type ActiveAnnotations } from "@/lib/sync-engine";
-import type { Review } from "@/lib/types";
+import type { Review, AlbumReview } from "@/lib/types";
 import { paletteFromString, type Palette } from "@/lib/palette";
 import { LNArt, lnFmt } from "@/components/ln/atoms";
 
 function ExperienceContent() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const reviewId = params.id as string;
+  const isAlbumExp = searchParams.get("type") === "album";
 
+  // For an album experience, `segments` holds every reviewed track in order and
+  // `idx` is the song you're on; `review` always points at the current segment
+  // so the rest of the player renders unchanged. A track experience is just one
+  // segment.
+  const [segments, setSegments] = useState<Review[]>([]);
+  const [idx, setIdx] = useState(0);
+  const [albumName, setAlbumName] = useState<string | null>(null);
   const [review, setReview] = useState<Review | null>(null);
   const [lyrics, setLyrics] = useState<SyncedLyrics | null>(null);
   const [playerState, setPlayerState] = useState<PlayerState | null>(null);
@@ -38,29 +47,71 @@ function ExperienceContent() {
   const colRef = useRef<HTMLDivElement | null>(null);
   const [lyricShift, setLyricShift] = useState(0);
 
+  // The Spotify SDK is initialised once per page; navigating songs reuses it.
+  const playerRef = useRef<WebPlaybackSDK | null>(null);
+  const initedRef = useRef(false);
+
   const INK = "#d7c9d0";
   const muted = (a: number) => `rgba(215,201,208,${a})`;
 
-  // Fetch review data
+  // Fetch review data — a single track review, or every reviewed track of an album.
   useEffect(() => {
     async function fetchReview() {
       try {
-        const res = await fetch(`/api/reviews/${reviewId}`);
-        if (!res.ok) throw new Error("Failed to load review");
-
-        const data = await res.json();
-        setReview(data.review);
+        if (isAlbumExp) {
+          const res = await fetch(`/api/album-reviews/${reviewId}`);
+          if (!res.ok) throw new Error("Failed to load album review");
+          const data = await res.json();
+          const ar: AlbumReview = data.albumReview;
+          // Each reviewed track becomes a playable segment, carrying the album
+          // reviewer as its author. Only tracks with a real Spotify id are kept.
+          const segs: Review[] = (ar.trackReviews || [])
+            .filter((tr) => tr.track?.trackId)
+            .map((tr) => ({ ...tr, user: tr.user || ar.user }));
+          if (segs.length === 0) throw new Error("This album review has no tracks to play");
+          setAlbumName(ar.album?.name || null);
+          setSegments(segs);
+          setIdx(0);
+          setReview(segs[0]);
+        } else {
+          const res = await fetch(`/api/reviews/${reviewId}`);
+          if (!res.ok) throw new Error("Failed to load review");
+          const data = await res.json();
+          setSegments([data.review]);
+          setIdx(0);
+          setReview(data.review);
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load review");
       }
     }
 
     fetchReview();
-  }, [reviewId]);
+  }, [reviewId, isAlbumExp]);
 
-  // Initialize Spotify player (optional - preview mode works without it)
+  // Jump to another song in the album experience and play it.
+  const goToSegment = async (n: number) => {
+    if (segments.length < 2) return;
+    const clamped = Math.max(0, Math.min(segments.length - 1, n));
+    if (clamped === idx) return;
+    setIdx(clamped);
+    setReview(segments[clamped]);
+    const tid = segments[clamped].track?.trackId;
+    if (player && tid) {
+      try {
+        await player.playTrack(`spotify:track:${tid}`);
+      } catch (e) {
+        console.error("[Experience] Failed to play track:", e);
+      }
+    }
+  };
+
+  // Initialize Spotify player once, then auto-play the first song. Optional —
+  // preview mode (lyrics only) works without it.
   useEffect(() => {
-    if (!review) return;
+    if (initedRef.current || segments.length === 0) return;
+    initedRef.current = true;
+    const firstTrackId = segments[0]?.track?.trackId;
 
     async function initPlayer() {
       try {
@@ -82,15 +133,14 @@ function ExperienceContent() {
           setPlayerState(state);
         });
 
+        playerRef.current = sdk;
         setPlayer(sdk);
         setLoading(false);
 
-        // Auto-play the track once player is ready
-        if (review?.track?.trackId) {
-          const spotifyUri = `spotify:track:${review.track.trackId}`;
-          console.log("[Experience] Auto-playing track:", spotifyUri);
+        // Auto-play the first song once the player is ready
+        if (firstTrackId) {
           try {
-            await sdk.playTrack(spotifyUri);
+            await sdk.playTrack(`spotify:track:${firstTrackId}`);
           } catch (playErr) {
             console.error("[Experience] Failed to auto-play track:", playErr);
           }
@@ -105,12 +155,10 @@ function ExperienceContent() {
     initPlayer();
 
     return () => {
-      if (player) {
-        player.disconnect();
-      }
+      playerRef.current?.disconnect();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [review]);
+  }, [segments]);
 
   // Fetch lyrics when track loads (works with or without Spotify player)
   useEffect(() => {
@@ -273,6 +321,11 @@ function ExperienceContent() {
 
             {/* Title + artist */}
             <div>
+              {isAlbumExp && albumName && (
+                <div style={{ marginBottom: 6, fontFamily: "var(--ln-mono)", fontSize: 10.5, letterSpacing: "0.08em", textTransform: "uppercase", color: accent }}>
+                  {albumName} · {idx + 1} / {segments.length}
+                </div>
+              )}
               <h1 style={{ margin: 0, fontFamily: "var(--ln-album)", fontWeight: 600, fontSize: 30, lineHeight: 1.06, letterSpacing: "-0.01em", color: INK }}>
                 {playerState?.trackName || review.track.name}
               </h1>
@@ -335,8 +388,14 @@ function ExperienceContent() {
                 </button>
               </div>
             ) : (
-              // A track review is a single song — just start/stop, no prev/next.
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+              // Album experience gets prev/next to move between songs; a single
+              // track review just gets start/stop.
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 24 }}>
+                {segments.length > 1 && (
+                  <button onClick={() => goToSegment(idx - 1)} disabled={idx === 0} className="ln-press" style={{ width: 46, height: 46, borderRadius: "50%", border: "none", background: "transparent", cursor: idx === 0 ? "default" : "pointer", opacity: idx === 0 ? 0.3 : 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }} aria-label="previous song">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill={INK}><path d="M6 5v14h2V5H6zm3 7l9 7V5l-9 7z" /></svg>
+                  </button>
+                )}
                 <button onClick={() => player?.togglePlay()} className="ln-press" style={{ width: 64, height: 64, borderRadius: "50%", border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }} aria-label={playerState?.isPlaying ? "pause" : "play"}>
                   {playerState?.isPlaying ? (
                     <svg width="42" height="42" viewBox="0 0 24 24" fill="#fff" style={{ filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.5))" }}><rect x="6.5" y="5" width="4" height="14" rx="1.7" /><rect x="13.5" y="5" width="4" height="14" rx="1.7" /></svg>
@@ -344,6 +403,11 @@ function ExperienceContent() {
                     <svg width="42" height="42" viewBox="0 0 24 24" fill="#fff" stroke="#fff" strokeWidth="3.4" strokeLinejoin="round" strokeLinecap="round" style={{ filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.5))" }}><path d="M8 6.2v11.6l10-5.8z" /></svg>
                   )}
                 </button>
+                {segments.length > 1 && (
+                  <button onClick={() => goToSegment(idx + 1)} disabled={idx === segments.length - 1} className="ln-press" style={{ width: 46, height: 46, borderRadius: "50%", border: "none", background: "transparent", cursor: idx === segments.length - 1 ? "default" : "pointer", opacity: idx === segments.length - 1 ? 0.3 : 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }} aria-label="next song">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill={INK}><path d="M16 5v14h2V5h-2zM6 5v14l9-7-9-7z" /></svg>
+                  </button>
+                )}
               </div>
             )}
 
