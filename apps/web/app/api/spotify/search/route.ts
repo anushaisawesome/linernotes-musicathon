@@ -1,5 +1,47 @@
 import { NextRequest, NextResponse } from "next/server";
 
+// Cache Spotify token (valid for 1 hour)
+let cachedToken: { token: string; expiresAt: number } | null = null;
+
+async function getSpotifyToken() {
+  const now = Date.now();
+
+  // Return cached token if still valid (with 5min buffer)
+  if (cachedToken && cachedToken.expiresAt > now + 5 * 60 * 1000) {
+    return cachedToken.token;
+  }
+
+  const clientId = process.env.SPOTIFY_CLIENT_ID;
+  const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
+
+  if (!clientId || !clientSecret) {
+    throw new Error("Spotify credentials not configured");
+  }
+
+  const tokenResponse = await fetch("https://accounts.spotify.com/api/token", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`,
+    },
+    body: "grant_type=client_credentials",
+  });
+
+  if (!tokenResponse.ok) {
+    throw new Error(`Token request failed: ${tokenResponse.status}`);
+  }
+
+  const data = await tokenResponse.json();
+
+  // Cache token (expires in 3600 seconds = 1 hour)
+  cachedToken = {
+    token: data.access_token,
+    expiresAt: now + (data.expires_in || 3600) * 1000,
+  };
+
+  return cachedToken.token;
+}
+
 /**
  * GET /api/spotify/search - Search Spotify for tracks
  * Returns REAL Spotify track IDs for playback
@@ -25,36 +67,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Get Spotify access token (client credentials flow)
-    const clientId = process.env.SPOTIFY_CLIENT_ID;
-    const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
-
-    if (!clientId || !clientSecret) {
-      return NextResponse.json(
-        { error: "Spotify credentials not configured" },
-        { status: 500 }
-      );
-    }
-
-    // Get access token
-    const tokenResponse = await fetch("https://accounts.spotify.com/api/token", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`,
-      },
-      body: "grant_type=client_credentials",
-    });
-
-    if (!tokenResponse.ok) {
-      console.error("[Spotify Search] Token request failed:", tokenResponse.status);
-      return NextResponse.json(
-        { error: "Failed to get Spotify token" },
-        { status: 500 }
-      );
-    }
-
-    const { access_token } = await tokenResponse.json();
+    // Get cached Spotify access token (reduces API calls by 50%)
+    const access_token = await getSpotifyToken();
 
     // Search Spotify
     const searchUrl = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=${limit}&offset=${offset}`;
@@ -94,8 +108,9 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("[Spotify Search] Error:", error);
+    const errorMessage = error instanceof Error ? error.message : "Search failed";
     return NextResponse.json(
-      { error: "Search failed" },
+      { error: errorMessage },
       { status: 500 }
     );
   }
