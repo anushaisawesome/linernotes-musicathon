@@ -171,11 +171,10 @@ function ExperienceContent() {
 
     async function initPlayer() {
       try {
-        await WebPlaybackSDK.loadSDK();
         const tokenRes = await fetch("/api/spotify/token");
 
         if (!tokenRes.ok) {
-          const errorData = await tokenRes.json();
+          const errorData = await tokenRes.json().catch(() => ({}));
           console.warn("[Experience] Spotify not available:", errorData.error);
           // Don't set error - just continue in preview mode
           setLoading(false);
@@ -184,8 +183,9 @@ function ExperienceContent() {
 
         const { access_token } = await tokenRes.json();
 
-        const sdk = new WebPlaybackSDK(access_token);
-        await sdk.initialize((state) => {
+        // Reuse the shared, already-connected device when one exists so
+        // navigating between experiences is instant and the transport stays live.
+        const sdk = await WebPlaybackSDK.getShared(access_token, (state) => {
           setPlayerState(state);
         });
 
@@ -210,9 +210,8 @@ function ExperienceContent() {
 
     initPlayer();
 
-    return () => {
-      playerRef.current?.disconnect();
-    };
+    // Keep the shared player alive across navigations — don't disconnect here, or
+    // the next experience would have to register a fresh device all over again.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [segments]);
 

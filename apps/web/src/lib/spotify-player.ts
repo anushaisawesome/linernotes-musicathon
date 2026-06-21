@@ -62,6 +62,45 @@ export class WebPlaybackSDK {
     });
   }
 
+  // A single shared player persists across page navigations. Switching between
+  // experiences then reuses the same already-registered Spotify device (fast,
+  // and the play/pause control stays live) instead of registering a brand-new
+  // device every time — which took seconds and raced the transport controls.
+  private static shared: WebPlaybackSDK | null = null;
+  private static sharedInit: Promise<WebPlaybackSDK> | null = null;
+
+  static async getShared(
+    accessToken: string,
+    onStateChange: (state: PlayerState) => void
+  ): Promise<WebPlaybackSDK> {
+    // Already connected — just repoint the state callback to this page and
+    // refresh the token, then hand back the live device.
+    if (WebPlaybackSDK.shared?.deviceId) {
+      WebPlaybackSDK.shared.accessToken = accessToken;
+      WebPlaybackSDK.shared.onStateChange = onStateChange;
+      return WebPlaybackSDK.shared;
+    }
+    // A connect is already in flight (e.g. a fast second mount) — await it.
+    if (WebPlaybackSDK.sharedInit) {
+      const inst = await WebPlaybackSDK.sharedInit;
+      inst.onStateChange = onStateChange;
+      inst.accessToken = accessToken;
+      return inst;
+    }
+    WebPlaybackSDK.sharedInit = (async () => {
+      await WebPlaybackSDK.loadSDK();
+      const inst = new WebPlaybackSDK(accessToken);
+      await inst.initialize(onStateChange);
+      WebPlaybackSDK.shared = inst;
+      return inst;
+    })();
+    try {
+      return await WebPlaybackSDK.sharedInit;
+    } finally {
+      WebPlaybackSDK.sharedInit = null;
+    }
+  }
+
   /**
    * Initialize player and connect
    */
