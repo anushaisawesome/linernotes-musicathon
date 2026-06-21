@@ -499,15 +499,27 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
           )}
 
           {/* Active moment live callout */}
-          {activeMoment && (
-            <View style={[styles.activeMoment, { backgroundColor: gold }]}>
-              <Text style={styles.activeMomentTime}>{formatTimestamp(activeMoment.sec)}</Text>
-              <View style={styles.activeMomentDivider} />
-              <Text style={styles.activeMomentText} numberOfLines={2}>
-                {activeMoment.label || activeMoment.note}
-              </Text>
-            </View>
-          )}
+          <View style={{ width: '100%', height: 46, marginTop: 10, position: 'relative' }}>
+            {activeMoment && (
+              <View style={[styles.activeMoment, { backgroundColor: gold, boxShadow: `0 12px 26px -12px ${gold}` }]}>
+                <Text style={styles.activeMomentTime}>{formatTimestamp(activeMoment.sec)}</Text>
+                <View style={styles.activeMomentDivider} />
+                <Text style={styles.activeMomentText} numberOfLines={1}>
+                  {activeMoment.label} — {activeMoment.note}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setArmedMoment(activeMoment);
+                    setShareSheetVisible(true);
+                  }}
+                  style={styles.activeMomentShareButton}
+                >
+                  <Icon name="share" size={12} color="#1a0d0e" />
+                  <Text style={styles.activeMomentShareText}>Share</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
 
           {/* The caption */}
           {review.take && (
@@ -1008,31 +1020,54 @@ const styles = StyleSheet.create({
     color: '#f1ebe0',
   },
   activeMoment: {
-    width: '100%',
-    marginTop: 16,
+    position: 'absolute',
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    padding: 14,
+    gap: 9,
+    paddingLeft: 13,
+    paddingRight: 8,
+    paddingVertical: 10,
     borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 8,
   },
   activeMomentTime: {
     fontFamily: 'Menlo',
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: '700',
-    color: '#2c1517',
+    color: '#1a0d0e',
   },
   activeMomentDivider: {
     width: 1,
-    height: 18,
-    backgroundColor: 'rgba(44,21,23,0.3)',
+    height: 16,
+    backgroundColor: 'rgba(26,13,14,0.3)',
   },
   activeMomentText: {
     flex: 1,
     fontFamily: 'System',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
-    color: '#2c1517',
+    color: '#1a0d0e',
+  },
+  activeMomentShareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(26,13,14,0.16)',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  activeMomentShareText: {
+    fontFamily: 'System',
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1a0d0e',
   },
   quote: {
     marginTop: 24,
