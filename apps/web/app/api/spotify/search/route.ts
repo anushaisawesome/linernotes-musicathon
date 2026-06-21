@@ -1,16 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
-// Cache Spotify token (valid for 1 hour)
-let cachedToken: { token: string; expiresAt: number } | null = null;
+async function getSpotifyToken(userId?: string) {
+  // Try to use user's own Spotify token first (no rate limits)
+  if (userId) {
+    try {
+      const connection = await prisma.musicConnection.findUnique({
+        where: { userId_service: { userId, service: "spotify" } },
+      });
 
-async function getSpotifyToken() {
-  const now = Date.now();
-
-  // Return cached token if still valid (with 5min buffer)
-  if (cachedToken && cachedToken.expiresAt > now + 5 * 60 * 1000) {
-    return cachedToken.token;
+      if (connection?.accessToken) {
+        // Check if token is still valid
+        if (!connection.expiresAt || connection.expiresAt > new Date()) {
+          return connection.accessToken;
+        }
+      }
+    } catch (error) {
+      console.error("[Spotify Search] Failed to get user token:", error);
+    }
   }
 
+  // Fallback to client credentials (rate limited)
   const clientId = process.env.SPOTIFY_CLIENT_ID;
   const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
 
@@ -32,14 +43,7 @@ async function getSpotifyToken() {
   }
 
   const data = await tokenResponse.json();
-
-  // Cache token (expires in 3600 seconds = 1 hour)
-  cachedToken = {
-    token: data.access_token,
-    expiresAt: now + (data.expires_in || 3600) * 1000,
-  };
-
-  return cachedToken.token;
+  return data.access_token;
 }
 
 /**
@@ -67,8 +71,12 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Get cached Spotify access token (reduces API calls by 50%)
-    const access_token = await getSpotifyToken();
+    // Get user session to use their Spotify token (avoids rate limits)
+    const session = await auth();
+    const userId = session?.user?.id;
+
+    // Get Spotify access token (user's token if logged in, else client credentials)
+    const access_token = await getSpotifyToken(userId);
 
     // Search Spotify
     const searchUrl = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=${limit}&offset=${offset}`;
