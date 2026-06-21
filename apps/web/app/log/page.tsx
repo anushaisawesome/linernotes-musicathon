@@ -42,8 +42,8 @@ function LogPageContent() {
       setIsLookingUpSpotify(true);
       try {
         // Clean up track name (remove trailing periods)
-        const cleanTrack = trackName.trim().replace(/\.\s*$/, '').trim();
-        const cleanArtist = artistName.trim();
+        const cleanTrack = trackName?.trim().replace(/\.\s*$/, '').trim() || '';
+        const cleanArtist = artistName?.trim() || '';
 
         // Search Spotify directly for real track ID
         const query = encodeURIComponent(`${cleanTrack} ${cleanArtist}`);
