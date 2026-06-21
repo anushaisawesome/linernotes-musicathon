@@ -1,6 +1,7 @@
 /**
  * ShareSheet - Bottom sheet modal for sharing cards
  * Based on Claude Design: LNShareSheet
+ * Updated for Musicathon with Story/Square format toggle
  */
 
 import React, { useState } from 'react';
@@ -25,11 +26,11 @@ interface ShareFormat {
 interface ShareSheetProps {
   visible: boolean;
   onClose: () => void;
-  onExport: (format: ShareFormat['id']) => Promise<void>;
+  onExport: (format: ShareFormat['id'], cardFormat?: 'story' | 'square') => Promise<void>;
   accent?: string;
-  type: 'review' | 'top4' | 'profile';
+  type: 'review' | 'lyric' | 'top4' | 'profile';
   hasFull?: boolean; // For reviews with full body content
-  children: React.ReactNode; // Card preview
+  children: React.ReactNode; // Card preview (function that accepts cardFormat)
 }
 
 const FORMATS: ShareFormat[] = [
@@ -50,11 +51,13 @@ export function ShareSheet({
 }: ShareSheetProps) {
   const gold = accent || tokens.colors.gold;
   const [format, setFormat] = useState<ShareFormat['id']>('instagram');
+  const [cardFormat, setCardFormat] = useState<'story' | 'square'>('story');
   const [isExporting, setIsExporting] = useState(false);
   const [done, setDone] = useState(false);
 
   const showLinkSlot = format === 'instagram'; // Only Instagram Story has link slot
   const isIdentity = type === 'top4' || type === 'profile';
+  const supportsFormatToggle = type === 'review' || type === 'lyric';
 
   // Get contextual note based on format and content type
   const getNote = () => {
@@ -110,7 +113,7 @@ export function ShareSheet({
   const handleExport = async () => {
     setIsExporting(true);
     try {
-      await onExport(format);
+      await onExport(format, cardFormat);
       setDone(true);
       setTimeout(() => {
         onClose();
@@ -118,6 +121,7 @@ export function ShareSheet({
         setTimeout(() => {
           setDone(false);
           setFormat('instagram');
+          setCardFormat('story');
         }, 300);
       }, 1100);
     } finally {
@@ -155,14 +159,66 @@ export function ShareSheet({
           >
             {/* Live preview */}
             <View style={styles.previewContainer}>
-              {React.isValidElement(children)
+              {typeof children === 'function'
+                ? children({ format: cardFormat, linkSlot: showLinkSlot && (type === 'profile' || hasFull) })
+                : React.isValidElement(children)
                 ? React.cloneElement(children as React.ReactElement<any>, {
+                    format: cardFormat,
                     linkSlot: showLinkSlot && (type === 'profile' || hasFull),
                   })
                 : children}
             </View>
 
-            {/* Format picker */}
+            {/* Card format toggle (Story/Square) */}
+            {supportsFormatToggle && (
+              <>
+                <Text style={styles.sectionLabel}>FORMAT</Text>
+                <View style={styles.cardFormatToggle}>
+                  <TouchableOpacity
+                    onPress={() => setCardFormat('story')}
+                    style={[
+                      styles.cardFormatButton,
+                      {
+                        borderColor: cardFormat === 'story' ? gold : tokens.colors.fg + '24',
+                        backgroundColor: cardFormat === 'story' ? `${gold}1e` : 'transparent',
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.cardFormatLabel,
+                        { color: cardFormat === 'story' ? gold : tokens.colors.fg },
+                      ]}
+                    >
+                      Story
+                    </Text>
+                    <Text style={styles.cardFormatSub}>9:16</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => setCardFormat('square')}
+                    style={[
+                      styles.cardFormatButton,
+                      {
+                        borderColor: cardFormat === 'square' ? gold : tokens.colors.fg + '24',
+                        backgroundColor: cardFormat === 'square' ? `${gold}1e` : 'transparent',
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.cardFormatLabel,
+                        { color: cardFormat === 'square' ? gold : tokens.colors.fg },
+                      ]}
+                    >
+                      Square
+                    </Text>
+                    <Text style={styles.cardFormatSub}>1:1</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+
+            {/* Export format picker */}
             <Text style={styles.sectionLabel}>EXPORT TO</Text>
             <View style={styles.formatGrid}>
               {FORMATS.map((f) => {
@@ -362,5 +418,29 @@ const styles = StyleSheet.create({
     fontSize: 15.5,
     fontWeight: '600',
     color: tokens.colors.nearBlack,
+  },
+  cardFormatToggle: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  cardFormatButton: {
+    flex: 1,
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 2,
+    padding: 11,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  cardFormatLabel: {
+    fontFamily: 'System',
+    fontSize: 13.5,
+    fontWeight: '600',
+  },
+  cardFormatSub: {
+    fontFamily: 'Menlo',
+    fontSize: 9,
+    letterSpacing: 0.6,
+    color: tokens.colors.fg + '73',
   },
 });

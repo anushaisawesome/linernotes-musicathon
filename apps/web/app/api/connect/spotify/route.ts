@@ -7,6 +7,10 @@ const SCOPES = [
   "user-read-private",
   "user-top-read",
   "user-read-recently-played",
+  // Web Playback SDK scopes (required for Experience player)
+  "streaming",
+  "user-read-playback-state",
+  "user-modify-playback-state",
 ].join(" ");
 
 /**

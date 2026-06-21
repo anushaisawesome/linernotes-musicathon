@@ -160,7 +160,54 @@ export async function GET(request: NextRequest) {
 
     console.log("[Musixmatch] Successfully fetched synced lyrics for:", trackData.track_name);
 
-    // Return lyrics with track metadata
+    // Step 3: Fetch translation if track is in a non-English language
+    let translation: typeof parsedLyrics | null = null;
+    const originalLanguage = subtitle.subtitle_language || trackData.track_language || "";
+    const isNonEnglish = originalLanguage && !originalLanguage.toLowerCase().startsWith('en');
+
+    if (isNonEnglish) {
+      console.log("[Musixmatch] Track is in", originalLanguage, "- fetching English translation");
+
+      try {
+        const translationUrl = `https://api.musixmatch.com/ws/1.1/track.lyrics.translation.get?format=json&track_id=${trackId}&selected_language=en&apikey=${apiKey}`;
+
+        const translationRes = await fetch(translationUrl);
+        if (translationRes.ok) {
+          const translationData = await translationRes.json();
+          console.log("[Musixmatch] Translation response structure:", JSON.stringify(translationData, null, 2).substring(0, 300));
+
+          const translatedLyrics = translationData.message?.body?.translations?.translation_list;
+
+          if (translatedLyrics && Array.isArray(translatedLyrics) && translatedLyrics.length > 0) {
+            // Map translation to match original lyric line structure
+            translation = parsedLyrics.map((originalLine, idx) => {
+              const translationObj = translatedLyrics.find((t: any) => {
+                const desc = t.translation?.description || "";
+                // Match by similar text or by position
+                return desc.trim() === originalLine.text.trim() ||
+                       translatedLyrics.indexOf(t) === idx;
+              });
+
+              return {
+                text: translationObj?.translation?.translation || originalLine.text,
+                time: originalLine.time,
+              };
+            });
+
+            console.log("[Musixmatch] Successfully fetched translation with", translation.length, "lines");
+          } else {
+            console.log("[Musixmatch] No translation available for this track");
+          }
+        } else {
+          console.log("[Musixmatch] Translation API returned status:", translationRes.status);
+        }
+      } catch (translationError) {
+        console.error("[Musixmatch] Failed to fetch translation:", translationError);
+        // Continue without translation - not a critical error
+      }
+    }
+
+    // Return lyrics with track metadata and optional translation
     return NextResponse.json({
       track: {
         id: trackId,
@@ -168,8 +215,10 @@ export async function GET(request: NextRequest) {
         artist: trackData.artist_name,
         album: trackData.album_name || "",
         isrc: isrc || trackData.track_isrc,
+        language: originalLanguage,
       },
       lyrics: parsedLyrics,
+      translation: translation,
       subtitle_language: subtitle.subtitle_language,
       restricted: subtitle.restricted === 1,
     });

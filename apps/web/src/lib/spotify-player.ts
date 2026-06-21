@@ -92,30 +92,53 @@ export class WebPlaybackSDK {
       console.log("[Spotify Player] Device ID has gone offline:", device_id);
     });
 
+    this.player!.addListener("initialization_error", ({ message }: { message: string }) => {
+      console.error("[Spotify Player] Initialization Error:", message);
+    });
+
+    this.player!.addListener("authentication_error", ({ message }: { message: string }) => {
+      console.error("[Spotify Player] Authentication Error:", message);
+    });
+
+    this.player!.addListener("account_error", ({ message }: { message: string }) => {
+      console.error("[Spotify Player] Account Error:", message);
+      console.error("[Spotify Player] Note: Web Playback SDK requires Spotify Premium");
+    });
+
+    this.player!.addListener("playback_error", ({ message }: { message: string }) => {
+      console.error("[Spotify Player] Playback Error:", message);
+    });
+
     this.player!.addListener("player_state_changed", (state: Spotify.PlaybackState | null) => {
       if (!state) return;
       this.handleStateChange(state);
     });
 
     // Connect to Spotify
+    console.log("[Spotify Player] Connecting to Spotify...");
     const connected = await this.player!.connect();
     if (!connected) {
       throw new Error("Failed to connect to Spotify");
     }
+
+    console.log("[Spotify Player] Connected, waiting for device to be ready...");
 
     // Wait for device ID
     return new Promise((resolve, reject) => {
       const checkDevice = setInterval(() => {
         if (this.deviceId) {
           clearInterval(checkDevice);
+          console.log("[Spotify Player] Device ready!");
           resolve(this.deviceId);
         }
       }, 100);
 
       setTimeout(() => {
         clearInterval(checkDevice);
-        reject(new Error("Timeout waiting for device ID"));
-      }, 5000);
+        console.error("[Spotify Player] Timeout waiting for device ID");
+        console.error("[Spotify Player] Check console for errors above (account_error, authentication_error, etc.)");
+        reject(new Error("Timeout waiting for device ID. Check console for errors. Web Playback SDK requires Spotify Premium."));
+      }, 10000);
     });
   }
 

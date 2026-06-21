@@ -1,14 +1,29 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ComposeForm } from "@/components/compose";
-import { searchTracks } from "@/lib/api";
 import { TopBar, Footer } from "@/components/ln/nav";
 import type { Track } from "@/lib/types";
 
+// Search Spotify for tracks (returns real Spotify track IDs for playback)
+async function searchSpotifyTracks(query: string): Promise<Track[]> {
+  try {
+    const response = await fetch(`/api/spotify/search?q=${encodeURIComponent(query)}&limit=20`);
+    if (!response.ok) return [];
+
+    const data = await response.json();
+    return data.tracks || [];
+  } catch (error) {
+    console.error("[Search] Spotify search failed:", error);
+    return [];
+  }
+}
+
 function LogPageContent() {
   const searchParams = useSearchParams();
+  const [initialTrack, setInitialTrack] = useState<Track | undefined>(undefined);
+  const [isLookingUpSpotify, setIsLookingUpSpotify] = useState(false);
 
   // Check if we have track data from Last.fm prompt
   const trackName = searchParams.get("track");
@@ -19,15 +34,60 @@ function LogPageContent() {
   const promptTag = searchParams.get("tag");
   const initialRating = searchParams.get("rating");
 
-  // Create initial track object if params exist
-  const initialTrack: Track | undefined = trackName && artistName ? {
-    trackId: `lastfm-${trackName}-${artistName}`,
-    name: trackName,
-    artist: artistName,
-    album: albumName || "",
-    artworkUrl: artworkUrl || "",
-    previewUrl: "",
-  } : undefined;
+  // Look up real Spotify track ID for Last.fm tracks
+  useEffect(() => {
+    if (!trackName || !artistName) return;
+
+    async function lookupSpotifyTrack() {
+      setIsLookingUpSpotify(true);
+      try {
+        // Clean up track name (remove trailing periods)
+        const cleanTrack = trackName?.trim().replace(/\.\s*$/, '').trim() || '';
+        const cleanArtist = artistName?.trim() || '';
+
+        // Search Spotify directly for real track ID
+        const query = encodeURIComponent(`${cleanTrack} ${cleanArtist}`);
+        const response = await fetch(`/api/spotify/search?q=${query}&limit=1`);
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.tracks && data.tracks.length > 0) {
+            const spotifyTrack = data.tracks[0];
+            console.log("[Log Page] Found Spotify track:", spotifyTrack.trackId, "for", trackName);
+            setInitialTrack(spotifyTrack);
+            setIsLookingUpSpotify(false);
+            return;
+          }
+        }
+
+        // No Spotify match - use Last.fm data with fake ID (Experience will show preview mode)
+        console.log("[Log Page] No Spotify match found for", trackName, "- using Last.fm data");
+        setInitialTrack({
+          trackId: `lastfm-${trackName}-${artistName}`,
+          name: trackName || '',
+          artist: artistName || '',
+          album: albumName || "",
+          artworkUrl: artworkUrl || "",
+          previewUrl: "",
+        });
+      } catch (error) {
+        console.error("[Log Page] Failed to lookup Spotify track:", error);
+        // Fall back to Last.fm data
+        setInitialTrack({
+          trackId: `lastfm-${trackName}-${artistName}`,
+          name: trackName || '',
+          artist: artistName || '',
+          album: albumName || "",
+          artworkUrl: artworkUrl || "",
+          previewUrl: "",
+        });
+      } finally {
+        setIsLookingUpSpotify(false);
+      }
+    }
+
+    lookupSpotifyTrack();
+  }, [trackName, artistName, albumName, artworkUrl]);
 
   return (
     <div style={{ background: "var(--ln-bg)", color: "var(--ln-fg)", minHeight: "100vh", display: "flex", flexDirection: "column", flex: 1 }}>
@@ -46,7 +106,7 @@ function LogPageContent() {
           )}
 
           <ComposeForm
-            searchAPI={searchTracks}
+            searchAPI={searchSpotifyTracks}
             initialTrack={initialTrack}
             initialRating={initialRating ? parseInt(initialRating) : undefined}
           />

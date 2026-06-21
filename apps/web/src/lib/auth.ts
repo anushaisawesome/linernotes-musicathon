@@ -27,7 +27,7 @@ export const authOptions: NextAuthConfig = {
     SpotifyProvider({
       clientId: process.env.SPOTIFY_CLIENT_ID!,
       clientSecret: process.env.SPOTIFY_CLIENT_SECRET!,
-      authorization: "https://accounts.spotify.com/authorize?scope=user-read-email+user-read-private",
+      authorization: "https://accounts.spotify.com/authorize?scope=user-read-email+user-read-private+streaming+user-read-playback-state+user-modify-playback-state",
       allowDangerousEmailAccountLinking: true,
     }),
     CredentialsProvider({
@@ -116,7 +116,42 @@ export const authOptions: NextAuthConfig = {
   callbacks: {
     async signIn({ user, account, profile }) {
       try {
-        // Allow sign in - onboarding will handle missing handle/displayName
+        // Auto-create MusicConnection for Spotify login (for Web Playback SDK)
+        if (account?.provider === "spotify" && account.access_token && user.id) {
+          const existingConnection = await prisma.musicConnection.findFirst({
+            where: {
+              userId: user.id,
+              service: "spotify",
+            },
+          });
+
+          if (!existingConnection) {
+            await prisma.musicConnection.create({
+              data: {
+                userId: user.id,
+                service: "spotify",
+                serviceUserId: account.providerAccountId,
+                serviceUsername: (profile as any)?.display_name,
+                accessToken: account.access_token,
+                refreshToken: account.refresh_token,
+                expiresAt: account.expires_at ? new Date(account.expires_at * 1000) : null,
+              },
+            });
+            console.log("[Auth] Created MusicConnection for Spotify login");
+          } else {
+            // Update existing connection with new token
+            await prisma.musicConnection.update({
+              where: { id: existingConnection.id },
+              data: {
+                accessToken: account.access_token,
+                refreshToken: account.refresh_token || existingConnection.refreshToken,
+                expiresAt: account.expires_at ? new Date(account.expires_at * 1000) : null,
+              },
+            });
+            console.log("[Auth] Updated MusicConnection for Spotify login");
+          }
+        }
+
         return true;
       } catch (error) {
         console.error("SignIn callback error:", error);
