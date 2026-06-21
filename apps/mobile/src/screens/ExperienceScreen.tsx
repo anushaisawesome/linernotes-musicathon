@@ -218,6 +218,19 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
     }
   }, [activeMoment]);
 
+  // Simulated playback engine - advances playback position when playing
+  useEffect(() => {
+    if (!isPlaying) return;
+    const interval = setInterval(() => {
+      setPlaybackPosition((current) => {
+        const next = current + 0.25; // Advance by 0.25s every 250ms
+        if (next >= 240) return 240; // Cap at 4 minutes
+        return next;
+      });
+    }, 250);
+    return () => clearInterval(interval);
+  }, [isPlaying]);
+
   // Update isPlaying based on Last.fm nowPlaying status
   useEffect(() => {
     setIsPlaying(!!nowPlayingTrack);
