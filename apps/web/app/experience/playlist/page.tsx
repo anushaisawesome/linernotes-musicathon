@@ -12,8 +12,8 @@ export default function ExperiencePlaylist() {
   useEffect(() => {
     async function loadPlaylist() {
       try {
-        // Get recent community track reviews (no feed param = all reviews)
-        const reviews = await getReviews();
+        // Get recent community track reviews
+        const reviews = await getReviews({ feed: "friends" });
         const trackReviews = reviews
           .filter((r) => r.track?.trackId && !r.track.trackId.startsWith("lastfm-"))
           .slice(0, 10); // Get top 10 recent reviews
