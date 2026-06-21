@@ -146,12 +146,12 @@ const styles = StyleSheet.create({
   },
   sticker: {
     borderRadius: 16,
-    backgroundColor: tokens.colors.bg,
+    backgroundColor: tokens.colors.surface,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 18 },
-    shadowOpacity: 0.4,
-    shadowRadius: 24,
+    shadowOpacity: 0.55,
+    shadowRadius: 38,
     elevation: 8,
   },
   header: {

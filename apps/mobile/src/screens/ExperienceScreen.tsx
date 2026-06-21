@@ -1,8 +1,8 @@
 import { tokens } from '../lib/tokens';
 /**
  * LinerNotes Experience Screen - Musicathon Edition
- * Immersive read-along with:
- * - Album-color background gradients
+ * Immersive read-along with Musicathon visual treatment:
+ * - Multi-layered radial-approximated gradients with blur effect
  * - Synced lyrics from Musixmatch (fetched live, never cached per contest rules)
  * - Auto-scrolling lyrics with active line highlighting
  * - Live moment callouts that pulse when hit
@@ -86,32 +86,49 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
         const trackName = album.kind === 'album' && npTrack ? npTrack.name : album.title;
         const artistName = album.artist;
 
-        if (!trackName || !artistName) return;
+        console.log('[Experience] Fetching lyrics for:', trackName, 'by', artistName);
 
-        const response = await fetch(
-          `${api.baseUrl}/api/lyrics?track=${encodeURIComponent(trackName)}&artist=${encodeURIComponent(artistName)}`
-        );
+        if (!trackName || !artistName) {
+          console.log('[Experience] Missing track name or artist, skipping lyrics');
+          return;
+        }
+
+        const url = `${api.baseUrl}/lyrics?track=${encodeURIComponent(trackName)}&artist=${encodeURIComponent(artistName)}`;
+        console.log('[Experience] Lyrics API URL:', url);
+
+        const response = await fetch(url);
+        console.log('[Experience] Lyrics response status:', response.status);
 
         if (response.status === 401 || response.status === 403) {
-          setLyricsError('Musixmatch trial key expired. See demo video for full experience!');
+          const msg = 'Musixmatch trial key expired. See demo video for full experience!';
+          console.warn('[Experience]', msg);
+          setLyricsError(msg);
           return;
         }
 
         if (!response.ok) {
-          console.log('[Experience] No synced lyrics available');
+          const errorText = await response.text();
+          console.log('[Experience] No synced lyrics available. Status:', response.status, 'Body:', errorText);
+          setLyricsError(`No lyrics found (${response.status})`);
           return;
         }
 
         const data = await response.json();
+        console.log('[Experience] Lyrics data received:', data ? 'YES' : 'NO', 'Lines:', data?.lyrics?.length || 0);
+
         if (isMounted && data.lyrics) {
           setLyrics({
             lines: data.lyrics,
             translation: data.translation || undefined,
             language: data.track?.language || data.subtitle_language || undefined,
           });
+          console.log('[Experience] ✅ Lyrics set successfully:', data.lyrics.length, 'lines');
+        } else {
+          console.warn('[Experience] ⚠️ No lyrics in response data');
         }
       } catch (error) {
-        console.error('[Experience] Failed to fetch lyrics:', error);
+        console.error('[Experience] ❌ Failed to fetch lyrics:', error);
+        setLyricsError(`Error loading lyrics: ${error.message}`);
       }
     };
 
@@ -487,13 +504,79 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
             <Stars rating={rating} size={16} color={gold} />
           </View>
 
-          {/* Open in Spotify */}
-          <TouchableOpacity onPress={openSpotify} style={styles.spotifyButton}>
-            <View style={styles.spotifyIcon}>
-              <Icon name="play" size={8} color="#fff" />
+          {/* Scrubber timeline with moment markers - ALWAYS SHOW */}
+          <View style={styles.scrubberContainer}>
+            <TouchableOpacity
+              style={styles.scrubberTrack}
+              onPress={(e) => {
+                const trackWidth = SCREEN_WIDTH - 44;
+                const tapX = e.nativeEvent.locationX;
+                const progress = Math.max(0, Math.min(1, tapX / trackWidth));
+                const estimatedDuration = 240; // 4 minutes default
+                setPlaybackPosition(progress * estimatedDuration);
+              }}
+            >
+              <View style={styles.scrubberBg} />
+              <View style={[styles.scrubberProgress, { width: `${(playbackPosition / 240) * 100}%`, backgroundColor: gold }]} />
+              {/* Moment markers */}
+              {(review.notes || []).map((m, i) => {
+                const markerPos = (m.sec / 240) * 100;
+                const isActive = activeMoment === m;
+                return (
+                  <View
+                    key={i}
+                    style={[
+                      styles.scrubberMarker,
+                      {
+                        left: `${markerPos}%`,
+                        width: isActive ? 13 : 9,
+                        height: isActive ? 13 : 9,
+                        backgroundColor: isActive ? gold : 'rgba(240,226,204,0.5)',
+                        borderWidth: 2,
+                        borderColor: '#1a0d0e',
+                        shadowColor: gold,
+                        shadowOpacity: isActive ? 0.5 : 0,
+                        shadowRadius: 4,
+                      },
+                    ]}
+                  />
+                );
+              })}
+              {/* Playhead */}
+              <View
+                style={[
+                  styles.scrubberPlayhead,
+                  { left: `${(playbackPosition / 240) * 100}%` },
+                ]}
+              />
+            </TouchableOpacity>
+            <View style={styles.scrubberTimes}>
+              <Text style={styles.scrubberTime}>{formatTimestamp(Math.floor(playbackPosition))}</Text>
+              <Text style={styles.scrubberTime}>4:00</Text>
             </View>
-            <Text style={styles.spotifyText}>Open in Spotify</Text>
-          </TouchableOpacity>
+          </View>
+
+          {/* Transport controls - ALWAYS SHOW */}
+          <View style={styles.transportControls}>
+            <TouchableOpacity style={styles.transportButton}>
+              <Icon name="skip-back" size={20} color="#f1ebe0" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setIsPlaying(!isPlaying)}
+              style={[styles.transportButton, styles.transportButtonPrimary]}
+            >
+              <Icon name={isPlaying ? "pause" : "play"} size={28} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.transportButton}>
+              <Icon name="skip-forward" size={20} color="#f1ebe0" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Source attribution - ALWAYS SHOW */}
+          <View style={styles.sourceChip}>
+            <View style={styles.spotifyDot} />
+            <Text style={styles.sourceText}>streaming via Spotify</Text>
+          </View>
 
           {/* Now playing companion */}
           {nowPlayingTrack && (
@@ -705,19 +788,31 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
       {/* Share sheet */}
       <ShareSheet
         visible={shareSheetVisible}
-        onClose={() => setShareSheetVisible(false)}
+        onClose={() => {
+          setShareSheetVisible(false);
+          // Don't clear armedMoment here - let user re-share if needed
+        }}
         onExport={handleExport}
         accent={gold}
-        type="review"
+        type={armedMoment ? "moment" : "review"}
         hasFull={!!review.body}
       >
         {({ format, linkSlot }) => (
           <View ref={shareCardRef} collapsable={false}>
-            <ReviewShareCard
-              review={review}
-              format={format}
-              linkSlot={linkSlot}
-            />
+            {armedMoment ? (
+              <LyricShareCard
+                review={review}
+                moment={armedMoment}
+                format={format}
+                linkSlot={linkSlot}
+              />
+            ) : (
+              <ReviewShareCard
+                review={review}
+                format={format}
+                linkSlot={linkSlot}
+              />
+            )}
           </View>
         )}
       </ShareSheet>
@@ -812,7 +907,7 @@ function AlbumTrackStrip({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: tokens.colors.nearBlack,
+    backgroundColor: tokens.colors.bg, // Musicathon deep maroon background
   },
   blurContainer: {
     position: 'absolute',
@@ -896,14 +991,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cover: {
-    width: 168,
-    borderRadius: 12,
+    width: 188,
+    height: 188,
+    borderRadius: 16,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 24 },
-    shadowOpacity: 0.85,
-    shadowRadius: 40,
-    elevation: 20,
+    shadowOpacity: 0.75,
+    shadowRadius: 48,
+    elevation: 18,
     position: 'relative',
   },
   eqBadge: {
@@ -920,8 +1016,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   coverPlaceholder: {
-    width: 168,
-    height: 168,
+    width: 188,
+    height: 188,
     backgroundColor: 'rgba(241,235,224,0.08)',
     borderWidth: 1,
     borderColor: 'rgba(241,235,224,0.12)',
@@ -940,16 +1036,16 @@ const styles = StyleSheet.create({
     fontFamily: 'System',
     fontWeight: '600',
     fontSize: 26,
-    lineHeight: 28.6,
+    lineHeight: 29.5,
     color: '#f1ebe0',
     textAlign: 'center',
-    letterSpacing: -0.2,
+    letterSpacing: -0.26,
   },
   artist: {
-    marginTop: 3,
+    marginTop: 4,
     fontFamily: 'System',
-    fontSize: 18,
-    color: 'rgba(241,235,224,0.72)',
+    fontSize: 17,
+    color: 'rgba(241,235,224,0.7)',
   },
   rating: {
     marginTop: 11,
@@ -1363,5 +1459,96 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 17,
     color: 'rgba(241,235,224,0.8)',
+  },
+  scrubberContainer: {
+    width: '100%',
+    marginTop: 16,
+  },
+  scrubberTrack: {
+    position: 'relative',
+    height: 22,
+    justifyContent: 'center',
+  },
+  scrubberBg: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: 'rgba(244,239,230,0.16)',
+  },
+  scrubberProgress: {
+    position: 'absolute',
+    left: 0,
+    height: 5,
+    borderRadius: 3,
+  },
+  scrubberMarker: {
+    position: 'absolute',
+    borderRadius: 999,
+    transform: [{ translateX: -6.5 }],
+  },
+  scrubberPlayhead: {
+    position: 'absolute',
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#f1ebe0',
+    transform: [{ translateX: -7 }],
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.6,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  scrubberTimes: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 2,
+  },
+  scrubberTime: {
+    fontFamily: 'Menlo',
+    fontSize: 11,
+    color: 'rgba(241,235,224,0.55)',
+  },
+  transportControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 26,
+    marginTop: 8,
+  },
+  transportButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  transportButtonPrimary: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+  },
+  sourceChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    marginTop: 14,
+    justifyContent: 'center',
+  },
+  spotifyDot: {
+    width: 13,
+    height: 13,
+    borderRadius: 6.5,
+    backgroundColor: '#1DB954',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sourceText: {
+    fontFamily: 'Menlo',
+    fontSize: 10,
+    letterSpacing: 0.4,
+    color: 'rgba(241,235,224,0.55)',
   },
 });

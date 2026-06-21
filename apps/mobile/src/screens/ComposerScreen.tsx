@@ -1,7 +1,7 @@
 /**
- * LinerNotes Composer Screen
+ * LinerNotes Composer Screen - Musicathon Edition
  * Three modes: Track / Album / Playlist
- * Based on Claude Design handoff: composer.jsx
+ * Uses Musicathon color palette (deep maroon bg, oxblood surfaces, gold accents)
  */
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -764,6 +764,35 @@ export function ComposerScreen({
             <View style={styles.section}>
               <Text style={styles.sectionLabel}>YOUR RATING</Text>
               <StarsInput rating={rating} onChange={setRating} size={34} />
+              {/* Effort meter - shows post depth (floor/caption/full) */}
+              {rating > 0 && (
+                <View style={styles.effortMeter}>
+                  <Text style={styles.effortLabel}>effort</Text>
+                  <View style={styles.effortBars}>
+                    {['floor', 'caption', 'full'].map((d) => {
+                      const isActive =
+                        d === depth ||
+                        (depth === 'full' && d !== 'floor') ||
+                        (depth === 'caption' && d === 'floor');
+                      return (
+                        <View
+                          key={d}
+                          style={[
+                            styles.effortBar,
+                            {
+                              width: isActive ? 18 : 6,
+                              backgroundColor: isActive ? gold : 'rgba(241,235,224,0.12)',
+                            },
+                          ]}
+                        />
+                      );
+                    })}
+                  </View>
+                  <Text style={[styles.effortDepth, { color: depth ? gold : 'rgba(241,235,224,0.45)' }]}>
+                    {depth || 'none'}
+                  </Text>
+                </View>
+              )}
             </View>
           )}
 
@@ -1175,7 +1204,7 @@ function EditableTrackRow({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: tokens.colors.nearBlack,
+    backgroundColor: tokens.colors.bg, // Musicathon deep maroon background
   },
   headerGradient: {
     position: 'absolute',
@@ -1208,8 +1237,9 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontFamily: 'System',
     fontWeight: '600',
-    fontSize: 20,
+    fontSize: 21,
     color: tokens.colors.fg,
+    letterSpacing: -0.21,
   },
   closeButton: {
     width: 34,
@@ -1266,7 +1296,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontFamily: 'Menlo',
     fontSize: 9.5,
-    letterSpacing: 0.6,
+    letterSpacing: 1.2,
     color: tokens.colors.gold,
     textTransform: 'uppercase',
   },
@@ -1281,22 +1311,23 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(241,235,224,0.06)',
     borderWidth: 1,
     borderColor: 'rgba(241,235,224,0.14)',
-    borderRadius: 12,
-    padding: 11,
-    paddingTop: 11,
+    borderRadius: 13,
+    padding: 12,
+    paddingTop: 12,
     fontFamily: 'System',
-    fontSize: 14.5,
+    fontSize: 15,
     color: tokens.colors.fg,
     minHeight: 100,
+    lineHeight: 21,
   },
   lineInput: {
     backgroundColor: 'rgba(241,235,224,0.06)',
     borderWidth: 1,
     borderColor: 'rgba(241,235,224,0.14)',
-    borderRadius: 12,
+    borderRadius: 13,
     padding: 12,
     fontFamily: 'System',
-    fontSize: 14.5,
+    fontSize: 15,
     color: tokens.colors.fg,
   },
   linkOk: {
@@ -1697,5 +1728,33 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(241,235,224,0.06)',
     borderWidth: 1,
     borderColor: 'rgba(241,235,224,0.12)',
+  },
+  effortMeter: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 8,
+    marginTop: 14,
+  },
+  effortLabel: {
+    fontFamily: 'Menlo',
+    fontSize: 9,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    color: 'rgba(241,235,224,0.45)',
+  },
+  effortBars: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  effortBar: {
+    height: 2,
+    borderRadius: 1,
+  },
+  effortDepth: {
+    fontFamily: 'Menlo',
+    fontSize: 9,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
   },
 });

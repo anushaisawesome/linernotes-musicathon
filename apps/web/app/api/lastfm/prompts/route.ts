@@ -122,32 +122,33 @@ async function fetchLastFmAlbumInfo(album: string, artist: string, apiKey: strin
  */
 async function validateWithSpotify(track: string, artist: string, lastfmAlbum: string): Promise<{ album: string; artwork: string }> {
   try {
-    // Search Spotify for this track
+    // Search for this track (uses iTunes + MusicBrainz)
     const trackSearchUrl = `${process.env.NEXTAUTH_URL}/api/music/search/tracks?q=${encodeURIComponent(`${track} ${artist}`)}&limit=1`;
     const res = await fetch(trackSearchUrl);
     if (res.ok) {
       const data = await res.json();
-      if (data.tracks?.[0]) {
-        const spotifyTrack = data.tracks[0];
-        const spotifyAlbum = spotifyTrack.album?.name || "";
-        const spotifyArtwork = spotifyTrack.album?.artworkUrl || "";
+      if (data.results?.[0]) {
+        const searchResult = data.results[0];
+        const searchAlbum = searchResult.album || "";
+        const searchArtwork = searchResult.artworkUrl || "";
 
-        // If Spotify has the track, use Spotify's album name and artwork
-        if (spotifyAlbum) {
-          console.log(`[Last.fm Prompts] Spotify validation for "${track}":`, {
+        // If we have a result, use its album name and artwork
+        if (searchAlbum) {
+          console.log(`[Last.fm Prompts] Search validation for "${track}":`, {
             lastfmAlbum,
-            spotifyAlbum,
-            using: spotifyAlbum,
+            searchAlbum,
+            using: searchAlbum,
+            hasArtwork: !!searchArtwork,
           });
-          return { album: spotifyAlbum, artwork: spotifyArtwork };
+          return { album: searchAlbum, artwork: searchArtwork };
         }
       }
     }
   } catch (error) {
-    console.error("[Last.fm Prompts] Spotify validation error:", error);
+    console.error("[Last.fm Prompts] Search validation error:", error);
   }
 
-  // If Spotify doesn't have it, fall back to Last.fm data
+  // If search doesn't have it, fall back to Last.fm data
   return { album: lastfmAlbum, artwork: "" };
 }
 
@@ -162,8 +163,8 @@ async function fetchFallbackArtwork(track: string, artist: string, album: string
       const res = await fetch(searchUrl);
       if (res.ok) {
         const data = await res.json();
-        if (data.albums?.[0]?.artworkUrl) {
-          return data.albums[0].artworkUrl;
+        if (data.results?.[0]?.artworkUrl) {
+          return data.results[0].artworkUrl;
         }
       }
     }
@@ -173,8 +174,8 @@ async function fetchFallbackArtwork(track: string, artist: string, album: string
     const res = await fetch(trackSearchUrl);
     if (res.ok) {
       const data = await res.json();
-      if (data.tracks?.[0]?.album?.artworkUrl) {
-        return data.tracks[0].album.artworkUrl;
+      if (data.results?.[0]?.artworkUrl) {
+        return data.results[0].artworkUrl;
       }
     }
   } catch (error) {

@@ -6,18 +6,18 @@
  */
 
 // ============================================================================
-// COLOR PALETTE
+// COLOR PALETTE - Musicathon Design System
 // ============================================================================
 
 export const colors = {
-  /** App background - #0c0b0a (dark mode) */
-  bg: '#0c0b0a',
+  /** Deep maroon background from Musicathon - #251214 */
+  bg: '#251214',
   bgLight: '#f3ede1', // light mode
 
-  /** Primary text - #f1ebe0 (cream) */
-  fg: '#f1ebe0',
+  /** Warm sand text - #f0e2cc */
+  fg: '#f0e2cc',
   fgLight: '#23201b', // light mode
-  fgRgb: '241,235,224', // for rgba()
+  fgRgb: '240,226,204', // for rgba()
 
   /** Line/border color */
   lineRgb: '255,255,255', // for rgba()
@@ -25,17 +25,29 @@ export const colors = {
   /** Muted text */
   muted: '#aaa298',
 
-  /** Gold accents */
-  gold: '#d9b25a',
+  /** Gold accent - #e6b450 */
+  gold: '#e6b450',
   goldBright: '#c8a45c',
+
+  /** Coral accent - #d5896f */
+  coral: '#d5896f',
+
+  /** Oxblood card surface - #3e1e20 */
+  surface: '#3e1e20',
 
   /** Reaction colors */
   flame: '#e0762f',
   love: '#d98aa0',
   skip: '#7a7468',
 
-  /** Near-black for Experience overlay */
+  /** Near-black for overlays */
   nearBlack: '#0a0908',
+
+  /** Deep maroon for gradients - #1a0a0c */
+  deepMaroon: '#1a0a0c',
+
+  /** Garnet glow for backgrounds - #6e1a21 */
+  garnet: '#6e1a21',
 } as const;
 
 // ============================================================================
@@ -43,19 +55,25 @@ export const colors = {
 // ============================================================================
 
 export const typography = {
-  /** Font families (from Claude Design) */
+  /** Font families - Musicathon design system */
   fonts: {
-    /** Display/headlines - Newsreader or Hanken Grotesk */
-    display: 'Newsreader',
+    /** Display/headlines - Syne for impactful titles */
+    display: 'Syne',
+    /** Album/track names - Newsreader serif */
+    album: 'Newsreader',
     /** Body text - Hanken Grotesk */
     body: 'Hanken Grotesk',
     /** Monospace - Space Mono for labels/timestamps */
     mono: 'Space Mono',
-    /** Preview line (italic quotes) - EB Garamond */
+    /** Preview/quotes - EB Garamond italic */
     preview: 'EB Garamond',
+    /** Labels - uppercase tracking */
+    label: 'Space Mono',
+    /** Logo - system bold tracking */
+    logo: 'System',
   },
 
-  /** Font sizes (from design) */
+  /** Font sizes - from Musicathon designs */
   sizes: {
     // App chrome
     appTitle: 23,
@@ -72,11 +90,26 @@ export const typography = {
     userHandle: 10.5,
     actionButton: 12,
 
+    // Composer
+    composerTitle: 21,
+    modeTab: 13,
+    sectionLabel: 9.5,
+    input: 15,
+    effortLabel: 9,
+
     // Experience
     experienceTitle: 27,
     experienceArtist: 15,
     experienceQuote: 20,
     experienceBody: 14.5,
+    lyricActive: 21,
+    lyricInactive: 17,
+
+    // Profile
+    profileName: 23,
+    profileHandle: 12,
+    statNumber: 16,
+    statLabel: 9.5,
 
     // General
     body: 13.5,
@@ -90,6 +123,7 @@ export const typography = {
     medium: '500' as const,
     semibold: '600' as const,
     bold: '700' as const,
+    black: '800' as const,
   },
 } as const;
 
@@ -98,17 +132,17 @@ export const typography = {
 // ============================================================================
 
 export const layout = {
-  /** Spacing (from design) */
+  /** Spacing - Musicathon design system */
   spacing: {
     xs: 4,
     sm: 8,
-    md: 12,
+    md: 13,    // Composer sections, common gap
     lg: 18,
-    xl: 24,
+    xl: 26,    // Profile sections
     xxl: 32,
   },
 
-  /** Border radius */
+  /** Border radius - from Musicathon */
   radius: {
     card: 18,
     pill: 999,
@@ -116,10 +150,12 @@ export const layout = {
     sm: 6,
     md: 10,
     lg: 14,
+    xl: 18,    // Share cards, composer
+    sheet: 22, // Bottom sheets
   },
 
   /** Feed spacing */
-  feedGap: 30,
+  feedGap: 28,        // Gap between feed items
   feedPadding: 16,
 
   /** Card padding by depth */
@@ -127,6 +163,20 @@ export const layout = {
     full: { vertical: 18, horizontal: 18 },
     caption: { vertical: 15, horizontal: 17 },
     floor: { vertical: 16, horizontal: 17 },
+  },
+
+  /** Composer spacing */
+  composer: {
+    padding: 18,
+    sectionGap: 20,
+    inputPadding: 12,
+  },
+
+  /** Profile spacing */
+  profile: {
+    padding: 18,
+    sectionGap: 28,
+    top4Gap: 13,
   },
 } as const;
 

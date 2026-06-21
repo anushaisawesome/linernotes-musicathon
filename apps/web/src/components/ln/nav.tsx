@@ -159,13 +159,11 @@ export function TopBar({ transparent = false }: { transparent?: boolean }) {
 
       <style>{`
         @media (max-width: 760px) {
-          .lnw-nav-inner { gap: 14px !important; }
+          .lnw-nav-inner { gap: 10px !important; padding: 0 16px !important; }
           .lnw-nav-links { display: none !important; }
-          .lnw-nav-compose { display: none !important; }
         }
-        @media (max-width: 460px) {
-          .lnw-nav-inner { padding: 0 16px !important; }
-          .lnw-nav-login { display: none !important; }
+        @media (max-width: 520px) {
+          .lnw-nav-compose span { display: none !important; }
         }
       `}</style>
     </header>

@@ -39,6 +39,13 @@ export const authOptions: NextAuthConfig = {
         displayName: { label: "Display Name", type: "text" },
       },
       async authorize(credentials): Promise<any> {
+        console.log("[Auth] Credentials received:", {
+          email: credentials?.email,
+          hasPassword: !!credentials?.password,
+          action: credentials?.action,
+          hasDisplayName: !!credentials?.displayName,
+        });
+
         if (!credentials?.email || !credentials?.password) {
           throw new Error("Email and password required");
         }
@@ -47,20 +54,26 @@ export const authOptions: NextAuthConfig = {
 
         // Sign up
         if (credentials.action === "signup") {
+          console.log("[Auth] Entering signup flow");
+
           if (!credentials.displayName) {
+            console.log("[Auth] Signup failed: Display name missing");
             throw new Error("Display name required for signup");
           }
 
           // Check if user already exists
+          console.log("[Auth] Checking if user exists:", email);
           const existingUser = await prisma.user.findUnique({
             where: { email },
           });
 
           if (existingUser) {
+            console.log("[Auth] Signup failed: User already exists");
             throw new Error("User with this email already exists");
           }
 
           // Hash password
+          console.log("[Auth] Creating new user");
           const passwordHash = await bcrypt.hash(credentials.password as string, 10);
 
           // Create user
@@ -74,6 +87,8 @@ export const authOptions: NextAuthConfig = {
             },
           });
 
+          console.log("[Auth] User created successfully:", user.id);
+
           return {
             id: user.id,
             email: user.email,
@@ -83,19 +98,25 @@ export const authOptions: NextAuthConfig = {
         }
 
         // Login
+        console.log("[Auth] Entering login flow for:", email);
         const user = await prisma.user.findUnique({
           where: { email },
         });
 
         if (!user || !user.passwordHash) {
+          console.log("[Auth] Login failed: User not found or no password");
           throw new Error("Invalid email or password");
         }
 
+        console.log("[Auth] User found, verifying password");
         const isValid = await bcrypt.compare(credentials.password as string, user.passwordHash);
 
         if (!isValid) {
+          console.log("[Auth] Login failed: Invalid password");
           throw new Error("Invalid email or password");
         }
+
+        console.log("[Auth] Login successful:", user.id);
 
         return {
           id: user.id,
@@ -116,7 +137,7 @@ export const authOptions: NextAuthConfig = {
   callbacks: {
     async signIn({ user, account, profile }) {
       try {
-        // Auto-create MusicConnection for Spotify login (for Web Playback SDK)
+        // For existing Spotify users, update their token
         if (account?.provider === "spotify" && account.access_token && user.id) {
           const existingConnection = await prisma.musicConnection.findFirst({
             where: {
@@ -125,21 +146,9 @@ export const authOptions: NextAuthConfig = {
             },
           });
 
-          if (!existingConnection) {
-            await prisma.musicConnection.create({
-              data: {
-                userId: user.id,
-                service: "spotify",
-                serviceUserId: account.providerAccountId,
-                serviceUsername: (profile as any)?.display_name,
-                accessToken: account.access_token,
-                refreshToken: account.refresh_token,
-                expiresAt: account.expires_at ? new Date(account.expires_at * 1000) : null,
-              },
-            });
-            console.log("[Auth] Created MusicConnection for Spotify login");
-          } else {
-            // Update existing connection with new token
+          // Only update existing connections here
+          // New connections are created in the createUser event
+          if (existingConnection) {
             await prisma.musicConnection.update({
               where: { id: existingConnection.id },
               data: {
