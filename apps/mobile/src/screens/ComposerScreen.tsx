@@ -27,6 +27,7 @@ import { Stars } from '../components/atoms/Stars';
 import { ReactionIcon } from '../components/atoms/Reactions';
 import { AlbumArt } from '../components/atoms/AlbumArt';
 import { ReviewCard } from '../components/ReviewCard';
+import { LyricsBrowser } from '../components/LyricsBrowser';
 import { formatTimestamp } from '../lib/time-utils';
 import { api } from '../lib/api-client';
 import { lastfm } from '../services/lastfm';
@@ -133,6 +134,7 @@ export function ComposerScreen({
   const [rating, setRating] = useState(prefilledRating || 0);
   const [take, setTake] = useState('');
   const [soloMoments, setSoloMoments] = useState<Moment[]>([]);
+  const [momentInputMode, setMomentInputMode] = useState<'manual' | 'lyrics'>('manual');
   const [isPosting, setIsPosting] = useState(false);
   const [showTake, setShowTake] = useState(false);
   const [showMoments, setShowMoments] = useState(false);
@@ -887,18 +889,61 @@ export function ComposerScreen({
               <View style={styles.momentsHeader}>
                 <Icon name="bookmark" size={16} color={gold} />
                 <Text style={[styles.momentsLabel, { color: gold }]}>THE MOMENTS THAT GOT YOU</Text>
+                <View style={styles.momentInputToggle}>
+                  <TouchableOpacity
+                    style={[
+                      styles.momentInputToggleButton,
+                      momentInputMode === 'manual' && { backgroundColor: `${gold}22`, borderColor: gold }
+                    ]}
+                    onPress={() => setMomentInputMode('manual')}
+                  >
+                    <Text style={[
+                      styles.momentInputToggleText,
+                      momentInputMode === 'manual' && { color: gold }
+                    ]}>Manual</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.momentInputToggleButton,
+                      momentInputMode === 'lyrics' && { backgroundColor: `${gold}22`, borderColor: gold }
+                    ]}
+                    onPress={() => setMomentInputMode('lyrics')}
+                  >
+                    <Text style={[
+                      styles.momentInputToggleText,
+                      momentInputMode === 'lyrics' && { color: gold }
+                    ]}>Lyrics</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-              <MomentsInput
-                moments={soloMoments}
-                onAdd={(m) =>
-                  setSoloMoments((prev) =>
-                    [...prev, m].sort((a, b) => a.seconds - b.seconds)
-                  )
-                }
-                onRemove={(idx) => setSoloMoments(soloMoments.filter((_, i) => i !== idx))}
-                onFieldFocus={scrollToInput}
-                gold={gold}
-              />
+              {momentInputMode === 'manual' ? (
+                <MomentsInput
+                  moments={soloMoments}
+                  onAdd={(m) =>
+                    setSoloMoments((prev) =>
+                      [...prev, m].sort((a, b) => a.seconds - b.seconds)
+                    )
+                  }
+                  onRemove={(idx) => setSoloMoments(soloMoments.filter((_, i) => i !== idx))}
+                  onFieldFocus={scrollToInput}
+                  gold={gold}
+                />
+              ) : (
+                selectedTrack && (
+                  <View style={{ height: 500 }}>
+                    <LyricsBrowser
+                      trackName={selectedTrack.name}
+                      artistName={selectedTrack.artist}
+                      onBookmark={(m) =>
+                        setSoloMoments((prev) =>
+                          [...prev, m].sort((a, b) => a.seconds - b.seconds)
+                        )
+                      }
+                      bookmarkedLines={new Set(soloMoments.map(m => m.lyric || '').filter(Boolean))}
+                    />
+                  </View>
+                )
+              )}
             </View>
           )}
 
@@ -1980,10 +2025,30 @@ const styles = StyleSheet.create({
     marginBottom: 11,
   },
   momentsLabel: {
+    flex: 1,
     fontFamily: 'Menlo',
     fontSize: 11,
     letterSpacing: 0.66,
     textTransform: 'uppercase',
+  },
+  momentInputToggle: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  momentInputToggleButton: {
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(241,235,224,0.2)',
+    backgroundColor: 'transparent',
+  },
+  momentInputToggleText: {
+    fontFamily: 'Menlo',
+    fontSize: 10,
+    fontWeight: '600',
+    color: 'rgba(241,235,224,0.6)',
+    letterSpacing: 0.4,
   },
   // Tracks card (album mode)
   tracksCard: {
