@@ -124,31 +124,31 @@ export function PlaylistComposer() {
       <ModeTabs active="playlist" />
 
       <form onSubmit={handleSubmit} style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 24 }}>
-        {/* Playlist Info */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 16, padding: "20px 22px", borderRadius: 16, background: "var(--ln-surface)", border: "1px solid rgba(var(--ln-line-rgb),0.08)" }}>
+        {/* Playlist title */}
         <div>
-          <label style={{ display: "block", fontFamily: "var(--ln-mono)", fontSize: 10, letterSpacing: "0.08em", color: gold, textTransform: "uppercase", marginBottom: 8 }}>
+          <label style={{ display: "block", fontFamily: "var(--ln-mono)", fontSize: 12.5, letterSpacing: "0.08em", color: gold, textTransform: "uppercase", marginBottom: 8 }}>
             Playlist Title *
           </label>
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="My favorite tracks"
+            placeholder="e.g. My favourite songs"
             required
             maxLength={100}
             style={cmpInput}
           />
         </div>
 
+        {/* Description */}
         <div>
-          <label style={{ display: "block", fontFamily: "var(--ln-mono)", fontSize: 10, letterSpacing: "0.08em", color: gold, textTransform: "uppercase", marginBottom: 8 }}>
+          <label style={{ display: "block", fontFamily: "var(--ln-mono)", fontSize: 12.5, letterSpacing: "0.08em", color: gold, textTransform: "uppercase", marginBottom: 8 }}>
             Description (optional)
           </label>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Songs that defined this moment..."
+            placeholder="e.g. A collection of my favourite songs at the moment, hope you enjoy them as much as I do!"
             maxLength={500}
             rows={3}
             style={cmpInput}
@@ -157,7 +157,6 @@ export function PlaylistComposer() {
             {description.length}/500
           </div>
         </div>
-      </div>
 
       {/* Track Search */}
       <div>
