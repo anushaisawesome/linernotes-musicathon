@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import type { Track } from "@/lib/types";
 import { cmpInput } from "./composer-ui";
 
@@ -12,34 +12,14 @@ interface TrackSearchProps {
 // Spotify (dev mode) caps this app's search at 10 results per page; we page
 // through with an offset when the user wants to see more.
 const PAGE = 10;
-const DEBOUNCE_MS = 500; // Wait 500ms after user stops typing
 
 export function TrackSearch({ onTrackSelect, searchAPI }: TrackSearchProps) {
   const [query, setQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [results, setResults] = useState<Track[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [showResults, setShowResults] = useState(false);
-  const debounceTimer = useRef<NodeJS.Timeout | null>(null);
-
-  // Debounce query input
-  useEffect(() => {
-    if (debounceTimer.current) {
-      clearTimeout(debounceTimer.current);
-    }
-
-    debounceTimer.current = setTimeout(() => {
-      setDebouncedQuery(query);
-    }, DEBOUNCE_MS);
-
-    return () => {
-      if (debounceTimer.current) {
-        clearTimeout(debounceTimer.current);
-      }
-    };
-  }, [query]);
 
   const resolveApi = async () => {
     if (searchAPI) return searchAPI;
@@ -47,41 +27,36 @@ export function TrackSearch({ onTrackSelect, searchAPI }: TrackSearchProps) {
     return mockAPI.searchTracks as (query: string, offset?: number) => Promise<Track[]>;
   };
 
-  // Perform actual search when debounced query changes
-  useEffect(() => {
-    const performSearch = async () => {
-      if (debouncedQuery.trim().length < 2) {
-        setResults([]);
-        setShowResults(false);
-        setHasMore(false);
-        return;
-      }
-
-      const api = await resolveApi();
-      setLoading(true);
-      try {
-        const tracks = await api(debouncedQuery, 0);
-        setResults(tracks);
-        setHasMore(tracks.length >= PAGE);
-        setShowResults(true);
-      } catch (error) {
-        console.error("Search failed:", error);
-        setResults([]);
-        setHasMore(false);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    performSearch();
-  }, [debouncedQuery]);
+  const handleSearch = async (value: string) => {
+    setQuery(value);
+    if (value.trim().length < 2) {
+      setResults([]);
+      setShowResults(false);
+      setHasMore(false);
+      return;
+    }
+    const api = await resolveApi();
+    setLoading(true);
+    try {
+      const tracks = await api(value, 0);
+      setResults(tracks);
+      setHasMore(tracks.length >= PAGE);
+      setShowResults(true);
+    } catch (error) {
+      console.error("Search failed:", error);
+      setResults([]);
+      setHasMore(false);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const loadMore = async () => {
     if (loadingMore) return;
     const api = await resolveApi();
     setLoadingMore(true);
     try {
-      const more = await api(debouncedQuery, results.length);
+      const more = await api(query, results.length);
       // Dedup by trackId in case pages overlap.
       setResults((prev) => {
         const seen = new Set(prev.map((t) => t.trackId));
@@ -97,35 +72,12 @@ export function TrackSearch({ onTrackSelect, searchAPI }: TrackSearchProps) {
     }
   };
 
-  const selectTrack = async (track: Track) => {
-    // Close search immediately for better UX
+  const selectTrack = (track: Track) => {
+    onTrackSelect(track);
     setQuery("");
     setResults([]);
     setShowResults(false);
     setHasMore(false);
-
-    // If track is from iTunes/MusicBrainz, look up Spotify ID for playback
-    if (track.source === "itunes" || track.source === "musicbrainz") {
-      try {
-        const query = encodeURIComponent(`${track.name} ${track.artist}`);
-        const response = await fetch(`/api/spotify/search?q=${query}&limit=1`);
-
-        if (response.ok) {
-          const data = await response.json();
-          if (data.tracks && data.tracks.length > 0) {
-            const spotifyTrack = data.tracks[0];
-            console.log("[TrackSearch] Looked up Spotify ID:", spotifyTrack.trackId);
-            onTrackSelect(spotifyTrack);
-            return;
-          }
-        }
-      } catch (error) {
-        console.error("[TrackSearch] Spotify lookup failed, using original track:", error);
-      }
-    }
-
-    // Use original track (already has Spotify ID or lookup failed)
-    onTrackSelect(track);
   };
 
   return (
@@ -133,7 +85,7 @@ export function TrackSearch({ onTrackSelect, searchAPI }: TrackSearchProps) {
       <input
         type="text"
         value={query}
-        onChange={(e) => setQuery(e.target.value)}
+        onChange={(e) => handleSearch(e.target.value)}
         placeholder="Search for a track…"
         style={cmpInput}
       />

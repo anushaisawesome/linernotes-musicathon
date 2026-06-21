@@ -6,17 +6,24 @@ import { ComposeForm } from "@/components/compose";
 import { TopBar, Footer } from "@/components/ln/nav";
 import type { Track } from "@/lib/types";
 
-// Search for tracks using iTunes/MusicBrainz (no rate limits)
-// Spotify IDs are looked up only when user selects a track
+// Search Spotify for tracks (returns real Spotify track IDs for playback).
+// offset pages through results for the "show more" control.
 async function searchSpotifyTracks(query: string, offset = 0): Promise<Track[]> {
   try {
-    const response = await fetch(`/api/music/search/tracks?q=${encodeURIComponent(query)}&limit=10`);
+    const response = await fetch(`/api/spotify/search?q=${encodeURIComponent(query)}&limit=10&offset=${offset}`);
+
+    // If rate limited, return empty (user can try again in a moment)
+    if (response.status === 429) {
+      console.warn("[Search] Spotify rate limited, please wait");
+      return [];
+    }
+
     if (!response.ok) return [];
 
     const data = await response.json();
-    return data.results || [];
+    return data.tracks || [];
   } catch (error) {
-    console.error("[Search] Track search failed:", error);
+    console.error("[Search] Spotify search failed:", error);
     return [];
   }
 }
@@ -50,7 +57,10 @@ function LogPageContent() {
         const query = encodeURIComponent(`${cleanTrack} ${cleanArtist}`);
         const response = await fetch(`/api/spotify/search?q=${query}&limit=1`);
 
-        if (response.ok) {
+        if (response.status === 429) {
+          console.warn("[Log Page] Spotify rate limited - using Last.fm data");
+          // Fall through to use Last.fm data
+        } else if (response.ok) {
           const data = await response.json();
           if (data.tracks && data.tracks.length > 0) {
             const spotifyTrack = data.tracks[0];
@@ -63,23 +73,37 @@ function LogPageContent() {
 
         // No Spotify match - use Last.fm data with fake ID (Experience will show preview mode)
         console.log("[Log Page] No Spotify match found for", trackName, "- using Last.fm data");
+
+        // Upgrade Last.fm artwork from 64s to 300x300
+        let upgradedArtwork = artworkUrl || "";
+        if (upgradedArtwork.includes("/64s/")) {
+          upgradedArtwork = upgradedArtwork.replace("/64s/", "/300x300/");
+        }
+
         setInitialTrack({
           trackId: `lastfm-${trackName}-${artistName}`,
           name: trackName || '',
           artist: artistName || '',
           album: albumName || "",
-          artworkUrl: artworkUrl || "",
+          artworkUrl: upgradedArtwork,
           previewUrl: "",
         });
       } catch (error) {
         console.error("[Log Page] Failed to lookup Spotify track:", error);
+
+        // Upgrade Last.fm artwork from 64s to 300x300
+        let upgradedArtwork = artworkUrl || "";
+        if (upgradedArtwork.includes("/64s/")) {
+          upgradedArtwork = upgradedArtwork.replace("/64s/", "/300x300/");
+        }
+
         // Fall back to Last.fm data
         setInitialTrack({
           trackId: `lastfm-${trackName}-${artistName}`,
           name: trackName || '',
           artist: artistName || '',
           album: albumName || "",
-          artworkUrl: artworkUrl || "",
+          artworkUrl: upgradedArtwork,
           previewUrl: "",
         });
       } finally {
