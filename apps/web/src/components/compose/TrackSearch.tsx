@@ -97,12 +97,35 @@ export function TrackSearch({ onTrackSelect, searchAPI }: TrackSearchProps) {
     }
   };
 
-  const selectTrack = (track: Track) => {
-    onTrackSelect(track);
+  const selectTrack = async (track: Track) => {
+    // Close search immediately for better UX
     setQuery("");
     setResults([]);
     setShowResults(false);
     setHasMore(false);
+
+    // If track is from iTunes/MusicBrainz, look up Spotify ID for playback
+    if (track.source === "itunes" || track.source === "musicbrainz") {
+      try {
+        const query = encodeURIComponent(`${track.name} ${track.artist}`);
+        const response = await fetch(`/api/spotify/search?q=${query}&limit=1`);
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.tracks && data.tracks.length > 0) {
+            const spotifyTrack = data.tracks[0];
+            console.log("[TrackSearch] Looked up Spotify ID:", spotifyTrack.trackId);
+            onTrackSelect(spotifyTrack);
+            return;
+          }
+        }
+      } catch (error) {
+        console.error("[TrackSearch] Spotify lookup failed, using original track:", error);
+      }
+    }
+
+    // Use original track (already has Spotify ID or lookup failed)
+    onTrackSelect(track);
   };
 
   return (
