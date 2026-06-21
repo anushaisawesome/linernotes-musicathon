@@ -133,12 +133,14 @@ async function refreshAccessToken(refreshToken: string): Promise<{
  */
 export async function searchTracks(
   query: string,
-  accessToken: string
+  accessToken: string,
+  offset = 0
 ): Promise<Track[]> {
   const params = new URLSearchParams({
     q: query,
     type: "track",
-    limit: "10",
+    limit: "10", // this app's Spotify dev mode rejects search limits > 10
+    offset: String(Math.min(Math.max(offset, 0), 990)),
   });
 
   const response = await fetch(`${SPOTIFY_API_BASE}/search?${params}`, {
@@ -160,12 +162,14 @@ export async function searchTracks(
  */
 export async function searchAlbums(
   query: string,
-  accessToken: string
+  accessToken: string,
+  offset = 0
 ): Promise<Album[]> {
   const params = new URLSearchParams({
     q: query,
     type: "album",
-    limit: "10",
+    limit: "10", // this app's Spotify dev mode rejects search limits > 10
+    offset: String(Math.min(Math.max(offset, 0), 990)),
   });
 
   const response = await fetch(`${SPOTIFY_API_BASE}/search?${params}`, {

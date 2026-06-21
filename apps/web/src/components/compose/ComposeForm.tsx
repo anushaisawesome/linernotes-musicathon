@@ -58,7 +58,7 @@ export function ComposeForm({ onSubmit, onSuccess, searchAPI, initialTrack, init
       rating,
       take: take || undefined,
       body: undefined,
-      notes: moments.map((m) => ({ sec: m.seconds, label: m.label || "moment", note: m.note })),
+      notes: moments.map((m) => ({ sec: m.seconds, label: m.label || "moment", note: m.note || "", lyric: m.lyric })),
       via: null,
       likeCount: 0,
       repostCount: 0,

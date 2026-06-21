@@ -79,7 +79,9 @@ function notesToMoments(
   const mapped = notes.map((n) => ({
     sec: Math.round(n.seconds),
     label: n.label || "moment",
-    note: n.note || n.label || "",
+    // The note is the author's own words only — never echo the label/lyric here,
+    // or a bookmarked lyric with no annotation prints itself twice.
+    note: n.note || "",
     lyric: n.lyric,
   }));
   if (featuredNoteId) {

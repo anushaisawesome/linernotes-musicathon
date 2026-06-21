@@ -350,49 +350,67 @@ export function LNMoment({
 }) {
   const gold = accent || "var(--ln-accent)";
   const ts = lnFmt(note.sec);
-  const isLyric = !!note.lyric;
+  const lyricText = (note.lyric || "").trim();
+  const isLyric = !!lyricText;
+  const labelText = (note.label || "").trim();
+  const annotation = (note.note || "").trim();
+
+  // A single-line bookmark's label is auto-derived from the lyric itself (a
+  // truncated copy), so showing it would just repeat the quote. Hide the label
+  // when it's that echo; keep real labels (e.g. "3 lines from 1:12", or a
+  // regular moment's "the drop").
+  const labelEchoesLyric =
+    isLyric && !!labelText && lyricText.replace(/\s+/g, " ").startsWith(labelText.replace(/\.\.\.$/, "").replace(/\s+/g, " "));
+  const showLabel = !!labelText && !labelEchoesLyric;
+  // Only show the annotation when it's genuinely the author's own words.
+  const showAnnotation = !!annotation && annotation !== lyricText;
 
   return (
-    <div style={{ display: "flex", gap: 12, alignItems: "stretch" }}>
+    <div style={{ display: "flex", gap: 13, alignItems: "stretch" }}>
       <div
         style={{
-          width: 2,
+          width: 2.5,
           borderRadius: 2,
-          background: `linear-gradient(${gold}, ${gold}33)`,
+          background: `linear-gradient(${gold}, ${gold}22)`,
           flexShrink: 0,
           boxShadow: `0 0 10px ${gold}55`,
         }}
       />
-      <div style={{ display: "flex", flexDirection: "column", gap: 4, paddingTop: 1 }}>
-        <span style={{ fontFamily: "var(--ln-mono)", fontSize: 12.5, color: gold, letterSpacing: "0.02em" }}>
-          {ts}
-          {note.label ? <span style={{ opacity: 0.6 }}> · {note.label}</span> : null}
-          {isLyric && <span style={{ opacity: 0.7, marginLeft: 4 }}>♪</span>}
-        </span>
-        {isLyric && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <span style={{
-              fontFamily: "var(--ln-preview)",
-              fontStyle: "italic",
-              fontSize: 14.5,
-              lineHeight: 1.5,
-              color: "rgba(var(--ln-fg-rgb),0.85)",
-              borderLeft: `2px solid ${gold}33`,
-              paddingLeft: 10,
-            }}>
-              "{note.lyric}"
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingTop: 1, minWidth: 0, flex: 1 }}>
+        {/* header: vibrant timestamp + label, with a lyric tag when it's a quote */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <span style={{ fontFamily: "var(--ln-mono)", fontSize: 12.5, fontWeight: 600, color: gold, letterSpacing: "0.03em" }}>
+            {ts}
+            {showLabel ? <span> · {labelText}</span> : null}
+          </span>
+          {isLyric && (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontFamily: "var(--ln-label)", fontSize: 8.5, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: gold, background: `${gold}1f`, border: `1px solid ${gold}55`, borderRadius: 999, padding: "2px 8px" }}>
+              ♪ lyric
             </span>
-            {note.note && (
-              <span style={{ fontFamily: "var(--ln-body)", fontSize: 13.5, lineHeight: 1.4, color: "rgba(var(--ln-fg-rgb),0.82)" }}>
-                {note.note}
-              </span>
-            )}
+          )}
+        </div>
+
+        {/* the lyric quote — italic serif in an accent-tinted card, unmistakably a quote */}
+        {isLyric && (
+          <div style={{ borderLeft: `2px solid ${gold}`, background: `${gold}10`, borderRadius: "0 8px 8px 0", padding: "8px 12px" }}>
+            <span style={{ fontFamily: "var(--ln-preview)", fontStyle: "italic", fontSize: 15, lineHeight: 1.5, color: "rgba(var(--ln-fg-rgb),0.92)", whiteSpace: "pre-wrap" }}>
+              {`“${lyricText}”`}
+            </span>
           </div>
         )}
-        {!isLyric && note.note && (
-          <span style={{ fontFamily: "var(--ln-body)", fontSize: 13.5, lineHeight: 1.4, color: "rgba(var(--ln-fg-rgb),0.82)" }}>
-            {note.note}
-          </span>
+
+        {/* the annotation — upright body text, clearly the author's own note */}
+        {showAnnotation && (
+          <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
+            {isLyric && (
+              <span style={{ fontFamily: "var(--ln-label)", fontSize: 8.5, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(var(--ln-fg-rgb),0.4)", flexShrink: 0, paddingTop: 1 }}>
+                note
+              </span>
+            )}
+            <span style={{ fontFamily: "var(--ln-body)", fontSize: 13.5, lineHeight: 1.45, color: "rgba(var(--ln-fg-rgb),0.85)" }}>
+              {annotation}
+            </span>
+          </div>
         )}
       </div>
     </div>

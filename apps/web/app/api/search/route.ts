@@ -13,6 +13,9 @@ export async function GET(request: NextRequest) {
   const query = searchParams.get("q");
   const type = searchParams.get("type") || "track"; // "track" or "album"
   const limit = searchParams.get("limit") || "20";
+  // Offset lets the UI page through results ("show more").
+  const offsetParam = parseInt(searchParams.get("offset") || "0");
+  const offset = Number.isFinite(offsetParam) ? Math.min(Math.max(offsetParam, 0), 990) : 0;
 
   if (!query || query.trim().length < 2) {
     return NextResponse.json(
@@ -38,10 +41,10 @@ export async function GET(request: NextRequest) {
       const spotifyToken = await getSpotifyAppToken();
       if (spotifyToken) {
         if (type === "album") {
-          const albums = await spotifySearchAlbums(query, spotifyToken);
+          const albums = await spotifySearchAlbums(query, spotifyToken, offset);
           if (albums.length > 0) return NextResponse.json({ albums });
         } else {
-          const tracks = await spotifySearchTracks(query, spotifyToken);
+          const tracks = await spotifySearchTracks(query, spotifyToken, offset);
           if (tracks.length > 0) return NextResponse.json({ tracks });
         }
       }
@@ -51,7 +54,7 @@ export async function GET(request: NextRequest) {
 
     // Try backend next, fallback to iTunes API if backend not deployed yet
     const endpoint = type === "album" ? "albums" : "tracks";
-    const backendUrl = `${API_BASE_URL}/music/search/${endpoint}?q=${encodeURIComponent(query)}&limit=${limit}`;
+    const backendUrl = `${API_BASE_URL}/music/search/${endpoint}?q=${encodeURIComponent(query)}&limit=${limit}&offset=${offset}`;
 
     let data;
     try {
