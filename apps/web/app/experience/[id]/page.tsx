@@ -103,16 +103,15 @@ function ExperienceContent() {
 
   // Fetch lyrics when track loads (works with or without Spotify player)
   useEffect(() => {
-    if (!review) return;
-
-    // Try playerState first (if Spotify connected), otherwise use review track
-    const trackId = playerState?.isrc || review?.track?.trackId;
-    if (!trackId) return;
+    if (!review?.track) return;
 
     async function fetchLyrics() {
       try {
-        // Use trackId (Spotify track ID) to fetch lyrics
-        const res = await fetch(`/api/lyrics?trackId=${encodeURIComponent(trackId || '')}`);
+        // Use track name + artist to fetch lyrics from Musixmatch
+        const trackName = playerState?.trackName || review.track.name;
+        const artistName = playerState?.artistName || review.track.artist;
+
+        const res = await fetch(`/api/lyrics?track=${encodeURIComponent(trackName)}&artist=${encodeURIComponent(artistName)}`);
 
         if (res.status === 401 || res.status === 403) {
           setError("Musixmatch trial key has expired. See the video for the full experience!");
@@ -134,7 +133,7 @@ function ExperienceContent() {
     }
 
     fetchLyrics();
-  }, [playerState?.isrc, review?.track.trackId, review]);
+  }, [playerState?.trackName, playerState?.artistName, review?.track.name, review?.track.artist, review?.track]);
 
   // Update annotations whenever player state changes
   useEffect(() => {
