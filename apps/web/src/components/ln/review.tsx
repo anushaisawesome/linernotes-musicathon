@@ -258,9 +258,9 @@ export function ImmersiveReview({
             {/* Experience button — track reviews play the one song; album reviews
                 play through every reviewed track with prev/next navigation. */}
             {(vm.kind === "track" || (vm.kind === "album" && album.tracks.length > 0)) && (
-              <button onClick={() => router.push(`/experience/${vm.id}${vm.kind === "album" ? "?type=album" : ""}`)} className="ln-press" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 9, padding: "12px 16px", borderRadius: 999, border: `1px solid ${gold}55`, background: `${gold}12`, cursor: "pointer", fontFamily: "var(--ln-body)", fontSize: 14, fontWeight: 600, color: gold }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                  <path d="M12 2v6M12 16v6M6 12h12M6 12l-4 4M6 12l-4-4M18 12l4 4M18 12l4-4" stroke={gold} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <button onClick={() => router.push(`/experience/${vm.id}${vm.kind === "album" ? "?type=album" : ""}`)} className="ln-press" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "15px 20px", borderRadius: 999, border: "none", background: gold, cursor: "pointer", fontFamily: "var(--ln-body)", fontSize: 16, fontWeight: 700, color: "#2c1517", boxShadow: `0 16px 34px -12px ${gold}` }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2v6M12 16v6M6 12h12M6 12l-4 4M6 12l-4-4M18 12l4 4M18 12l4-4" stroke="#2c1517" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
                 Experience
               </button>
