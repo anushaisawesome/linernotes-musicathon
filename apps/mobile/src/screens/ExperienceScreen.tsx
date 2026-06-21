@@ -504,64 +504,59 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
             <Stars rating={rating} size={16} color={gold} />
           </View>
 
-          {/* Scrubber timeline with moment markers */}
-          {review.notes && review.notes.length > 0 && (
-            <View style={styles.scrubberContainer}>
-              <TouchableOpacity
-                style={styles.scrubberTrack}
-                onPress={(e) => {
-                  // Calculate position based on tap location
-                  // In production, this would seek the actual playback
-                  const trackWidth = SCREEN_WIDTH - 44;
-                  const tapX = e.nativeEvent.locationX;
-                  const progress = Math.max(0, Math.min(1, tapX / trackWidth));
-                  // Estimate track duration (would come from Spotify Web Playback SDK)
-                  const estimatedDuration = 240; // 4 minutes default
-                  setPlaybackPosition(progress * estimatedDuration);
-                }}
-              >
-                <View style={styles.scrubberBg} />
-                <View style={[styles.scrubberProgress, { width: `${(playbackPosition / 240) * 100}%`, backgroundColor: gold }]} />
-                {/* Moment markers */}
-                {review.notes.map((m, i) => {
-                  const markerPos = (m.sec / 240) * 100; // Using 240s (4min) as estimate
-                  const isActive = activeMoment === m;
-                  return (
-                    <View
-                      key={i}
-                      style={[
-                        styles.scrubberMarker,
-                        {
-                          left: `${markerPos}%`,
-                          width: isActive ? 13 : 9,
-                          height: isActive ? 13 : 9,
-                          backgroundColor: isActive ? gold : 'rgba(240,226,204,0.5)',
-                          borderWidth: 2,
-                          borderColor: '#1a0d0e',
-                          shadowColor: gold,
-                          shadowOpacity: isActive ? 0.5 : 0,
-                          shadowRadius: 4,
-                        },
-                      ]}
-                    />
-                  );
-                })}
-                {/* Playhead */}
-                <View
-                  style={[
-                    styles.scrubberPlayhead,
-                    { left: `${(playbackPosition / 240) * 100}%` },
-                  ]}
-                />
-              </TouchableOpacity>
-              <View style={styles.scrubberTimes}>
-                <Text style={styles.scrubberTime}>{formatTimestamp(Math.floor(playbackPosition))}</Text>
-                <Text style={styles.scrubberTime}>4:00</Text>
-              </View>
+          {/* Scrubber timeline with moment markers - ALWAYS SHOW */}
+          <View style={styles.scrubberContainer}>
+            <TouchableOpacity
+              style={styles.scrubberTrack}
+              onPress={(e) => {
+                const trackWidth = SCREEN_WIDTH - 44;
+                const tapX = e.nativeEvent.locationX;
+                const progress = Math.max(0, Math.min(1, tapX / trackWidth));
+                const estimatedDuration = 240; // 4 minutes default
+                setPlaybackPosition(progress * estimatedDuration);
+              }}
+            >
+              <View style={styles.scrubberBg} />
+              <View style={[styles.scrubberProgress, { width: `${(playbackPosition / 240) * 100}%`, backgroundColor: gold }]} />
+              {/* Moment markers */}
+              {(review.notes || []).map((m, i) => {
+                const markerPos = (m.sec / 240) * 100;
+                const isActive = activeMoment === m;
+                return (
+                  <View
+                    key={i}
+                    style={[
+                      styles.scrubberMarker,
+                      {
+                        left: `${markerPos}%`,
+                        width: isActive ? 13 : 9,
+                        height: isActive ? 13 : 9,
+                        backgroundColor: isActive ? gold : 'rgba(240,226,204,0.5)',
+                        borderWidth: 2,
+                        borderColor: '#1a0d0e',
+                        shadowColor: gold,
+                        shadowOpacity: isActive ? 0.5 : 0,
+                        shadowRadius: 4,
+                      },
+                    ]}
+                  />
+                );
+              })}
+              {/* Playhead */}
+              <View
+                style={[
+                  styles.scrubberPlayhead,
+                  { left: `${(playbackPosition / 240) * 100}%` },
+                ]}
+              />
+            </TouchableOpacity>
+            <View style={styles.scrubberTimes}>
+              <Text style={styles.scrubberTime}>{formatTimestamp(Math.floor(playbackPosition))}</Text>
+              <Text style={styles.scrubberTime}>4:00</Text>
             </View>
-          )}
+          </View>
 
-          {/* Transport controls */}
+          {/* Transport controls - ALWAYS SHOW */}
           <View style={styles.transportControls}>
             <TouchableOpacity style={styles.transportButton}>
               <Icon name="skip-back" size={20} color="#f1ebe0" />
@@ -577,7 +572,7 @@ export function ExperienceScreen({ review, onClose, onDeleted }: ExperienceScree
             </TouchableOpacity>
           </View>
 
-          {/* Source attribution */}
+          {/* Source attribution - ALWAYS SHOW */}
           <View style={styles.sourceChip}>
             <View style={styles.spotifyDot} />
             <Text style={styles.sourceText}>streaming via Spotify</Text>
