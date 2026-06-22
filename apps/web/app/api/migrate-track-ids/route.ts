@@ -81,6 +81,39 @@ async function searchSpotifyTrack(trackName: string, artistName: string, accessT
   }
 }
 
+async function searchSpotifyAlbum(albumName: string, artistName: string, accessToken: string): Promise<string | null> {
+  try {
+    const query = encodeURIComponent(`album:${albumName} artist:${artistName}`);
+    const searchUrl = `https://api.spotify.com/v1/search?q=${query}&type=album&limit=1`;
+
+    const searchResponse = await fetch(searchUrl, {
+      headers: { 'Authorization': `Bearer ${accessToken}` },
+    });
+
+    if (!searchResponse.ok) {
+      const errorText = await searchResponse.text();
+      console.error(`Album search failed for "${albumName}" by ${artistName}: ${searchResponse.status} - ${errorText}`);
+      return null;
+    }
+
+    const searchData = await searchResponse.json();
+    console.log(`Album search result for "${albumName}" by ${artistName}:`, searchData.albums?.items?.length || 0, 'results');
+
+    const spotifyAlbum = searchData.albums?.items?.[0];
+
+    if (spotifyAlbum) {
+      console.log(`  ✓ Found: ${spotifyAlbum.name} by ${spotifyAlbum.artists[0].name} (${spotifyAlbum.id})`);
+      return spotifyAlbum.id;
+    }
+
+    console.log(`  ✗ No album found on Spotify`);
+    return null;
+  } catch (error) {
+    console.error(`Error searching for album "${albumName}" by ${artistName}:`, error);
+    return null;
+  }
+}
+
 export async function GET() {
   const output: string[] = [];
   const log = (msg: string) => {
@@ -143,16 +176,111 @@ export async function GET() {
       await new Promise(resolve => setTimeout(resolve, 100));
     }
 
-    log('\n=== Migration Summary ===');
+    log('\n=== Track Reviews Migration Summary ===');
     log(`Total reviews: ${reviewsToMigrate.length}`);
     log(`Successful: ${successCount}`);
     log(`Failed: ${failCount}`);
 
+    // Migrate AlbumReview.albumId
+    log('\n\nMigrating album IDs...\n');
+
+    const albumReviews = await prisma.albumReview.findMany({
+      select: {
+        id: true,
+        albumId: true,
+        albumName: true,
+        albumArtist: true,
+      },
+    });
+
+    const albumsToMigrate = albumReviews.filter(a => uuidRegex.test(a.albumId));
+    log(`Found ${albumsToMigrate.length} albums with UUID IDs\n`);
+
+    let albumSuccessCount = 0;
+    let albumFailCount = 0;
+
+    for (const album of albumsToMigrate) {
+      log(`Migrating album: "${album.albumName}" by ${album.albumArtist}`);
+      log(`  Old ID: ${album.albumId}`);
+
+      const spotifyId = await searchSpotifyAlbum(album.albumName, album.albumArtist, accessToken);
+
+      if (spotifyId) {
+        await prisma.albumReview.update({
+          where: { id: album.id },
+          data: { albumId: spotifyId },
+        });
+        log(`  New ID: ${spotifyId} ✓\n`);
+        albumSuccessCount++;
+      } else {
+        log(`  Failed to find Spotify album ID ✗\n`);
+        albumFailCount++;
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    log('\n=== Album Reviews Migration Summary ===');
+    log(`Total albums: ${albumsToMigrate.length}`);
+    log(`Successful: ${albumSuccessCount}`);
+    log(`Failed: ${albumFailCount}`);
+
+    // Migrate PlaylistTrack.trackId
+    log('\n\nMigrating playlist tracks...\n');
+
+    const playlistTracks = await prisma.playlistTrack.findMany({
+      select: {
+        id: true,
+        trackId: true,
+        name: true,
+        artist: true,
+      },
+    });
+
+    const playlistTracksToMigrate = playlistTracks.filter(t => uuidRegex.test(t.trackId));
+    log(`Found ${playlistTracksToMigrate.length} playlist tracks with UUID IDs\n`);
+
+    let playlistSuccessCount = 0;
+    let playlistFailCount = 0;
+
+    for (const track of playlistTracksToMigrate) {
+      log(`Migrating playlist track: "${track.name}" by ${track.artist}`);
+      log(`  Old ID: ${track.trackId}`);
+
+      const spotifyId = await searchSpotifyTrack(track.name, track.artist, accessToken);
+
+      if (spotifyId) {
+        await prisma.playlistTrack.update({
+          where: { id: track.id },
+          data: { trackId: spotifyId },
+        });
+        log(`  New ID: ${spotifyId} ✓\n`);
+        playlistSuccessCount++;
+      } else {
+        log(`  Failed to find Spotify track ID ✗\n`);
+        playlistFailCount++;
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    log('\n=== Playlist Tracks Migration Summary ===');
+    log(`Total playlist tracks: ${playlistTracksToMigrate.length}`);
+    log(`Successful: ${playlistSuccessCount}`);
+    log(`Failed: ${playlistFailCount}`);
+
+    log('\n\n=== OVERALL MIGRATION SUMMARY ===');
+    log(`Track reviews: ${successCount}/${reviewsToMigrate.length}`);
+    log(`Album reviews: ${albumSuccessCount}/${albumsToMigrate.length}`);
+    log(`Playlist tracks: ${playlistSuccessCount}/${playlistTracksToMigrate.length}`);
+    log(`Total successful: ${successCount + albumSuccessCount + playlistSuccessCount}`);
+    log(`Total failed: ${failCount + albumFailCount + playlistFailCount}`);
+
     return NextResponse.json({
       success: true,
-      total: reviewsToMigrate.length,
-      successful: successCount,
-      failed: failCount,
+      trackReviews: { total: reviewsToMigrate.length, successful: successCount, failed: failCount },
+      albumReviews: { total: albumsToMigrate.length, successful: albumSuccessCount, failed: albumFailCount },
+      playlistTracks: { total: playlistTracksToMigrate.length, successful: playlistSuccessCount, failed: playlistFailCount },
       log: output,
     });
 
