@@ -1,13 +1,15 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+let globalLog: ((msg: string) => void) | null = null;
+
 async function getSpotifyToken(): Promise<string | null> {
   try {
     const clientId = process.env.SPOTIFY_CLIENT_ID;
     const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
 
     if (!clientId || !clientSecret) {
-      console.error('Missing Spotify credentials');
+      globalLog?.('ERROR: Missing Spotify credentials');
       return null;
     }
 
@@ -22,15 +24,15 @@ async function getSpotifyToken(): Promise<string | null> {
 
     if (!tokenResponse.ok) {
       const errorText = await tokenResponse.text();
-      console.error('Failed to get Spotify token:', tokenResponse.status, errorText);
+      globalLog?.(`ERROR: Failed to get Spotify token: ${tokenResponse.status} - ${errorText}`);
       return null;
     }
 
     const { access_token } = await tokenResponse.json();
-    console.log('✓ Got Spotify access token');
+    globalLog?.('✓ Got Spotify access token');
     return access_token;
   } catch (error) {
-    console.error('Error getting Spotify token:', error);
+    globalLog?.(`ERROR: Exception getting Spotify token: ${error}`);
     return null;
   }
 }
@@ -46,24 +48,25 @@ async function searchSpotifyTrack(trackName: string, artistName: string, accessT
 
     if (!searchResponse.ok) {
       const errorText = await searchResponse.text();
-      console.error(`Search failed for "${trackName}" by ${artistName}: ${searchResponse.status} - ${errorText}`);
+      globalLog?.(`  ERROR: Spotify API returned ${searchResponse.status}: ${errorText.substring(0, 200)}`);
       return null;
     }
 
     const searchData = await searchResponse.json();
-    console.log(`Search result for "${trackName}" by ${artistName}:`, searchData.tracks?.items?.length || 0, 'results');
+    const resultCount = searchData.tracks?.items?.length || 0;
+    globalLog?.(`  Search returned ${resultCount} result(s)`);
 
     const spotifyTrack = searchData.tracks?.items?.[0];
 
     if (spotifyTrack) {
-      console.log(`  ✓ Found: ${spotifyTrack.name} by ${spotifyTrack.artists[0].name} (${spotifyTrack.id})`);
+      globalLog?.(`  ✓ Matched: "${spotifyTrack.name}" by ${spotifyTrack.artists[0].name}`);
       return spotifyTrack.id;
     }
 
-    console.log(`  ✗ No results found on Spotify`);
+    globalLog?.(`  ✗ No results`);
     return null;
   } catch (error) {
-    console.error(`Error searching for "${trackName}" by ${artistName}:`, error);
+    globalLog?.(`  ERROR: Exception during search: ${error}`);
     return null;
   }
 }
@@ -79,24 +82,25 @@ async function searchSpotifyAlbum(albumName: string, artistName: string, accessT
 
     if (!searchResponse.ok) {
       const errorText = await searchResponse.text();
-      console.error(`Album search failed for "${albumName}" by ${artistName}: ${searchResponse.status} - ${errorText}`);
+      globalLog?.(`  ERROR: Spotify API returned ${searchResponse.status}: ${errorText.substring(0, 200)}`);
       return null;
     }
 
     const searchData = await searchResponse.json();
-    console.log(`Album search result for "${albumName}" by ${artistName}:`, searchData.albums?.items?.length || 0, 'results');
+    const resultCount = searchData.albums?.items?.length || 0;
+    globalLog?.(`  Search returned ${resultCount} result(s)`);
 
     const spotifyAlbum = searchData.albums?.items?.[0];
 
     if (spotifyAlbum) {
-      console.log(`  ✓ Found: ${spotifyAlbum.name} by ${spotifyAlbum.artists[0].name} (${spotifyAlbum.id})`);
+      globalLog?.(`  ✓ Matched: "${spotifyAlbum.name}" by ${spotifyAlbum.artists[0].name}`);
       return spotifyAlbum.id;
     }
 
-    console.log(`  ✗ No album found on Spotify`);
+    globalLog?.(`  ✗ No results`);
     return null;
   } catch (error) {
-    console.error(`Error searching for album "${albumName}" by ${artistName}:`, error);
+    globalLog?.(`  ERROR: Exception during album search: ${error}`);
     return null;
   }
 }
@@ -107,6 +111,9 @@ export async function GET() {
     console.log(msg);
     output.push(msg);
   };
+
+  // Set global log so helper functions can use it
+  globalLog = log;
 
   try {
     log('Starting track ID migration...\n');
