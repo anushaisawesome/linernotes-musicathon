@@ -75,20 +75,53 @@ export class VisualiserEngine {
 
     // ────────────────────────────────────────────────────────────────────────
     // Layer 3: Lyric Accents (real-time, from current line)
+    // TRANSFORMS the base aesthetic dynamically as lyrics change
     // ────────────────────────────────────────────────────────────────────────
     if (currentLyricLine && currentLyricLine !== this.lastLyricLine) {
-      // New lyric line → analyze it
+      // New lyric line → log it for debugging
       this.lastLyricLine = currentLyricLine;
+      console.log('[Visualiser] New lyric line:', currentLyricLine);
     }
 
     if (currentLyricLine) {
       const accent = analyzeLyricAccents(currentLyricLine);
 
-      // Merge accent into visual state
+      // Log if we detected anything significant
+      if (accent.accentColour || accent.effect || accent.energyMultiplier !== 1.0) {
+        console.log('[Visualiser] Accent:', {
+          colour: accent.accentColour,
+          effect: accent.effect,
+          energy: accent.energyMultiplier,
+        });
+      }
+
+      // STRONGLY apply accent color (replace palette temporarily if strong color word)
       if (accent.accentColour) {
         visualState.accentColour = accent.accentColour;
+        // If high energy, REPLACE the palette with accent color variants
+        if (accent.energyMultiplier > 1.3) {
+          visualState.palette = [
+            accent.accentColour,
+            accent.accentColour,
+            this.baseAesthetic.palette[2],
+            this.baseAesthetic.palette[3],
+            this.baseAesthetic.palette[4],
+          ];
+        }
       }
+
+      // Energy affects motion style dynamically
       visualState.energyMultiplier = accent.energyMultiplier;
+      if (accent.energyMultiplier > 1.5) {
+        // High energy → force angular/sharp motion temporarily
+        visualState.motion = 'angular';
+        visualState.texture = 'sharp';
+      } else if (accent.energyMultiplier < 0.7) {
+        // Low energy → force soft/undulating
+        visualState.motion = 'undulating';
+        visualState.texture = 'soft';
+      }
+
       visualState.effect = accent.effect;
       visualState.direction = accent.direction;
       visualState.density = accent.density;

@@ -60,6 +60,7 @@ function ExperienceContent() {
   // Visualiser state
   const [visualiserEnabled, setVisualiserEnabled] = useState(true);
   const [visualState, setVisualState] = useState<VisualState | null>(null);
+  const [beatOffset, setBeatOffset] = useState(0); // Beat phase offset for tuning
   const engineRef = useRef<VisualiserEngine | null>(null);
   const predictorRef = useRef<PositionPredictor>(new PositionPredictor());
 
@@ -454,9 +455,9 @@ function ExperienceContent() {
         (m) => positionSec >= m.seconds && positionSec < m.seconds + 9
       ) || false;
 
-      // Get visual state from engine
+      // Get visual state from engine (with beat offset for tuning)
       const state = engineRef.current.getVisualState(
-        predictedPos,
+        predictedPos + beatOffset,
         isPlaying,
         currentLine,
         momentActive

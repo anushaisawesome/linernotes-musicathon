@@ -45,19 +45,19 @@ const GENRE_PRESETS: Record<string, GenrePreset> = {
 
   // ──── Pop ────
   'Pop': {
-    palette: ['#1a1a2e', '#e94560', '#f39c12', '#00d9ff', '#ff6b9d'],
+    palette: ['#1a0a14', '#e94560', '#ff6b9d', '#ff8ab5', '#ffb3cc'],
     texture: 'glow',
     motion: 'pulse',
   },
 
   // ──── Electronic / Dance ────
   'Electronic': {
-    palette: ['#0a0a0a', '#00ff9f', '#00b8d4', '#8b5cf6', '#d946ef'],
+    palette: ['#0a0a0a', '#00ff9f', '#00d9a3', '#00b393', '#008d7a'],
     texture: 'sharp',
     motion: 'pulse',
   },
   'Dance': {
-    palette: ['#0a0a0a', '#00ff9f', '#00b8d4', '#8b5cf6', '#d946ef'],
+    palette: ['#0a0a1a', '#00d9ff', '#00b3d9', '#008cb3', '#00668c'],
     texture: 'sharp',
     motion: 'pulse',
   },
@@ -69,7 +69,7 @@ const GENRE_PRESETS: Record<string, GenrePreset> = {
     motion: 'angular',
   },
   'Alternative': {
-    palette: ['#1a1a2e', '#3a3a5e', '#5a5a8e', '#7a7abe', '#9a9aee'],
+    palette: ['#1a1a2e', '#3a3a5e', '#4a4a7e', '#5a5a9e', '#6a6abe'],
     texture: 'grain',
     motion: 'drift',
   },
