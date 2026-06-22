@@ -626,8 +626,10 @@ function ExperienceContent() {
 
   // Moments auto-scroll effect (when sync is enabled)
   useLayoutEffect(() => {
-    if (!momentSync || !review?.notes || review.notes.length === 0) return;
+    if (!momentSync || !review?.notes || review.notes.length === 0 || !playerState) return;
 
+    const positionSec = (playerState.positionMs || 0) / 1000;
+    const durationSec = (playerState.durationMs || 1) / 1000;
     const validMoments = review.notes.filter(m => m.seconds <= durationSec);
     const activeMomentIndex = validMoments.findIndex(m => positionSec >= m.seconds && positionSec < m.seconds + 9);
 
@@ -639,7 +641,7 @@ function ExperienceContent() {
         setMomentShift(col.clientHeight * 0.40 - (el.offsetTop + el.offsetHeight / 2));
       }
     }
-  }, [positionSec, review?.notes, durationSec, momentSync]);
+  }, [playerState, review?.notes, momentSync]);
 
   if (error) {
     return (
