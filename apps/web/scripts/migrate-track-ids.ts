@@ -11,6 +11,8 @@
  */
 
 import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
 
 // Check environment variables
 if (!process.env.DATABASE_URL) {
@@ -27,7 +29,16 @@ if (!process.env.SPOTIFY_CLIENT_ID || !process.env.SPOTIFY_CLIENT_SECRET) {
   process.exit(1);
 }
 
-const prisma = new PrismaClient();
+// Initialize Prisma with pg adapter (matches apps/web/src/lib/prisma.ts)
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
+
+const adapter = new PrismaPg(pool);
+
+const prisma = new PrismaClient({
+  adapter,
+});
 
 async function getSpotifyId(trackName: string, artistName: string): Promise<string | null> {
   try {
@@ -133,59 +144,13 @@ async function migrateReviews() {
   console.log(`Failed: ${failCount}`);
 }
 
-async function migrateAlbumReviews() {
-  console.log('\n\nMigrating album review track IDs...\n');
-
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-  const trackReviews = await prisma.trackReview.findMany({
-    select: {
-      id: true,
-      trackId: true,
-      trackName: true,
-      trackArtist: true,
-    },
-  });
-
-  const tracksToMigrate = trackReviews.filter(tr => uuidRegex.test(tr.trackId));
-
-  console.log(`Found ${tracksToMigrate.length} album tracks with UUID track IDs\n`);
-
-  let successCount = 0;
-  let failCount = 0;
-
-  for (const track of tracksToMigrate) {
-    console.log(`Migrating: "${track.trackName}" by ${track.trackArtist}`);
-    console.log(`  Old ID: ${track.trackId}`);
-
-    const spotifyId = await getSpotifyId(track.trackName, track.trackArtist);
-
-    if (spotifyId) {
-      await prisma.trackReview.update({
-        where: { id: track.id },
-        data: { trackId: spotifyId },
-      });
-      console.log(`  New ID: ${spotifyId} ✓\n`);
-      successCount++;
-    } else {
-      console.log(`  Failed to find Spotify ID ✗\n`);
-      failCount++;
-    }
-
-    // Rate limit: wait 100ms between requests
-    await new Promise(resolve => setTimeout(resolve, 100));
-  }
-
-  console.log('\n=== Album Track Migration Summary ===');
-  console.log(`Total tracks: ${tracksToMigrate.length}`);
-  console.log(`Successful: ${successCount}`);
-  console.log(`Failed: ${failCount}`);
-}
+// Album track reviews are just Review records with albumReviewId set
+// They're already handled by migrateReviews() above
 
 async function main() {
   try {
     await migrateReviews();
-    await migrateAlbumReviews();
+    console.log('\n✓ Migration complete!');
   } catch (error) {
     console.error('Migration failed:', error);
     process.exit(1);

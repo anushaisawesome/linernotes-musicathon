@@ -290,7 +290,7 @@ function ExperienceContent() {
 
     // MIGRATION FIX: If trackId is a UUID (old data), search for Spotify ID
     const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tid);
-    if (isUUID) {
+    if (isUUID && review) {
       console.warn("[Experience] Track ID is a UUID, searching for Spotify ID...");
       const trackName = review?.track?.name;
       const artistName = review?.track?.artist;

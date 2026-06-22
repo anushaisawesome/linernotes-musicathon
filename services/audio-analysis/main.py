@@ -137,6 +137,30 @@ async def analyze_audio(request: AnalysisRequest):
         centroid_mean = float(np.mean(spectral_centroids))
         centroid_normalized = min(1.0, centroid_mean / 4000.0)  # Normalize to 0-1
 
+        # 3. RHYTHMIC TEXTURE (captures the groove, not just BPM)
+        # Onset envelope for rhythm analysis
+        onset_env = librosa.onset.onset_strength(y=y, sr=sr)
+
+        # Rhythmic Density: onset rate (how busy the rhythm is)
+        onset_times = librosa.onset.onset_detect(onset_envelope=onset_env, sr=sr, units='time')
+        onsets_per_second = len(onset_times) / (len(y) / sr) if len(y) > 0 else 0
+        rhythmic_density = min(1.0, onsets_per_second / 8.0)
+
+        # Percussive Strength: harmonic-percussive separation
+        y_harmonic, y_percussive = librosa.effects.hpss(y)
+        percussive_energy = np.sum(np.abs(y_percussive)) / max(1, np.sum(np.abs(y)))
+        percussive_strength = float(min(1.0, percussive_energy * 2.0))
+
+        # Groove Regularity: onset interval variance
+        if len(onset_times) > 2:
+            onset_intervals = np.diff(onset_times)
+            interval_variance = np.var(onset_intervals)
+            groove_regularity = float(max(0.0, min(1.0, 1.0 - interval_variance * 10.0)))
+        else:
+            groove_regularity = 0.5
+
+        print(f"[Rhythm] Density: {rhythmic_density:.2f}, Percussive: {percussive_strength:.2f}, Regularity: {groove_regularity:.2f}")
+
         # Build response
         analysis = AnalysisResponse(
             bpm=float(tempo),
@@ -146,7 +170,10 @@ async def analyze_audio(request: AnalysisRequest):
             audio_features=AudioFeatures(
                 rms=rms_normalized,
                 spectral_centroid=centroid_normalized,
-                tempo=float(tempo)
+                tempo=float(tempo),
+                rhythmic_density=rhythmic_density,
+                percussive_strength=percussive_strength,
+                groove_regularity=groove_regularity
             )
         )
 
