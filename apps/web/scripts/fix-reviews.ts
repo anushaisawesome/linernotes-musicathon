@@ -11,14 +11,8 @@ async function fixReviews() {
     console.log("[Fix Reviews] Starting...");
 
     // Find reviews with fake Last.fm/iTunes/MusicBrainz IDs
-    const brokenReviews = await prisma.review.findMany({
-      where: {
-        OR: [
-          { trackId: { startsWith: "lastfm-" } },
-          { trackId: { regex: "^[0-9]+$" } }, // iTunes numeric IDs
-          { trackId: { regex: "^[a-f0-9]{8}-[a-f0-9]{4}" } }, // MusicBrainz UUIDs
-        ],
-      },
+    // Get all reviews and filter in JavaScript (Prisma doesn't support regex)
+    const allReviews = await prisma.review.findMany({
       select: {
         id: true,
         trackId: true,
@@ -26,6 +20,15 @@ async function fixReviews() {
         trackArtist: true,
         userId: true,
       },
+    });
+
+    const brokenReviews = allReviews.filter(review => {
+      const id = review.trackId;
+      return (
+        id.startsWith("lastfm-") ||
+        /^[0-9]+$/.test(id) || // iTunes numeric IDs
+        /^[a-f0-9]{8}-[a-f0-9]{4}/.test(id) // MusicBrainz UUIDs
+      );
     });
 
     console.log(`[Fix Reviews] Found ${brokenReviews.length} broken reviews`);

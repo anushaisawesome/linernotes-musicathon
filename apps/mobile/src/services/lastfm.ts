@@ -8,8 +8,8 @@ import axios, { AxiosInstance } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Crypto } from 'expo-crypto';
 
-const LASTFM_API_KEY = 'f558803f6e340f1288504471025e60aa'; // Hardcoded for now to avoid React Native env issues
-const LASTFM_SHARED_SECRET = '89b98d9cac0dfd73bfe2ea19a1c60a73'; // Last.fm API shared secret
+const LASTFM_API_KEY = '27c8a2cf77248d10bbfb17a999b2173a'; // Hardcoded for now to avoid React Native env issues
+const LASTFM_SHARED_SECRET = 'd4a207d299345c372c245665d728159f'; // Last.fm API shared secret
 const LASTFM_API_URL = 'https://ws.audioscrobbler.com/2.0/';
 const LASTFM_SESSION_KEY = '@linernotes:lastfm_session';
 const LASTFM_USERNAME_KEY = '@linernotes:lastfm_username';
