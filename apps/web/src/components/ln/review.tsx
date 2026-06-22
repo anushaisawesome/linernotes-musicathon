@@ -243,6 +243,8 @@ export function ImmersiveReview({
   const p = coverPalette || album.palette;
   const gold = "var(--ln-accent)";
   const isAlbum = album.kind === "album" && album.tracks.length > 0;
+  // Playlists render their tracklist + per-track moments the same way albums do.
+  const hasTracks = isAlbum || (album.kind === "playlist" && album.tracks.length > 0);
 
   // The note: the first line is the caption pull-quote (quoted + italic headline);
   // everything after it is the full review, kept in the order it was written.
@@ -369,14 +371,14 @@ export function ImmersiveReview({
               </div>
             )}
 
-            {!vm.body && !vm.take && !(vm.notes && vm.notes.length > 0) && !(isAlbum && album.tracks.length > 0) && (
+            {!vm.body && !vm.take && !(vm.notes && vm.notes.length > 0) && !hasTracks && (
               <div style={{ marginTop: 30, display: "flex", alignItems: "center", gap: 12 }}>
                 <span style={{ width: 30, height: 1, background: `${gold}99` }} />
                 <span style={{ fontFamily: "var(--ln-body)", fontSize: 17, color: muted(0.72) }}>A quiet rating. Sometimes the stars say it.</span>
               </div>
             )}
 
-            {!isAlbum && vm.notes && vm.notes.length > 0 && (
+            {!hasTracks && vm.notes && vm.notes.length > 0 && (
               <div style={{ marginTop: 34 }}>
                 <SectionLabel gold={gold}>the moment{vm.notes.length > 1 ? "s" : ""}</SectionLabel>
                 <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 16, maxWidth: 620 }}>
@@ -387,7 +389,7 @@ export function ImmersiveReview({
               </div>
             )}
 
-            {isAlbum && (
+            {hasTracks && (
               <div style={{ marginTop: 34 }}>
                 <SectionLabel gold={gold}>tracks &amp; moments</SectionLabel>
                 <div style={{ display: "flex", flexDirection: "column", gap: 9, marginTop: 14, maxWidth: 620 }}>

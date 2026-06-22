@@ -6,8 +6,8 @@ import Link from "next/link";
 import { TopBar, Footer } from "@/components/ln/nav";
 import { FeedItem } from "@/components/ln/cards";
 import { getReviews, toggleLike, toggleRepost } from "@/lib/api";
-import { toReviewVM, toAlbumReviewVM, type ReviewVM } from "@/lib/view-adapter";
-import type { AlbumReview } from "@/lib/types";
+import { toReviewVM, toAlbumReviewVM, toPlaylistVM, type ReviewVM } from "@/lib/view-adapter";
+import type { AlbumReview, Playlist } from "@/lib/types";
 
 export default function FeedPage() {
   const { data: session, status } = useSession();
@@ -20,14 +20,20 @@ export default function FeedPage() {
     const loadFeed = async () => {
       try {
         // Public feed - load for everyone (hackathon demo)
-        const reviews = await getReviews({ feed: "friends" });
-        const albumReviewsRes = await fetch("/api/album-reviews?feed=friends", { cache: "no-store" });
+        const [reviews, albumReviewsRes, playlistsRes] = await Promise.all([
+          getReviews({ feed: "friends" }),
+          fetch("/api/album-reviews?feed=friends", { cache: "no-store" }),
+          fetch("/api/playlists", { cache: "no-store" }),
+        ]);
         const albumReviewsData = await albumReviewsRes.json();
         const albumReviews: AlbumReview[] = albumReviewsData.albumReviews || [];
+        const playlistsData = playlistsRes.ok ? await playlistsRes.json() : { playlists: [] };
+        const playlists: Playlist[] = playlistsData.playlists || [];
 
         const vms: ReviewVM[] = [
           ...reviews.map((r) => toReviewVM(r)),
           ...albumReviews.map((a) => toAlbumReviewVM(a)),
+          ...playlists.map((p) => toPlaylistVM(p)),
         ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
 
         setItems(vms);
@@ -41,17 +47,18 @@ export default function FeedPage() {
     loadFeed();
   }, [status]);
 
+  const apiBase = (kind: ReviewVM["kind"]) =>
+    kind === "album" ? "/api/album-reviews" : kind === "playlist" ? "/api/playlists" : "/api/reviews";
   const onLike = (vm: ReviewVM) => {
     if (vm.kind === "track") toggleLike(vm.id).catch(() => {});
-    else if (vm.kind === "album") fetch(`/api/album-reviews/${vm.id}/like`, { method: "POST" }).catch(() => {});
+    else fetch(`${apiBase(vm.kind)}/${vm.id}/like`, { method: "POST" }).catch(() => {});
   };
   const onRepost = (vm: ReviewVM) => {
     if (vm.kind === "track") toggleRepost(vm.id).catch(() => {});
-    else if (vm.kind === "album") fetch(`/api/album-reviews/${vm.id}/repost`, { method: "POST" }).catch(() => {});
+    else fetch(`${apiBase(vm.kind)}/${vm.id}/repost`, { method: "POST" }).catch(() => {});
   };
   const onSave = (vm: ReviewVM) => {
-    if (vm.kind === "track") fetch(`/api/reviews/${vm.id}/save`, { method: "POST" }).catch(() => {});
-    else if (vm.kind === "album") fetch(`/api/album-reviews/${vm.id}/save`, { method: "POST" }).catch(() => {});
+    fetch(`${apiBase(vm.kind)}/${vm.id}/save`, { method: "POST" }).catch(() => {});
   };
 
   return (
