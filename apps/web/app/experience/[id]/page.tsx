@@ -338,19 +338,21 @@ function ExperienceContent() {
         let genre = 'Pop';
         let bpm = 120;
         let audioFeatures = undefined;
+        let lastfmTags: string[] = [];
 
         if (response.ok) {
           const data = await response.json();
           genre = data.genre || 'Pop';
           bpm = data.bpm || 120;
           audioFeatures = data.audioFeatures;
-          console.log(`[Visualiser] Loaded audio analysis: ${genre} @ ${bpm} BPM`);
+          lastfmTags = data.lastfmTags || [];
+          console.log(`[Visualiser] Loaded audio analysis: ${genre} @ ${bpm} BPM${lastfmTags.length > 0 ? ` (tags: ${lastfmTags.join(', ')})` : ''}`);
         } else {
           console.warn('[Visualiser] Audio analysis failed, using defaults');
         }
 
-        // Derive base aesthetic from real genre + audio features
-        const baseAesthetic = deriveBaseAesthetic(genre, audioFeatures);
+        // Derive base aesthetic from real genre + audio features + Last.fm tags
+        const baseAesthetic = deriveBaseAesthetic(genre, audioFeatures, lastfmTags);
 
         // Create rhythm from real BPM
         const rhythm = createMockRhythm(bpm);

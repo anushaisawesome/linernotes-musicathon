@@ -142,15 +142,17 @@ const GENRE_PRESETS: Record<string, GenrePreset> = {
 // ============================================================================
 
 /**
- * Derive base aesthetic from genre + audio features.
+ * Derive base aesthetic from genre + audio features + Last.fm tags.
  *
  * @param genre - iTunes primaryGenreName (e.g., "Hip-Hop/Rap", "R&B/Soul")
  * @param audioFeatures - Optional librosa features (rms, spectralCentroid, tempo)
+ * @param lastfmTags - Optional Last.fm vibe tags (mood enrichment)
  * @returns BaseAesthetic with palette, texture, motion
  */
 export function deriveBaseAesthetic(
   genre: string,
-  audioFeatures?: AudioFeatures
+  audioFeatures?: AudioFeatures,
+  lastfmTags?: string[]
 ): BaseAesthetic {
   // Start with genre preset
   const preset = GENRE_PRESETS[genre] || GENRE_PRESETS['default'];
@@ -192,6 +194,38 @@ export function deriveBaseAesthetic(
       // Slow tempo → cooler/darker palette
       aesthetic.palette = coolPalette(aesthetic.palette);
     }
+  }
+
+  // Apply Last.fm tag enrichment (mood nuance the numbers miss)
+  if (lastfmTags && lastfmTags.length > 0) {
+    lastfmTags.forEach(tag => {
+      // Melancholic / sad → cool the palette
+      if (tag.includes('melancholic') || tag.includes('sad')) {
+        aesthetic.palette = coolPalette(aesthetic.palette);
+      }
+
+      // Energetic / aggressive → sharper texture + angular motion
+      if (tag.includes('energetic') || tag.includes('aggressive') || tag.includes('intense')) {
+        if (aesthetic.texture === 'soft') aesthetic.texture = 'grain';
+        if (aesthetic.motion === 'undulating') aesthetic.motion = 'pulse';
+      }
+
+      // Chill / calm / mellow → softer everything
+      if (tag.includes('chill') || tag.includes('calm') || tag.includes('mellow')) {
+        if (aesthetic.texture === 'sharp') aesthetic.texture = 'soft';
+        if (aesthetic.motion === 'angular') aesthetic.motion = 'drift';
+      }
+
+      // Dark → darken the palette
+      if (tag.includes('dark')) {
+        aesthetic.palette = coolPalette(aesthetic.palette);
+      }
+
+      // Upbeat / happy → warm the palette
+      if (tag.includes('upbeat') || tag.includes('happy')) {
+        aesthetic.palette = warmPalette(aesthetic.palette);
+      }
+    });
   }
 
   return aesthetic;
