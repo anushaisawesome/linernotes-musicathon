@@ -387,12 +387,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Look up Spotify IDs for album and tracks
-    let finalAlbumId = albumId;
-    const isAlbumSpotifyId = /^[a-zA-Z0-9]{22}$/.test(albumId);
+    // Get ONE Spotify token for all lookups
+    let spotifyToken: string | null = null;
+    const needsLookup = !(/^[a-zA-Z0-9]{22}$/.test(albumId)) ||
+      (trackReviews && trackReviews.some((tr: any) => !(/^[a-zA-Z0-9]{22}$/.test(tr.trackId))));
 
-    if (!isAlbumSpotifyId) {
-      console.log("[Album Reviews] Looking up Spotify ID for album:", albumId);
+    if (needsLookup) {
       try {
         const clientId = process.env.SPOTIFY_CLIENT_ID;
         const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
@@ -409,22 +409,36 @@ export async function POST(request: NextRequest) {
 
           if (tokenResponse.ok) {
             const { access_token } = await tokenResponse.json();
-            const query = encodeURIComponent(`album:${albumName} artist:${albumArtist}`);
-            const searchUrl = `https://api.spotify.com/v1/search?q=${query}&type=album&limit=1`;
-            const searchResponse = await fetch(searchUrl, {
-              headers: { Authorization: `Bearer ${access_token}` },
-            });
+            spotifyToken = access_token;
+            console.log("[Album Reviews] Got Spotify token for lookups");
+          }
+        }
+      } catch (error) {
+        console.error("[Album Reviews] Failed to get Spotify token:", error);
+      }
+    }
 
-            if (searchResponse.ok) {
-              const searchData = await searchResponse.json();
-              const spotifyAlbum = searchData.albums?.items?.[0];
-              if (spotifyAlbum) {
-                finalAlbumId = spotifyAlbum.id;
-                console.log("[Album Reviews] Found Spotify album ID:", finalAlbumId);
-              } else {
-                console.warn("[Album Reviews] No Spotify album match, using original ID:", albumId);
-              }
-            }
+    // Look up album ID if needed
+    let finalAlbumId = albumId;
+    const isAlbumSpotifyId = /^[a-zA-Z0-9]{22}$/.test(albumId);
+
+    if (!isAlbumSpotifyId && spotifyToken) {
+      console.log("[Album Reviews] Looking up Spotify ID for album:", albumId);
+      try {
+        const query = encodeURIComponent(`album:${albumName} artist:${albumArtist}`);
+        const searchUrl = `https://api.spotify.com/v1/search?q=${query}&type=album&limit=1`;
+        const searchResponse = await fetch(searchUrl, {
+          headers: { Authorization: `Bearer ${spotifyToken}` },
+        });
+
+        if (searchResponse.ok) {
+          const searchData = await searchResponse.json();
+          const spotifyAlbum = searchData.albums?.items?.[0];
+          if (spotifyAlbum) {
+            finalAlbumId = spotifyAlbum.id;
+            console.log("[Album Reviews] Found Spotify album ID:", finalAlbumId);
+          } else {
+            console.warn("[Album Reviews] No Spotify album match, using original ID:", albumId);
           }
         }
       } catch (error) {
@@ -432,46 +446,29 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Look up Spotify IDs for tracks
+    // Look up track IDs using the SAME token
     const finalTrackReviews = trackReviews && trackReviews.length > 0 ? await Promise.all(
       trackReviews.map(async (tr: any) => {
         let finalTrackId = tr.trackId;
         const isTrackSpotifyId = /^[a-zA-Z0-9]{22}$/.test(tr.trackId);
 
-        if (!isTrackSpotifyId) {
+        if (!isTrackSpotifyId && spotifyToken) {
           console.log("[Album Reviews] Looking up Spotify ID for track:", tr.trackId);
           try {
-            const clientId = process.env.SPOTIFY_CLIENT_ID;
-            const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
+            const query = encodeURIComponent(`track:${tr.trackName} artist:${tr.trackArtist}`);
+            const searchUrl = `https://api.spotify.com/v1/search?q=${query}&type=track&limit=1`;
+            const searchResponse = await fetch(searchUrl, {
+              headers: { Authorization: `Bearer ${spotifyToken}` },
+            });
 
-            if (clientId && clientSecret) {
-              const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/x-www-form-urlencoded',
-                  'Authorization': `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
-                },
-                body: 'grant_type=client_credentials',
-              });
-
-              if (tokenResponse.ok) {
-                const { access_token } = await tokenResponse.json();
-                const query = encodeURIComponent(`track:${tr.trackName} artist:${tr.trackArtist}`);
-                const searchUrl = `https://api.spotify.com/v1/search?q=${query}&type=track&limit=1`;
-                const searchResponse = await fetch(searchUrl, {
-                  headers: { Authorization: `Bearer ${access_token}` },
-                });
-
-                if (searchResponse.ok) {
-                  const searchData = await searchResponse.json();
-                  const spotifyTrack = searchData.tracks?.items?.[0];
-                  if (spotifyTrack) {
-                    finalTrackId = spotifyTrack.id;
-                    console.log("[Album Reviews] Found Spotify track ID:", finalTrackId);
-                  } else {
-                    console.warn("[Album Reviews] No Spotify track match, using original ID:", tr.trackId);
-                  }
-                }
+            if (searchResponse.ok) {
+              const searchData = await searchResponse.json();
+              const spotifyTrack = searchData.tracks?.items?.[0];
+              if (spotifyTrack) {
+                finalTrackId = spotifyTrack.id;
+                console.log("[Album Reviews] Found Spotify track ID:", finalTrackId);
+              } else {
+                console.warn("[Album Reviews] No Spotify track match, using original ID:", tr.trackId);
               }
             }
           } catch (error) {
