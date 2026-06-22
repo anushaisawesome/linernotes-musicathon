@@ -13,7 +13,7 @@ Based on Visualiser_Pipeline.md spec.
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import librosa
 import numpy as np
 import requests
@@ -43,16 +43,23 @@ class AnalysisRequest(BaseModel):
 
 class AudioFeatures(BaseModel):
     rms: float
-    spectral_centroid: float
+    spectral_centroid: float = Field(serialization_alias="spectralCentroid")
     tempo: float
+    rhythmic_density: Optional[float] = Field(default=None, serialization_alias="rhythmicDensity")
+    percussive_strength: Optional[float] = Field(default=None, serialization_alias="percussiveStrength")
+    groove_regularity: Optional[float] = Field(default=None, serialization_alias="grooveRegularity")
+
+    model_config = {"populate_by_name": True}
 
 class AnalysisResponse(BaseModel):
     bpm: float
-    beat_interval_ms: float
-    first_beat_ms: float
+    beat_interval_ms: float = Field(serialization_alias="beatIntervalMs")
+    first_beat_ms: float = Field(serialization_alias="firstBeatMs")
     beats: List[float]
-    audio_features: AudioFeatures
+    audio_features: AudioFeatures = Field(serialization_alias="audioFeatures")
     source: str = "librosa"
+
+    model_config = {"populate_by_name": True}
 
 @app.get("/")
 def root():

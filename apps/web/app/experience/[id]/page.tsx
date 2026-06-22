@@ -69,6 +69,12 @@ function ExperienceContent() {
   const colRef = useRef<HTMLDivElement | null>(null);
   const [lyricShift, setLyricShift] = useState(0);
 
+  // Moments scroll and sync
+  const momentRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const momentsColRef = useRef<HTMLDivElement | null>(null);
+  const [momentSync, setMomentSync] = useState(true);
+  const [momentShift, setMomentShift] = useState(0);
+
   // The Spotify SDK is initialised once per page; navigating songs reuses it.
   const playerRef = useRef<WebPlaybackSDK | null>(null);
   const initedRef = useRef(false);
@@ -426,22 +432,36 @@ function ExperienceContent() {
         let audioFeatures = undefined;
         let lastfmTags: string[] = [];
 
+        let rhythm;
+
         if (response.ok) {
           const data = await response.json();
           genre = data.genre || 'Pop';
           bpm = data.bpm || 120;
           audioFeatures = data.audioFeatures;
           lastfmTags = data.lastfmTags || [];
-          console.log(`[Visualiser] Loaded audio analysis: ${genre} @ ${bpm} BPM${lastfmTags.length > 0 ? ` (tags: ${lastfmTags.join(', ')})` : ''}`);
+
+          // Use REAL beat data from Python service if available
+          if (data.firstBeatMs !== undefined && data.beatIntervalMs && data.beats) {
+            rhythm = {
+              bpm: data.bpm,
+              beatIntervalMs: data.beatIntervalMs,
+              firstBeatMs: data.firstBeatMs,
+              beats: data.beats || [],
+            };
+            console.log(`[Visualiser] Loaded audio analysis: ${genre} @ ${bpm} BPM, first beat at ${data.firstBeatMs}ms, ${data.beats.length} beats detected${lastfmTags.length > 0 ? ` (tags: ${lastfmTags.join(', ')})` : ''}`);
+          } else {
+            // Fallback to mock rhythm if Python service didn't return beats
+            rhythm = createMockRhythm(bpm);
+            console.log(`[Visualiser] Loaded audio analysis: ${genre} @ ${bpm} BPM (mock rhythm)${lastfmTags.length > 0 ? ` (tags: ${lastfmTags.join(', ')})` : ''}`);
+          }
         } else {
           console.warn('[Visualiser] Audio analysis failed, using defaults');
+          rhythm = createMockRhythm(120);
         }
 
         // Derive base aesthetic from real genre + audio features + Last.fm tags
         const baseAesthetic = deriveBaseAesthetic(genre, audioFeatures, lastfmTags);
-
-        // Create rhythm from real BPM
-        const rhythm = createMockRhythm(bpm);
 
         // Extract rhythmic texture features
         const rhythmicTexture = audioFeatures ? {
@@ -603,6 +623,23 @@ function ExperienceContent() {
       setLyricShift(col.clientHeight * 0.40 - (el.offsetTop + el.offsetHeight / 2));
     }
   }, [annotations?.activeLineIndex, lyrics?.lines]);
+
+  // Moments auto-scroll effect (when sync is enabled)
+  useLayoutEffect(() => {
+    if (!momentSync || !review?.notes || review.notes.length === 0) return;
+
+    const validMoments = review.notes.filter(m => m.seconds <= durationSec);
+    const activeMomentIndex = validMoments.findIndex(m => positionSec >= m.seconds && positionSec < m.seconds + 9);
+
+    if (activeMomentIndex >= 0) {
+      const el = momentRefs.current[activeMomentIndex];
+      const col = momentsColRef.current;
+
+      if (el && col) {
+        setMomentShift(col.clientHeight * 0.40 - (el.offsetTop + el.offsetHeight / 2));
+      }
+    }
+  }, [positionSec, review?.notes, durationSec, momentSync]);
 
   if (error) {
     return (
@@ -832,29 +869,179 @@ function ExperienceContent() {
               </div>
             )}
 
-            {/* Active moment live callout */}
-            <div style={{ minHeight: 52, marginTop: 12, position: "relative" }}>
-              {activeMoment && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 8, borderRadius: 12, background: accent, color: "#2c1517", padding: "11px 15px", animation: "mu-pop 0.3s cubic-bezier(.16,1,.3,1) both", boxShadow: `0 14px 30px -12px ${accent}` }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
-                    <span style={{ fontFamily: "var(--ln-mono)", fontSize: 13, fontWeight: 700 }}>{lnFmt(activeMoment.seconds)}</span>
-                    <span style={{ width: 1, height: 20, background: "rgba(44,21,23,0.3)" }} />
-                    <span style={{ flex: 1, minWidth: 0, fontFamily: "var(--ln-preview)", fontStyle: (activeMoment as any).lyric ? "italic" : "normal", fontSize: 17, fontWeight: 600, lineHeight: 1.4, wordWrap: "break-word", color: (activeMoment as any).lyric ? "#f5f1e8" : "inherit" }}>
-                      {(activeMoment as any).lyric || activeMoment.label}
-                    </span>
-                    <button onClick={() => { setShareMoment(activeMoment); setShareModalOpen(true); }} className="ln-press" title="Share this lyric" style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 5, background: "rgba(44,21,23,0.16)", border: "none", color: "#2c1517", borderRadius: 999, padding: "6px 11px", cursor: "pointer", fontFamily: "var(--ln-body)", fontSize: 12.5, fontWeight: 700, whiteSpace: "nowrap" }}>
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 15V4M12 4l-4 4M12 4l4 4M5 13v5a2 2 0 002 2h10a2 2 0 002-2v-5" stroke="#2c1517" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                      Share
-                    </button>
-                  </div>
-                  {activeMoment.note && (
-                    <div style={{ fontFamily: "var(--ln-body)", fontSize: 15, lineHeight: 1.45, color: "#f5f1e8", paddingLeft: 3 }}>
-                      {activeMoment.note}
-                    </div>
-                  )}
+            {/* Annotated moments - scrollable list with sync toggle */}
+            {review.notes && review.notes.length > 0 && (
+              <div style={{ marginTop: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 8 }}>
+                  <span style={{ fontFamily: "var(--ln-label)", fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", fontWeight: 700, color: accent }}>
+                    Moments ({review.notes.filter(m => m.seconds <= durationSec).length})
+                  </span>
+                  <span style={{ flex: 1, height: 1, background: "rgba(244,239,230,0.12)" }} />
+                  <button
+                    onClick={() => setMomentSync(!momentSync)}
+                    className="ln-press"
+                    title={momentSync ? "Disable auto-scroll" : "Enable auto-scroll"}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 5,
+                      background: momentSync ? `${accent}1a` : "rgba(244,239,230,0.06)",
+                      border: `1px solid ${momentSync ? `${accent}55` : "rgba(244,239,230,0.16)"}`,
+                      borderRadius: 6,
+                      padding: "4px 9px",
+                      cursor: "pointer",
+                      fontFamily: "var(--ln-mono)",
+                      fontSize: 9,
+                      letterSpacing: "0.04em",
+                      color: momentSync ? accent : muted(0.6),
+                      fontWeight: 600,
+                      transition: "all 0.2s",
+                    }}
+                  >
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+                      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    </svg>
+                    {momentSync ? "SYNC" : "MANUAL"}
+                  </button>
                 </div>
-              )}
-            </div>
+                <div
+                  ref={momentsColRef}
+                  className="ln-scroll"
+                  style={{
+                    position: "relative",
+                    height: "280px",
+                    overflow: momentSync ? "hidden" : "auto",
+                    WebkitMaskImage: momentSync ? "linear-gradient(180deg, transparent, #000 12%, #000 88%, transparent)" : "none",
+                    borderRadius: 12,
+                    background: "rgba(244,239,230,0.03)",
+                    border: "1px solid rgba(244,239,230,0.08)",
+                  }}
+                  onWheel={() => {
+                    // Disable sync when user manually scrolls
+                    if (momentSync) setMomentSync(false);
+                  }}
+                >
+                  <div
+                    style={{
+                      transform: momentSync ? `translateY(${momentShift}px)` : "none",
+                      transition: momentSync ? "transform 0.5s cubic-bezier(.2,.8,.2,1)" : "none",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 8,
+                      padding: "12px",
+                    }}
+                  >
+                    {review.notes
+                      .filter(m => m.seconds <= durationSec) // Filter out invalid timestamps
+                      .map((moment, i) => {
+                        const isActive = positionSec >= moment.seconds && positionSec < moment.seconds + 9;
+                        const isPast = positionSec > moment.seconds + 9;
+                        const isInvalid = moment.seconds > durationSec;
+
+                        return (
+                          <div
+                            key={i}
+                            ref={(el) => { momentRefs.current[i] = el; }}
+                            onClick={() => player?.seek(moment.seconds * 1000)}
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 6,
+                              borderRadius: 10,
+                              background: isActive ? accent : isPast ? "rgba(244,239,230,0.04)" : "rgba(244,239,230,0.06)",
+                              color: isActive ? "#2c1517" : isPast ? muted(0.45) : INK,
+                              padding: "10px 13px",
+                              cursor: "pointer",
+                              transition: "all 0.3s cubic-bezier(.2,.8,.2,1)",
+                              border: `1px solid ${isActive ? accent : "rgba(244,239,230,0.08)"}`,
+                              boxShadow: isActive ? `0 8px 20px -8px ${accent}` : "none",
+                              opacity: isActive ? 1 : isPast ? 0.5 : 0.75,
+                            }}
+                          >
+                            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                              <span style={{ fontFamily: "var(--ln-mono)", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+                                {lnFmt(moment.seconds)}
+                              </span>
+                              <span style={{ width: 1, height: 16, background: isActive ? "rgba(44,21,23,0.3)" : "rgba(244,239,230,0.2)", flexShrink: 0 }} />
+                              <span style={{
+                                flex: 1,
+                                minWidth: 0,
+                                fontFamily: "var(--ln-preview)",
+                                fontStyle: (moment as any).lyric ? "italic" : "normal",
+                                fontSize: isActive ? 16 : 14,
+                                fontWeight: 600,
+                                lineHeight: 1.3,
+                                wordWrap: "break-word",
+                                transition: "font-size 0.3s",
+                              }}>
+                                {(moment as any).lyric || moment.label}
+                              </span>
+                              {isActive && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShareMoment(moment);
+                                    setShareModalOpen(true);
+                                  }}
+                                  className="ln-press"
+                                  title="Share this moment"
+                                  style={{
+                                    flexShrink: 0,
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 4,
+                                    background: "rgba(44,21,23,0.12)",
+                                    border: "none",
+                                    color: "#2c1517",
+                                    borderRadius: 999,
+                                    padding: "5px 9px",
+                                    cursor: "pointer",
+                                    fontFamily: "var(--ln-body)",
+                                    fontSize: 11,
+                                    fontWeight: 700,
+                                  }}
+                                >
+                                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+                                    <path d="M12 15V4M12 4l-4 4M12 4l4 4M5 13v5a2 2 0 002 2h10a2 2 0 002-2v-5" stroke="#2c1517" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                  </svg>
+                                  Share
+                                </button>
+                              )}
+                            </div>
+                            {moment.note && (
+                              <div style={{
+                                fontFamily: "var(--ln-body)",
+                                fontSize: isActive ? 14 : 13,
+                                lineHeight: 1.45,
+                                color: isActive ? "#f5f1e8" : muted(0.65),
+                                paddingLeft: 3,
+                                wordWrap: "break-word",
+                                transition: "font-size 0.3s, color 0.3s",
+                              }}>
+                                {moment.note}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    {review.notes.filter(m => m.seconds > durationSec).length > 0 && (
+                      <div style={{
+                        padding: "8px 12px",
+                        borderRadius: 8,
+                        background: "rgba(255,100,100,0.1)",
+                        border: "1px solid rgba(255,100,100,0.3)",
+                        fontFamily: "var(--ln-mono)",
+                        fontSize: 11,
+                        color: "#ff9999",
+                        textAlign: "center",
+                      }}>
+                        {review.notes.filter(m => m.seconds > durationSec).length} moment(s) beyond track duration
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Synced lyrics */}
             {lyrics && lyrics.lines && lyrics.lines.length > 0 ? (
