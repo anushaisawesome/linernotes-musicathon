@@ -1,10 +1,31 @@
 /**
  * Migration script to convert UUID track IDs to Spotify IDs
  *
- * Run with: cd apps/web && npx tsx scripts/migrate-track-ids.ts
+ * Run with: cd apps/web && DATABASE_URL="your_db_url" SPOTIFY_CLIENT_ID="..." SPOTIFY_CLIENT_SECRET="..." npx tsx scripts/migrate-track-ids.ts
+ *
+ * Or export them first:
+ * export DATABASE_URL="..."
+ * export SPOTIFY_CLIENT_ID="..."
+ * export SPOTIFY_CLIENT_SECRET="..."
+ * cd apps/web && npx tsx scripts/migrate-track-ids.ts
  */
 
 import { PrismaClient } from '@prisma/client';
+
+// Check environment variables
+if (!process.env.DATABASE_URL) {
+  console.error('ERROR: DATABASE_URL environment variable not set');
+  console.error('Please run: export DATABASE_URL="your_database_url"');
+  process.exit(1);
+}
+
+if (!process.env.SPOTIFY_CLIENT_ID || !process.env.SPOTIFY_CLIENT_SECRET) {
+  console.error('ERROR: SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET environment variables required');
+  console.error('Please run:');
+  console.error('export SPOTIFY_CLIENT_ID="your_client_id"');
+  console.error('export SPOTIFY_CLIENT_SECRET="your_client_secret"');
+  process.exit(1);
+}
 
 const prisma = new PrismaClient();
 
