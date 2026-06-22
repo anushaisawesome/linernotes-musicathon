@@ -502,6 +502,7 @@ function drawNebula(
 
 /**
  * Draw accent color overlay (from color words in lyrics).
+ * STRONG overlay - should be very visible when color words are sung.
  */
 function drawAccentColor(
   ctx: CanvasRenderingContext2D,
@@ -512,7 +513,8 @@ function drawAccentColor(
 
   if (!accentColour) return;
 
-  const opacity = Math.min(0.4, 0.2 * energyMultiplier);
+  // MUCH stronger opacity (50-80% so color words are OBVIOUS)
+  const opacity = Math.min(0.8, 0.5 * energyMultiplier);
 
   ctx.save();
   ctx.globalAlpha = opacity;
