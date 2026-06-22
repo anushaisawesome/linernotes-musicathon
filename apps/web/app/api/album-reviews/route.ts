@@ -339,8 +339,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ albumReviews: transformedAlbumReviews });
   } catch (error) {
     console.error("Get album reviews error:", error);
+    console.error("Error details:", error instanceof Error ? error.message : String(error));
     return NextResponse.json(
-      { error: "Failed to fetch album reviews" },
+      {
+        error: "Failed to fetch album reviews",
+        details: error instanceof Error ? error.message : String(error)
+      },
       { status: 500 }
     );
   }

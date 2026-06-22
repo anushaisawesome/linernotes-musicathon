@@ -316,8 +316,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ reviews: transformedReviews });
   } catch (error) {
     console.error("Get reviews error:", error);
+    console.error("Error details:", error instanceof Error ? error.message : String(error));
+    console.error("Stack:", error instanceof Error ? error.stack : 'N/A');
     return NextResponse.json(
-      { error: "Failed to fetch reviews" },
+      {
+        error: "Failed to fetch reviews",
+        details: error instanceof Error ? error.message : String(error)
+      },
       { status: 500 }
     );
   }
