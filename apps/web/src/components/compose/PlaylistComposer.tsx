@@ -150,6 +150,10 @@ export function PlaylistComposer() {
           artist: t.artist,
           album: t.album || "",
           artworkUrl: t.artworkUrl || null,
+          // The written take and timestamped moments are stored structurally;
+          // `note` keeps a composed copy for any legacy/plain-text readers.
+          take: t.take?.trim() || undefined,
+          moments: t.moments || [],
           note: composeNote(t.take, t.moments),
         })),
       };

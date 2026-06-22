@@ -181,8 +181,9 @@ export function toPlaylistVM(
       n: i + 1,
       name: pt.name,
       reaction: null,
-      moments: [],
-      review: pt.note || undefined,
+      moments: notesToMoments(pt.notes),
+      // Prefer the structured take; fall back to the legacy composed note.
+      review: pt.take || pt.note || undefined,
     }));
   return {
     id: pl.id,

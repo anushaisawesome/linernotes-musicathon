@@ -6,7 +6,10 @@ import { prisma } from "@/lib/prisma";
 // own like/repost/save state for a playlist.
 const playlistInclude = {
   user: { select: { id: true, handle: true, displayName: true, avatarUrl: true } },
-  tracks: { orderBy: { order: "asc" as const } },
+  tracks: {
+    orderBy: { order: "asc" as const },
+    include: { notes: { orderBy: { seconds: "asc" as const } } },
+  },
   likes: true,
   reposts: true,
   saves: true,
@@ -132,14 +135,28 @@ export async function POST(request: Request) {
             album: track.album || null,
             artworkUrl: track.artworkUrl || null,
             note: track.note?.trim() || null,
+            take: track.take?.trim() || null,
             reaction: track.reaction || null,
             order: index,
+            // Store per-track moments structurally (mirrors Note on Review).
+            notes:
+              Array.isArray(track.moments) && track.moments.length > 0
+                ? {
+                    create: track.moments.map((m: any) => ({
+                      seconds: m.seconds || 0,
+                      label: m.label || "moment",
+                      note: m.note || null,
+                      lyric: m.lyric || null,
+                    })),
+                  }
+                : undefined,
           })),
         },
       },
       include: {
         tracks: {
           orderBy: { order: "asc" },
+          include: { notes: { orderBy: { seconds: "asc" } } },
         },
         user: {
           select: {

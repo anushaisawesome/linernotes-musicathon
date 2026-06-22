@@ -98,7 +98,9 @@ export type PlaylistTrack = {
   name: string;
   artist: string;
   artworkUrl: string;
-  note?: string; // Why this track is in the playlist
+  note?: string; // Composed take + moments (legacy/back-compat)
+  take?: string; // The written take on this track
+  notes?: Note[]; // Timestamped moments on this track
   order: number;
 };
 

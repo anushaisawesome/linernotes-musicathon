@@ -131,8 +131,14 @@ function ExperienceContent() {
               user: pl.user,
               track: { trackId: t.trackId, name: t.name, artist: t.artist, album: t.album || "", artworkUrl: t.artworkUrl || "" },
               rating: 0,
-              take: t.note || undefined,
-              notes: [],
+              take: t.take || t.note || undefined,
+              // Timestamped moments fire on the scrubber + lyric sync, like albums.
+              notes: (t.notes || []).map((n: any) => ({
+                seconds: n.seconds,
+                label: n.label,
+                note: n.note || undefined,
+                lyric: n.lyric || undefined,
+              })),
               createdAt: pl.createdAt,
               likeCount: 0,
               repostCount: 0,

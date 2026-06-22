@@ -26,6 +26,7 @@ export async function GET(
         },
         tracks: {
           orderBy: { order: "asc" },
+          include: { notes: { orderBy: { seconds: "asc" } } },
         },
         _count: {
           select: {

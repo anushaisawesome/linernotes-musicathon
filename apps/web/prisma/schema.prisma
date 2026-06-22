@@ -341,14 +341,30 @@ model PlaylistTrack {
   artist     String
   album      String?
   artworkUrl String?
-  note       String? // Optional note about why this track is in the playlist
+  note       String? // Composed take + moments (legacy/back-compat display)
+  take       String? // The written take on this track (structured)
   reaction   String? // Optional per-track reaction: flame | love | skip
   order      Int     // Track position in playlist (0-indexed)
 
-  playlist Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  playlist Playlist            @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  notes    PlaylistTrackNote[]
 
   @@index([playlistId])
   @@index([order])
+}
+
+model PlaylistTrackNote {
+  id              String   @id @default(cuid())
+  playlistTrackId String
+  seconds         Float
+  label           String
+  note            String?
+  lyric           String?
+  createdAt       DateTime @default(now())
+
+  playlistTrack PlaylistTrack @relation(fields: [playlistTrackId], references: [id], onDelete: Cascade)
+
+  @@index([playlistTrackId])
 }
 
 model PlaylistLike {
