@@ -87,7 +87,52 @@ export async function GET(request: NextRequest) {
     const subtitle = lyricsData.message?.body?.subtitle;
 
     if (!subtitle || !subtitle.subtitle_body) {
-      console.log("[Musixmatch] No synced lyrics available for track ID:", trackId);
+      console.log("[Musixmatch] No synced lyrics available, trying plain lyrics");
+
+      // Fallback to plain lyrics (no timestamps)
+      const plainLyricsUrl = `https://api.musixmatch.com/ws/1.1/track.lyrics.get?format=json&track_id=${trackId}&apikey=${apiKey}`;
+      const plainLyricsRes = await fetch(plainLyricsUrl);
+
+      if (plainLyricsRes.ok) {
+        const plainLyricsData = await plainLyricsRes.json();
+        const plainLyrics = plainLyricsData.message?.body?.lyrics?.lyrics_body;
+
+        if (plainLyrics && typeof plainLyrics === 'string') {
+          console.log("[Musixmatch] Found plain lyrics, creating pseudo-timestamps");
+
+          // Split into lines and create timestamps (one line every 3 seconds)
+          const lines = plainLyrics.split('\n').filter(line => line.trim());
+          const parsedLyrics = lines.map((line, idx) => ({
+            text: line.trim(),
+            time: {
+              total: idx * 3000, // 3 seconds apart
+              minutes: Math.floor((idx * 3) / 60),
+              seconds: (idx * 3) % 60,
+              hundredths: 0,
+            },
+          }));
+
+          console.log("[Musixmatch] Created", parsedLyrics.length, "pseudo-synced lines");
+
+          return NextResponse.json({
+            track: {
+              id: trackId,
+              name: trackData.track_name,
+              artist: trackData.artist_name,
+              album: trackData.album_name || "",
+              isrc: isrc || trackData.track_isrc,
+              language: trackData.track_language || "en",
+            },
+            lyrics: parsedLyrics,
+            translation: null,
+            subtitle_language: trackData.track_language || "en",
+            restricted: false,
+            unsynced: true, // Flag that these are fake timestamps
+          });
+        }
+      }
+
+      console.log("[Musixmatch] No lyrics available at all for track ID:", trackId);
       return NextResponse.json(
         {
           track: {
@@ -96,7 +141,7 @@ export async function GET(request: NextRequest) {
             artist: trackData.artist_name,
           },
           lyrics: null,
-          message: "No synced lyrics available for this track"
+          message: "No lyrics available for this track"
         },
         { status: 200 }
       );
