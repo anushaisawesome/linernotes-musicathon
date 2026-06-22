@@ -121,6 +121,91 @@ export async function POST(request: Request) {
       );
     }
 
+    // Get ONE Spotify token for all track lookups
+    let spotifyToken: string | null = null;
+    const needsLookup = tracks.some((t: any) => !(/^[a-zA-Z0-9]{22}$/.test(t.trackId)));
+
+    if (needsLookup) {
+      try {
+        const clientId = process.env.SPOTIFY_CLIENT_ID;
+        const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
+
+        if (clientId && clientSecret) {
+          const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'Authorization': `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
+            },
+            body: 'grant_type=client_credentials',
+          });
+
+          if (tokenResponse.ok) {
+            const { access_token } = await tokenResponse.json();
+            spotifyToken = access_token;
+            console.log("[Playlists] Got Spotify token for track lookups");
+          }
+        }
+      } catch (error) {
+        console.error("[Playlists] Failed to get Spotify token:", error);
+      }
+    }
+
+    // Look up Spotify IDs for any non-Spotify tracks
+    const finalTracks = await Promise.all(
+      tracks.map(async (track: any, index: number) => {
+        let finalTrackId = track.trackId;
+        const isSpotifyId = /^[a-zA-Z0-9]{22}$/.test(track.trackId);
+
+        if (!isSpotifyId && spotifyToken) {
+          console.log("[Playlists] Looking up Spotify ID for:", track.trackId);
+          try {
+            const query = encodeURIComponent(`track:${track.name} artist:${track.artist}`);
+            const searchUrl = `https://api.spotify.com/v1/search?q=${query}&type=track&limit=1`;
+            const searchResponse = await fetch(searchUrl, {
+              headers: { Authorization: `Bearer ${spotifyToken}` },
+            });
+
+            if (searchResponse.ok) {
+              const searchData = await searchResponse.json();
+              const spotifyTrack = searchData.tracks?.items?.[0];
+              if (spotifyTrack) {
+                finalTrackId = spotifyTrack.id;
+                console.log("[Playlists] Found Spotify ID:", finalTrackId);
+              } else {
+                console.warn("[Playlists] No Spotify match, using original ID:", track.trackId);
+              }
+            }
+          } catch (error) {
+            console.error("[Playlists] Spotify track lookup failed:", error);
+          }
+        }
+
+        return {
+          trackId: finalTrackId,
+          name: track.name,
+          artist: track.artist,
+          album: track.album || null,
+          artworkUrl: track.artworkUrl || null,
+          note: track.note?.trim() || null,
+          take: track.take?.trim() || null,
+          reaction: track.reaction || null,
+          order: index,
+          notes:
+            Array.isArray(track.moments) && track.moments.length > 0
+              ? {
+                  create: track.moments.map((m: any) => ({
+                    seconds: m.seconds || 0,
+                    label: m.label || "moment",
+                    note: m.note || null,
+                    lyric: m.lyric || null,
+                  })),
+                }
+              : undefined,
+        };
+      })
+    );
+
     // Create playlist with tracks
     const playlist = await prisma.playlist.create({
       data: {
@@ -128,29 +213,7 @@ export async function POST(request: Request) {
         title: title.trim(),
         description: description?.trim() || null,
         tracks: {
-          create: tracks.map((track: any, index: number) => ({
-            trackId: track.trackId,
-            name: track.name,
-            artist: track.artist,
-            album: track.album || null,
-            artworkUrl: track.artworkUrl || null,
-            note: track.note?.trim() || null,
-            take: track.take?.trim() || null,
-            reaction: track.reaction || null,
-            order: index,
-            // Store per-track moments structurally (mirrors Note on Review).
-            notes:
-              Array.isArray(track.moments) && track.moments.length > 0
-                ? {
-                    create: track.moments.map((m: any) => ({
-                      seconds: m.seconds || 0,
-                      label: m.label || "moment",
-                      note: m.note || null,
-                      lyric: m.lyric || null,
-                    })),
-                  }
-                : undefined,
-          })),
+          create: finalTracks,
         },
       },
       include: {
