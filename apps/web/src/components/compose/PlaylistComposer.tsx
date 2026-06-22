@@ -10,18 +10,42 @@ import { LNArt, LNIcon } from "@/components/ln/atoms";
 import { paletteFromString } from "@/lib/palette";
 import { ModeTabs, MomentsEditor, type DraftMoment } from "./composer-ui";
 
-// Spotify-only track search so every playlist track is saved with a real Spotify
-// id (playable in the Experience). The general /api/search falls back to iTunes,
-// whose numeric ids can't be played by the Web Playback SDK.
-async function searchSpotifyTracks(query: string, offset = 0): Promise<Track[]> {
+// Track search for the playlist composer. /api/search is Spotify-first (using the
+// reliable app token, so results come back even when a user's own Spotify token is
+// stale) and only falls back to iTunes when Spotify has no match. We then resolve a
+// real Spotify id at selection time so every saved track is playable.
+async function searchPlaylistTracks(query: string, offset = 0): Promise<Track[]> {
   try {
-    const res = await fetch(`/api/spotify/search?q=${encodeURIComponent(query)}&limit=10&offset=${offset}`);
+    const res = await fetch(`/api/search?${new URLSearchParams({ q: query, offset: String(offset) })}`);
     if (!res.ok) return [];
     const data = await res.json();
     return data.tracks || [];
   } catch {
     return [];
   }
+}
+
+// A Spotify track id is 22 base62 chars; iTunes ids are numeric, MusicBrainz are
+// UUIDs. Anything else isn't directly playable by the Web Playback SDK.
+const isSpotifyId = (id?: string) => !!id && /^[A-Za-z0-9]{22}$/.test(id);
+
+// When a picked track isn't already a Spotify track, look one up by name + artist
+// so the stored playlist track has a playable Spotify id.
+async function toSpotifyTrack(track: Track): Promise<Track> {
+  if (isSpotifyId(track.trackId)) return track;
+  try {
+    const res = await fetch(`/api/spotify/search?q=${encodeURIComponent(`${track.name} ${track.artist}`)}&limit=1`);
+    if (res.ok) {
+      const data = await res.json();
+      const hit = data.tracks?.[0];
+      if (hit?.trackId) {
+        return { ...track, trackId: hit.trackId, artworkUrl: hit.artworkUrl || track.artworkUrl, source: "spotify" };
+      }
+    }
+  } catch {
+    /* keep original track if lookup fails */
+  }
+  return track;
 }
 
 interface PlaylistTrack extends Track {
@@ -120,13 +144,16 @@ export function PlaylistComposer() {
   const gold = "var(--ln-accent)";
   const canPost = title.trim() && tracks.length > 0;
 
-  const handleAddTrack = (track: Track, extras?: { take?: string; moments?: DraftMoment[] }) => {
-    // Check if track already exists
-    if (tracks.some((t) => t.trackId === track.trackId)) {
+  const handleAddTrack = async (track: Track, extras?: { take?: string; moments?: DraftMoment[] }) => {
+    // Resolve to a real Spotify track so it's playable in the Experience. Tracks
+    // picked from your reviews already have Spotify ids and skip the lookup.
+    const resolved = await toSpotifyTrack(track);
+    // Check if the (resolved) track is already in the playlist.
+    if (tracks.some((t) => t.trackId === resolved.trackId)) {
       alert("This track is already in your playlist");
       return;
     }
-    setTracks([...tracks, { ...track, take: extras?.take, moments: extras?.moments || [] }]);
+    setTracks((cur) => [...cur, { ...resolved, take: extras?.take, moments: extras?.moments || [] }]);
   };
 
   const handleRemoveTrack = (index: number) => {
@@ -240,7 +267,7 @@ export function PlaylistComposer() {
         <div style={{ fontFamily: "var(--ln-body)", fontSize: 14.5, fontWeight: 400, letterSpacing: "0.01em", color: gold, marginBottom: 10 }}>
           Add tracks ({tracks.length})
         </div>
-        <TrackSearch onTrackSelect={handleAddTrack} searchAPI={searchSpotifyTracks} />
+        <TrackSearch onTrackSelect={handleAddTrack} searchAPI={searchPlaylistTracks} />
       </div>
 
       {/* Pick from tracks you've reviewed */}
