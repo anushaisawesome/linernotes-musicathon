@@ -219,6 +219,9 @@ export class WebPlaybackSDK {
       throw new Error("Player not initialized");
     }
 
+    console.log("[Spotify Player] Playing track URI:", spotifyUri);
+    console.log("[Spotify Player] Device ID:", this.deviceId);
+
     const response = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${this.deviceId}`, {
       method: "PUT",
       headers: {
@@ -231,8 +234,13 @@ export class WebPlaybackSDK {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to play track: ${response.statusText}`);
+      const errorText = await response.text();
+      console.error("[Spotify Player] Play failed:", response.status, errorText);
+      console.error("[Spotify Player] URI attempted:", spotifyUri);
+      throw new Error(`Failed to play track: ${response.statusText} (${response.status})`);
     }
+
+    console.log("[Spotify Player] Playback started successfully");
   }
 
   /**
