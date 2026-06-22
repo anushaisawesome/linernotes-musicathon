@@ -72,9 +72,6 @@ function ExperienceContent() {
   const initedRef = useRef(false);
   // The track id we last issued a play for, so we don't re-issue on every render.
   const playedTrackRef = useRef<string | null>(null);
-  // Cache of resolved Spotify ids for reviews whose stored id isn't playable
-  // (e.g. Last.fm-sourced posts), keyed by review id.
-  const resolvedRef = useRef<Record<string, string>>({});
   // For album/feed auto-advance: track the last position to detect a track end.
   const lastPosRef = useRef(0);
   const endedHandledRef = useRef(false);
@@ -91,11 +88,8 @@ function ExperienceContent() {
           // (feed:"friends" is the public all-reviews feed; your own posts are
           // included), starting at the post that was clicked when it's present.
           const all = await getReviews({ feed: "friends" });
-          // Keep every track review with a name + artist — Last.fm-sourced posts
-          // (no Spotify id) are resolved to a playable track at play time, so the
-          // most recent review is never dropped from the front of the queue.
           const segs: Review[] = (all || [])
-            .filter((r) => r.track?.name && r.track?.artist)
+            .filter((r) => r.track?.trackId && !r.track.trackId.startsWith("lastfm-"))
             // Newest first, so the queue starts on the most recent track review.
             .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
           if (segs.length === 0) throw new Error("No community posts to play yet");
@@ -166,30 +160,6 @@ function ExperienceContent() {
     router.push("/");
   };
 
-  // Get a Spotify-playable track id for a review. Posts logged from Last.fm carry
-  // a "lastfm-…" placeholder id that the SDK can't play, so resolve those to a
-  // real Spotify track by name + artist (cached per review).
-  const resolveSpotifyId = async (r: Review): Promise<string | null> => {
-    const tid = r.track?.trackId;
-    if (tid && !tid.startsWith("lastfm-")) return tid;
-    if (resolvedRef.current[r.id]) return resolvedRef.current[r.id];
-    const name = r.track?.name?.trim();
-    const artist = r.track?.artist?.trim();
-    if (!name || !artist) return null;
-    try {
-      const res = await fetch(`/api/spotify/search?q=${encodeURIComponent(`${name} ${artist}`)}&limit=1`);
-      if (res.ok) {
-        const data = await res.json();
-        const id = data.tracks?.[0]?.trackId || null;
-        if (id) resolvedRef.current[r.id] = id;
-        return id;
-      }
-    } catch {
-      /* fall through */
-    }
-    return null;
-  };
-
   // Play/pause. Right after a device is created the SDK may not have an active
   // playback state yet, so togglePlay() would be a no-op (the bug where the play
   // button did nothing until a refresh). If there's no state, start playback of
@@ -199,15 +169,8 @@ function ExperienceContent() {
     try {
       const state = await player.getCurrentState();
       if (!state) {
-        // Device not active yet — start the current track (resolving a real
-        // Spotify id first for Last.fm-sourced posts).
-        if (review) {
-          const id = await resolveSpotifyId(review);
-          if (id) {
-            playedTrackRef.current = id;
-            await player.playTrack(`spotify:track:${id}`);
-          }
-        }
+        const tid = review?.track?.trackId;
+        if (tid) await player.playTrack(`spotify:track:${tid}`);
       } else {
         await player.togglePlay();
       }
@@ -274,27 +237,14 @@ function ExperienceContent() {
   // load, on next/prev, on auto-advance), play it on the shared device. Routed
   // through one place so a reused page instance still starts the right song.
   useEffect(() => {
-    if (!player || !review) return;
-    let cancelled = false;
-    (async () => {
-      const id = await resolveSpotifyId(review);
-      if (cancelled) return;
-      if (!id) {
-        // Couldn't find a playable track — skip to the next one in a queue.
-        if (segments.length > 1 && idx < segments.length - 1) goToSegment(idx + 1);
-        return;
-      }
-      if (playedTrackRef.current === id) return;
-      playedTrackRef.current = id;
-      player.playTrack(`spotify:track:${id}`).catch((e) => {
-        console.error("[Experience] Failed to play track:", e);
-      });
-    })();
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [player, review?.id]);
+    const tid = review?.track?.trackId;
+    if (!player || !tid) return;
+    if (playedTrackRef.current === tid) return;
+    playedTrackRef.current = tid;
+    player.playTrack(`spotify:track:${tid}`).catch((e) => {
+      console.error("[Experience] Failed to play track:", e);
+    });
+  }, [player, review?.track?.trackId]);
 
   // Album / feed experiences auto-advance: when the current song finishes (the
   // SDK reports paused at position 0 after we were near the end), play the next.
