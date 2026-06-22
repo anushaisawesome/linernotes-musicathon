@@ -784,10 +784,10 @@ function ExperienceContent() {
                   {playlistLabel} · {idx + 1} / {segments.length}
                 </div>
               )}
-              <h1 style={{ margin: 0, fontFamily: "var(--ln-album)", fontWeight: 600, fontSize: 30, lineHeight: 1.06, letterSpacing: "-0.01em", color: INK }}>
+              <h1 style={{ margin: 0, fontFamily: "var(--ln-album)", fontWeight: 600, fontSize: 30, lineHeight: 1.06, letterSpacing: "-0.01em", color: INK, textShadow: "0 2px 12px rgba(0,0,0,0.6), 0 1px 3px rgba(0,0,0,0.8)" }}>
                 {playerState?.trackName || review.track.name}
               </h1>
-              <div style={{ marginTop: 5, fontFamily: "var(--ln-body)", fontSize: 15, color: muted(0.7) }}>
+              <div style={{ marginTop: 5, fontFamily: "var(--ln-body)", fontSize: 15, color: muted(0.7), textShadow: "0 1px 8px rgba(0,0,0,0.5)" }}>
                 {playerState?.artistName || review.track.artist}
               </div>
             </div>
@@ -865,7 +865,7 @@ function ExperienceContent() {
           <div className="mu-exp-right" style={{ minWidth: 0 }}>
             {/* Reviewer note — only when the author actually wrote one */}
             {caption && (
-              <div key={review.id} style={{ borderRadius: 16, border: `1px solid ${accent}33`, background: `${accent}10`, padding: "16px 18px", animation: "mu-rise 0.45s cubic-bezier(.2,.8,.2,1) both" }}>
+              <div key={review.id} style={{ borderRadius: 16, border: `1px solid ${accent}33`, background: `${accent}10`, backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", padding: "16px 18px", animation: "mu-rise 0.45s cubic-bezier(.2,.8,.2,1) both", boxShadow: "0 4px 20px rgba(0,0,0,0.3)" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 11 }}>
                   <span style={{ width: 30, height: 30, borderRadius: "50%", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: `${accent}26`, border: `1px solid ${accent}66`, color: accent, fontFamily: "var(--ln-display)", fontWeight: 600, fontSize: 14 }}>
                     {review.user?.displayName?.[0] || "U"}
@@ -882,7 +882,7 @@ function ExperienceContent() {
                     </button>
                   )}
                 </div>
-                <p style={{ margin: 0, fontFamily: "var(--ln-preview)", fontStyle: "italic", fontWeight: 500, fontSize: 18, lineHeight: 1.45, color: INK, wordWrap: "break-word" }}>
+                <p style={{ margin: 0, fontFamily: "var(--ln-preview)", fontStyle: "italic", fontWeight: 500, fontSize: 18, lineHeight: 1.45, color: INK, wordWrap: "break-word", textShadow: "0 1px 6px rgba(0,0,0,0.4)" }}>
                   {caption}
                 </p>
                 {noteOpen && hasMoreNote && (
@@ -941,8 +941,11 @@ function ExperienceContent() {
                     overflow: momentSync ? "hidden" : "auto",
                     WebkitMaskImage: momentSync ? "linear-gradient(180deg, transparent, #000 12%, #000 88%, transparent)" : "none",
                     borderRadius: 12,
-                    background: "rgba(244,239,230,0.03)",
-                    border: "1px solid rgba(244,239,230,0.08)",
+                    background: "rgba(244,239,230,0.06)",
+                    backdropFilter: "blur(10px)",
+                    WebkitBackdropFilter: "blur(10px)",
+                    border: "1px solid rgba(244,239,230,0.12)",
+                    boxShadow: "0 2px 16px rgba(0,0,0,0.2)",
                   }}
                   onWheel={() => {
                     // Disable sync when user manually scrolls
@@ -1101,7 +1104,7 @@ function ExperienceContent() {
                   <span style={{ fontFamily: "var(--ln-mono)", fontSize: 9.5, letterSpacing: "0.04em", color: muted(0.45) }}>synced · Musixmatch</span>
                 </div>
 
-                <div ref={colRef} className="ln-scroll" style={{ position: "relative", height: "clamp(360px, 52vh, 560px)", overflow: "hidden", WebkitMaskImage: "linear-gradient(180deg, transparent, #000 16%, #000 80%, transparent)" }}>
+                <div ref={colRef} className="ln-scroll" style={{ position: "relative", height: "clamp(360px, 52vh, 560px)", overflow: "hidden", WebkitMaskImage: "linear-gradient(180deg, transparent, #000 16%, #000 80%, transparent)", padding: "12px", background: "rgba(244,239,230,0.02)", borderRadius: 12, backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)" }}>
                   <div style={{ transform: `translateY(${lyricShift}px)`, transition: "transform 0.5s cubic-bezier(.2,.8,.2,1)", display: "flex", flexDirection: "column", gap: 4, paddingTop: 8 }}>
                     {lyrics.lines.map((line, i) => {
                       const lineSec = line.time.total / 1000;
@@ -1137,6 +1140,7 @@ function ExperienceContent() {
                             background: (isActive && isAnnotated) ? accent : "transparent",
                             border: (isActive && isAnnotated) ? `1px solid ${accent}` : "none",
                             boxShadow: (isActive && isAnnotated) ? `0 8px 20px -8px ${accent}` : "none",
+                            textShadow: isActive ? "0 2px 10px rgba(0,0,0,0.6), 0 1px 3px rgba(0,0,0,0.8)" : "0 1px 6px rgba(0,0,0,0.5)",
                           }}>
                             {isActive && !isAnnotated && <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: accent, marginRight: 12, verticalAlign: "middle", boxShadow: `0 0 0 4px ${accent}33` }} />}
                             {line.text}
