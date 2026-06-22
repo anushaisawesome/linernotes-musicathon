@@ -1128,14 +1128,14 @@ function ExperienceContent() {
                             fontSize: isActive ? 22 : isAnnotated ? 19 : 18,
                             lineHeight: 1.25,
                             letterSpacing: "-0.01em",
-                            color: isActive ? INK : isAnnotated ? "#a8c5ff" : passed ? muted(0.32) : muted(0.5),
-                            opacity: isActive ? 1 : isAnnotated ? 0.85 : Math.max(0.26, 1 - dist * 0.16),
+                            color: isActive ? INK : isAnnotated ? accent : passed ? muted(0.32) : muted(0.5),
+                            opacity: isActive ? 1 : isAnnotated ? 0.75 : Math.max(0.26, 1 - dist * 0.16),
                             transition: "all 0.4s cubic-bezier(.2,.8,.2,1)",
                             wordWrap: "break-word",
-                            textShadow: isAnnotated && !isActive ? "0 0 12px rgba(168,197,255,0.3)" : "none",
+                            textShadow: isAnnotated && !isActive ? `0 0 14px ${accent}66` : "none",
                           }}>
                             {isActive && <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: accent, marginRight: 12, verticalAlign: "middle", boxShadow: `0 0 0 4px ${accent}33` }} />}
-                            {isAnnotated && !isActive && <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "#a8c5ff", marginRight: 10, verticalAlign: "middle" }} />}
+                            {isAnnotated && !isActive && <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: accent, marginRight: 10, verticalAlign: "middle", boxShadow: `0 0 6px ${accent}` }} />}
                             {line.text}
                           </div>
                           {showTranslation && translatedLine && translatedLine.text !== line.text && (
