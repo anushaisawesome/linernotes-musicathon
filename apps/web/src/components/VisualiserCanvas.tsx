@@ -469,7 +469,7 @@ function drawNebula(
   centerX: number,
   centerY: number,
   intensity: number,
-  beatPhase: number,
+  smoothIntensity: number,
   energyMultiplier: number
 ) {
   const particleCount = Math.floor(30 * energyMultiplier);
@@ -479,13 +479,13 @@ function drawNebula(
   for (let i = 0; i < particleCount; i++) {
     const angle = (i / particleCount) * Math.PI * 2 + time * 0.1;
     const spiral = (i / particleCount) * 3;
-    const distance = maxRadius * (0.3 + spiral * 0.2) * intensity;
+    const distance = maxRadius * (0.3 + spiral * 0.2);
 
     const x = centerX + Math.cos(angle + spiral) * distance;
     const y = centerY + Math.sin(angle + spiral) * distance;
 
-    // Particle size varies
-    const size = (2 + Math.sin(time * 2 + i) * 2) * (1 - beatPhase * 0.3);
+    // Particle size pulses with beat
+    const size = (2 + Math.sin(time * 2 + i) * 2) * (0.5 + smoothIntensity * 0.5);
     const opacity = intensity * (0.3 + Math.sin(time + i) * 0.2);
 
     // Glowing particle
