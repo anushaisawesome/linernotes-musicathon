@@ -54,7 +54,7 @@ export default function AlbumCardPage() {
   }, [id]);
 
   const handleEdit = () => {
-    router.push(`/compose/album?edit=${id}`);
+    router.push(`/log/album?edit=${id}`);
   };
 
   const handleDelete = async () => {

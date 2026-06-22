@@ -78,7 +78,7 @@ export default function CardPage() {
   };
 
   const handleEdit = () => {
-    router.push(`/compose?edit=${id}`);
+    router.push(`/log?edit=${id}`);
   };
 
   const handleDelete = async () => {
