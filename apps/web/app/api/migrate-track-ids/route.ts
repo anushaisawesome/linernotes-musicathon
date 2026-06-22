@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
 let globalLog: ((msg: string) => void) | null = null;
@@ -85,71 +85,30 @@ async function searchSpotifyTrack(trackName: string, artistName: string, accessT
   }
 }
 
-async function searchSpotifyAlbum(albumName: string, artistName: string, accessToken: string, retryCount = 0): Promise<string | null> {
-  try {
-    const query = encodeURIComponent(`album:${albumName} artist:${artistName}`);
-    const searchUrl = `https://api.spotify.com/v1/search?q=${query}&type=album&limit=1`;
-
-    const searchResponse = await fetch(searchUrl, {
-      headers: { 'Authorization': `Bearer ${accessToken}` },
-    });
-
-    if (searchResponse.status === 429) {
-      const retryAfter = searchResponse.headers.get('Retry-After');
-      const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : 2000;
-
-      if (retryCount < 3) {
-        globalLog?.(`  Rate limited, waiting ${waitTime}ms before retry ${retryCount + 1}/3`);
-        await new Promise(resolve => setTimeout(resolve, waitTime));
-        return searchSpotifyAlbum(albumName, artistName, accessToken, retryCount + 1);
-      } else {
-        globalLog?.(`  ERROR: Rate limited after 3 retries`);
-        return null;
-      }
-    }
-
-    if (!searchResponse.ok) {
-      const errorText = await searchResponse.text();
-      globalLog?.(`  ERROR: Spotify API returned ${searchResponse.status}: ${errorText.substring(0, 200)}`);
-      return null;
-    }
-
-    const searchData = await searchResponse.json();
-    const resultCount = searchData.albums?.items?.length || 0;
-    globalLog?.(`  Search returned ${resultCount} result(s)`);
-
-    const spotifyAlbum = searchData.albums?.items?.[0];
-
-    if (spotifyAlbum) {
-      globalLog?.(`  ✓ Matched: "${spotifyAlbum.name}" by ${spotifyAlbum.artists[0].name}`);
-      return spotifyAlbum.id;
-    }
-
-    globalLog?.(`  ✗ No results`);
-    return null;
-  } catch (error) {
-    globalLog?.(`  ERROR: Exception during album search: ${error}`);
-    return null;
-  }
-}
-
-export async function GET() {
+/**
+ * GET /api/migrate-track-ids?batch=5&offset=0
+ *
+ * Migrates UUID track IDs to Spotify IDs in small batches to avoid database connection limits.
+ * Default: 5 items per batch
+ */
+export async function GET(request: NextRequest) {
   const output: string[] = [];
   const log = (msg: string) => {
     console.log(msg);
     output.push(msg);
   };
 
-  // Set global log so helper functions can use it
   globalLog = log;
 
   try {
-    log('Starting track ID migration...\n');
+    const searchParams = request.nextUrl.searchParams;
+    const batchSize = Math.min(parseInt(searchParams.get('batch') || '5'), 10); // Max 10
+    const offset = parseInt(searchParams.get('offset') || '0');
 
-    // Get Spotify access token once
+    log(`Migration batch: size=${batchSize}, offset=${offset}\n`);
+
     const accessToken = await getSpotifyToken();
     if (!accessToken) {
-      log('ERROR: Failed to get Spotify access token');
       return NextResponse.json({
         success: false,
         error: 'Failed to get Spotify access token',
@@ -157,28 +116,32 @@ export async function GET() {
       }, { status: 500 });
     }
 
-    // Find all reviews with UUID track IDs
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-    const reviews = await prisma.review.findMany({
+    // Get all reviews
+    const allReviews = await prisma.review.findMany({
       select: {
         id: true,
         trackId: true,
         trackName: true,
         trackArtist: true,
       },
+      where: {
+        trackId: { contains: '-' }, // Quick filter for UUIDs
+      },
     });
 
-    const reviewsToMigrate = reviews.filter(r => uuidRegex.test(r.trackId));
+    const reviewsToMigrate = allReviews.filter(r => uuidRegex.test(r.trackId));
+    const batch = reviewsToMigrate.slice(offset, offset + batchSize);
 
-    log(`Found ${reviewsToMigrate.length} reviews with UUID track IDs\n`);
+    log(`Total track reviews with UUIDs: ${reviewsToMigrate.length}`);
+    log(`Processing batch: ${offset}-${offset + batch.length - 1}\n`);
 
     let successCount = 0;
     let failCount = 0;
 
-    for (const review of reviewsToMigrate) {
-      log(`Migrating: "${review.trackName}" by ${review.trackArtist}`);
-      log(`  Old ID: ${review.trackId}`);
+    for (const review of batch) {
+      log(`"${review.trackName}" by ${review.trackArtist}`);
 
       const spotifyId = await searchSpotifyTrack(review.trackName, review.trackArtist, accessToken);
 
@@ -187,127 +150,49 @@ export async function GET() {
           where: { id: review.id },
           data: { trackId: spotifyId },
         });
-        log(`  New ID: ${spotifyId} ✓\n`);
+        log(`  ✓ Updated to ${spotifyId}\n`);
         successCount++;
       } else {
-        log(`  Failed to find Spotify ID ✗\n`);
+        log(`  ✗ Failed\n`);
         failCount++;
       }
 
-      // Rate limit: wait 500ms between requests to avoid 429s
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 600)); // 600ms between requests
     }
 
-    log('\n=== Track Reviews Migration Summary ===');
-    log(`Total reviews: ${reviewsToMigrate.length}`);
+    const hasMore = offset + batchSize < reviewsToMigrate.length;
+    const nextOffset = hasMore ? offset + batchSize : null;
+
+    log(`\n=== Batch Summary ===`);
+    log(`Processed: ${batch.length}`);
     log(`Successful: ${successCount}`);
     log(`Failed: ${failCount}`);
+    log(`Remaining: ${reviewsToMigrate.length - offset - batch.length}`);
 
-    // Migrate AlbumReview.albumId
-    log('\n\nMigrating album IDs...\n');
-
-    const albumReviews = await prisma.albumReview.findMany({
-      select: {
-        id: true,
-        albumId: true,
-        albumName: true,
-        albumArtist: true,
-      },
-    });
-
-    const albumsToMigrate = albumReviews.filter(a => uuidRegex.test(a.albumId));
-    log(`Found ${albumsToMigrate.length} albums with UUID IDs\n`);
-
-    let albumSuccessCount = 0;
-    let albumFailCount = 0;
-
-    for (const album of albumsToMigrate) {
-      log(`Migrating album: "${album.albumName}" by ${album.albumArtist}`);
-      log(`  Old ID: ${album.albumId}`);
-
-      const spotifyId = await searchSpotifyAlbum(album.albumName, album.albumArtist, accessToken);
-
-      if (spotifyId) {
-        await prisma.albumReview.update({
-          where: { id: album.id },
-          data: { albumId: spotifyId },
-        });
-        log(`  New ID: ${spotifyId} ✓\n`);
-        albumSuccessCount++;
-      } else {
-        log(`  Failed to find Spotify album ID ✗\n`);
-        albumFailCount++;
-      }
-
-      await new Promise(resolve => setTimeout(resolve, 100));
+    if (hasMore) {
+      log(`\n➜ Next: /api/migrate-track-ids?offset=${nextOffset}&batch=${batchSize}`);
+    } else {
+      log(`\n✓ All track reviews migrated!`);
     }
-
-    log('\n=== Album Reviews Migration Summary ===');
-    log(`Total albums: ${albumsToMigrate.length}`);
-    log(`Successful: ${albumSuccessCount}`);
-    log(`Failed: ${albumFailCount}`);
-
-    // Migrate PlaylistTrack.trackId
-    log('\n\nMigrating playlist tracks...\n');
-
-    const playlistTracks = await prisma.playlistTrack.findMany({
-      select: {
-        id: true,
-        trackId: true,
-        name: true,
-        artist: true,
-      },
-    });
-
-    const playlistTracksToMigrate = playlistTracks.filter(t => uuidRegex.test(t.trackId));
-    log(`Found ${playlistTracksToMigrate.length} playlist tracks with UUID IDs\n`);
-
-    let playlistSuccessCount = 0;
-    let playlistFailCount = 0;
-
-    for (const track of playlistTracksToMigrate) {
-      log(`Migrating playlist track: "${track.name}" by ${track.artist}`);
-      log(`  Old ID: ${track.trackId}`);
-
-      const spotifyId = await searchSpotifyTrack(track.name, track.artist, accessToken);
-
-      if (spotifyId) {
-        await prisma.playlistTrack.update({
-          where: { id: track.id },
-          data: { trackId: spotifyId },
-        });
-        log(`  New ID: ${spotifyId} ✓\n`);
-        playlistSuccessCount++;
-      } else {
-        log(`  Failed to find Spotify track ID ✗\n`);
-        playlistFailCount++;
-      }
-
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
-
-    log('\n=== Playlist Tracks Migration Summary ===');
-    log(`Total playlist tracks: ${playlistTracksToMigrate.length}`);
-    log(`Successful: ${playlistSuccessCount}`);
-    log(`Failed: ${playlistFailCount}`);
-
-    log('\n\n=== OVERALL MIGRATION SUMMARY ===');
-    log(`Track reviews: ${successCount}/${reviewsToMigrate.length}`);
-    log(`Album reviews: ${albumSuccessCount}/${albumsToMigrate.length}`);
-    log(`Playlist tracks: ${playlistSuccessCount}/${playlistTracksToMigrate.length}`);
-    log(`Total successful: ${successCount + albumSuccessCount + playlistSuccessCount}`);
-    log(`Total failed: ${failCount + albumFailCount + playlistFailCount}`);
 
     return NextResponse.json({
       success: true,
-      trackReviews: { total: reviewsToMigrate.length, successful: successCount, failed: failCount },
-      albumReviews: { total: albumsToMigrate.length, successful: albumSuccessCount, failed: albumFailCount },
-      playlistTracks: { total: playlistTracksToMigrate.length, successful: playlistSuccessCount, failed: playlistFailCount },
+      batch: {
+        size: batch.length,
+        offset: offset,
+        hasMore: hasMore,
+        nextOffset: nextOffset,
+      },
+      results: {
+        successful: successCount,
+        failed: failCount,
+        remaining: reviewsToMigrate.length - offset - batch.length,
+      },
       log: output,
     });
 
   } catch (error) {
-    log(`Migration failed: ${error}`);
+    log(`\nERROR: ${error}`);
     return NextResponse.json({
       success: false,
       error: String(error),
