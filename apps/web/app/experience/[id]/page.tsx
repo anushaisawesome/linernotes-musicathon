@@ -86,16 +86,74 @@ function ExperienceContent() {
     async function fetchReview() {
       try {
         if (isFeedExp) {
-          // Compile the GLOBAL community feed into a playlist of track reviews
-          // (feed:"friends" is the public all-reviews feed; your own posts are
-          // included), starting at the post that was clicked when it's present.
-          const all = await getReviews({ feed: "friends" });
-          const segs: Review[] = (all || [])
-            .filter((r) => r.track?.trackId && !r.track.trackId.startsWith("lastfm-"))
-            // Newest first, so the queue starts on the most recent track review.
-            .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-          if (segs.length === 0) throw new Error("No community posts to play yet");
-          // The community experience always opens on the most recent track review.
+          // Compile the GLOBAL community feed into a playlist of ALL annotated content:
+          // track reviews, album track reviews, and playlist tracks with notes.
+          const [trackReviews, albumReviewsData, playlistsData] = await Promise.all([
+            getReviews({ feed: "friends" }),
+            fetch('/api/album-reviews?feed=friends').then(r => r.json()),
+            fetch('/api/playlists?feed=friends').then(r => r.json()),
+          ]);
+
+          const segs: Review[] = [];
+
+          // Add standalone track reviews with notes
+          (trackReviews || []).forEach((r) => {
+            if (r.track?.trackId && !r.track.trackId.startsWith("lastfm-") && r.notes && r.notes.length > 0) {
+              segs.push(r);
+            }
+          });
+
+          // Add album track reviews with notes
+          (albumReviewsData.albumReviews || []).forEach((albumReview: any) => {
+            (albumReview.trackReviews || []).forEach((tr: any) => {
+              if (tr.track?.trackId && tr.notes && tr.notes.length > 0) {
+                // Inherit album review user if track review doesn't have one
+                segs.push({ ...tr, user: tr.user || albumReview.user });
+              }
+            });
+          });
+
+          // Add playlist tracks with notes
+          (playlistsData.playlists || []).forEach((pl: any) => {
+            (pl.tracks || []).forEach((t: any) => {
+              if (t.trackId && t.notes && t.notes.length > 0) {
+                segs.push({
+                  id: `${pl.id}-${t.id}`,
+                  userId: pl.userId,
+                  user: pl.user,
+                  track: {
+                    trackId: t.trackId,
+                    name: t.name,
+                    artist: t.artist,
+                    album: t.album || "",
+                    artworkUrl: t.artworkUrl || "",
+                  },
+                  rating: 0,
+                  take: t.take || t.note || undefined,
+                  notes: (t.notes || []).map((n: any) => ({
+                    id: n.id,
+                    seconds: n.seconds,
+                    label: n.label,
+                    note: n.note || undefined,
+                    lyric: n.lyric || undefined,
+                    createdAt: n.createdAt,
+                  })),
+                  createdAt: pl.createdAt,
+                  likeCount: 0,
+                  repostCount: 0,
+                  likedByMe: false,
+                  repostedByMe: false,
+                } as Review);
+              }
+            });
+          });
+
+          // Sort by newest first
+          segs.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+
+          if (segs.length === 0) throw new Error("No annotated content to play yet");
+
+          // The community experience always opens on the most recent annotated track.
           setPlaylistLabel("Community feed");
           setSegments(segs);
           setIdx(0);

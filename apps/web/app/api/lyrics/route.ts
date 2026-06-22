@@ -33,35 +33,46 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    let matcherUrl: string;
+    let trackData: any = null;
 
-    // Step 1: Get track ID from ISRC or track/artist search
+    // Step 1: Get track ID from ISRC or track/artist search (with fallback retry)
     if (isrc) {
-      matcherUrl = `https://api.musixmatch.com/ws/1.1/matcher.track.get?format=json&track_isrc=${encodeURIComponent(isrc)}&apikey=${apiKey}`;
+      const isrcUrl = `https://api.musixmatch.com/ws/1.1/matcher.track.get?format=json&track_isrc=${encodeURIComponent(isrc)}&apikey=${apiKey}`;
       console.log("[Musixmatch] Searching by ISRC:", isrc);
+
+      const isrcRes = await fetch(isrcUrl);
+      if (isrcRes.ok) {
+        const isrcData = await isrcRes.json();
+        trackData = isrcData.message?.body?.track;
+      }
+
+      // If ISRC failed and we have track/artist, retry with track/artist
+      if (!trackData && track && artist) {
+        console.log("[Musixmatch] ISRC search failed, retrying with track/artist:", track, "/", artist);
+        const nameUrl = `https://api.musixmatch.com/ws/1.1/matcher.track.get?format=json&q_track=${encodeURIComponent(track)}&q_artist=${encodeURIComponent(artist)}&apikey=${apiKey}`;
+
+        const nameRes = await fetch(nameUrl);
+        if (nameRes.ok) {
+          const nameData = await nameRes.json();
+          trackData = nameData.message?.body?.track;
+        }
+      }
     } else {
-      matcherUrl = `https://api.musixmatch.com/ws/1.1/matcher.track.get?format=json&q_track=${encodeURIComponent(track!)}&q_artist=${encodeURIComponent(artist!)}&apikey=${apiKey}`;
+      // Search by track/artist
+      const nameUrl = `https://api.musixmatch.com/ws/1.1/matcher.track.get?format=json&q_track=${encodeURIComponent(track!)}&q_artist=${encodeURIComponent(artist!)}&apikey=${apiKey}`;
       console.log("[Musixmatch] Searching by track/artist:", track, "/", artist);
+
+      const nameRes = await fetch(nameUrl);
+      if (nameRes.ok) {
+        const nameData = await nameRes.json();
+        trackData = nameData.message?.body?.track;
+      }
     }
-
-    const matcherRes = await fetch(matcherUrl);
-    if (!matcherRes.ok) {
-      console.error("[Musixmatch] Matcher API error:", matcherRes.status);
-      return NextResponse.json(
-        { error: "Failed to find track" },
-        { status: matcherRes.status }
-      );
-    }
-
-    const matcherData = await matcherRes.json();
-    console.log("[Musixmatch] Matcher response:", JSON.stringify(matcherData, null, 2));
-
-    const trackData = matcherData.message?.body?.track;
 
     if (!trackData || !trackData.track_id) {
-      console.log("[Musixmatch] No track found");
+      console.log("[Musixmatch] No track found after all attempts");
       return NextResponse.json(
-        { error: "Track not found on Musixmatch", searched: isrc ? { isrc } : { track, artist } },
+        { error: "Track not found on Musixmatch", searched: isrc ? { isrc, fallback: track && artist } : { track, artist } },
         { status: 404 }
       );
     }

@@ -29,6 +29,7 @@ export class VisualiserEngine {
   private rhythm: RhythmData | null;
   private rhythmicTexture: RhythmicTexture | null;
   private lastLyricLine: string = '';
+  private recentEnergyLevels: number[] = []; // Track last 10 (runtime only, compliant)
 
   constructor(baseAesthetic: BaseAesthetic, rhythm?: RhythmData, rhythmicTexture?: RhythmicTexture) {
     this.baseAesthetic = baseAesthetic;
@@ -83,6 +84,42 @@ export class VisualiserEngine {
     }
 
     // ────────────────────────────────────────────────────────────────────────
+    // Layer 2.5: Rhythmic Texture (groove complexity)
+    // Apply rhythmic characteristics that go beyond simple BPM
+    // ────────────────────────────────────────────────────────────────────────
+    if (this.rhythmicTexture) {
+      const { rhythmicDensity, percussiveStrength, grooveRegularity } = this.rhythmicTexture;
+
+      // Rhythmic Density affects particle count / visual density
+      if (rhythmicDensity !== undefined) {
+        visualState.density = rhythmicDensity;
+      }
+
+      // Percussive Strength affects texture sharpness
+      if (percussiveStrength !== undefined && percussiveStrength > 0.7) {
+        // High percussive = sharper visuals (override soft textures)
+        if (visualState.texture === 'soft') {
+          visualState.texture = 'grain';
+        }
+      }
+
+      // Groove Regularity affects energy dynamism
+      if (grooveRegularity !== undefined && grooveRegularity < 0.4) {
+        // Syncopated/irregular groove = more dynamic energy
+        visualState.energyMultiplier *= 1.2;
+      } else if (grooveRegularity !== undefined && grooveRegularity > 0.8) {
+        // Very regular groove = steady, hypnotic (reduce variance)
+        visualState.energyMultiplier *= 0.95;
+      }
+
+      console.log('[Visualiser] Rhythmic texture applied:', {
+        density: rhythmicDensity?.toFixed(2),
+        percussive: percussiveStrength?.toFixed(2),
+        regularity: grooveRegularity?.toFixed(2),
+      });
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
     // Layer 3: Lyric Accents (real-time, from current line)
     // TRANSFORMS the base aesthetic dynamically as lyrics change
     // ────────────────────────────────────────────────────────────────────────
@@ -95,12 +132,26 @@ export class VisualiserEngine {
     if (currentLyricLine) {
       const accent = analyzeLyricAccents(currentLyricLine);
 
+      // Track lyric energy over time (runtime only, never persisted - Musixmatch compliant)
+      this.recentEnergyLevels.push(accent.energyMultiplier);
+      if (this.recentEnergyLevels.length > 10) {
+        this.recentEnergyLevels.shift(); // Keep only last 10
+      }
+
+      // Detect consistently sad/low-energy songs
+      const avgEnergy = this.recentEnergyLevels.length > 0
+        ? this.recentEnergyLevels.reduce((a, b) => a + b, 0) / this.recentEnergyLevels.length
+        : 1.0;
+      const isConsistentlySad = this.recentEnergyLevels.length >= 5 && avgEnergy < 0.8;
+
       // Log if we detected anything significant
       if (accent.accentColour || accent.effect || accent.energyMultiplier !== 1.0) {
         console.log('[Visualiser] Accent:', {
           colour: accent.accentColour,
           effect: accent.effect,
           energy: accent.energyMultiplier,
+          avgEnergy: avgEnergy.toFixed(2),
+          consistentlySad: isConsistentlySad,
         });
       }
 
@@ -134,6 +185,26 @@ export class VisualiserEngine {
       visualState.effect = accent.effect;
       visualState.direction = accent.direction;
       visualState.density = accent.density;
+
+      // Apply consistent sadness darkening (overrides upbeat colors)
+      if (isConsistentlySad) {
+        console.log('[Visualiser] Applying sad song darkening (avg energy:', avgEnergy.toFixed(2), ')');
+
+        // Darken and cool the palette
+        visualState.palette = visualState.palette.map(hex => {
+          const rgb = hexToRgb(hex);
+          return rgbToHex(
+            Math.max(0, rgb.r - 20), // Darken
+            Math.max(0, rgb.g - 10), // Slightly darken
+            Math.min(255, rgb.b + 15) // Add blue (cool)
+          );
+        });
+
+        // Force soft, slow motion
+        visualState.texture = 'soft';
+        visualState.motion = 'undulating';
+        visualState.energyMultiplier = Math.min(visualState.energyMultiplier, 0.8);
+      }
     }
 
     // ────────────────────────────────────────────────────────────────────────
@@ -246,4 +317,32 @@ export class PositionPredictor {
   public getIsPlaying(): boolean {
     return this.isPlaying;
   }
+}
+
+// ============================================================================
+// COLOR UTILITIES (for palette manipulation)
+// ============================================================================
+
+/**
+ * Convert hex color to RGB values.
+ */
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? {
+    r: parseInt(result[1], 16),
+    g: parseInt(result[2], 16),
+    b: parseInt(result[3], 16)
+  } : { r: 0, g: 0, b: 0 };
+}
+
+/**
+ * Convert RGB values to hex color.
+ */
+function rgbToHex(r: number, g: number, b: number): string {
+  const toHex = (n: number) => {
+    const clamped = Math.max(0, Math.min(255, Math.round(n)));
+    const hex = clamped.toString(16);
+    return hex.length === 1 ? '0' + hex : hex;
+  };
+  return '#' + toHex(r) + toHex(g) + toHex(b);
 }
