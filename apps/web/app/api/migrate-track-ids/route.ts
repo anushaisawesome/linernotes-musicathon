@@ -14,7 +14,7 @@ const prisma = new PrismaClient({
   adapter,
 });
 
-async function getSpotifyId(trackName: string, artistName: string): Promise<string | null> {
+async function getSpotifyToken(): Promise<string | null> {
   try {
     const clientId = process.env.SPOTIFY_CLIENT_ID;
     const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
@@ -24,7 +24,6 @@ async function getSpotifyId(trackName: string, artistName: string): Promise<stri
       return null;
     }
 
-    // Get Spotify app token
     const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
       method: 'POST',
       headers: {
@@ -35,35 +34,49 @@ async function getSpotifyId(trackName: string, artistName: string): Promise<stri
     });
 
     if (!tokenResponse.ok) {
-      console.error('Failed to get Spotify token');
+      const errorText = await tokenResponse.text();
+      console.error('Failed to get Spotify token:', tokenResponse.status, errorText);
       return null;
     }
 
     const { access_token } = await tokenResponse.json();
+    console.log('✓ Got Spotify access token');
+    return access_token;
+  } catch (error) {
+    console.error('Error getting Spotify token:', error);
+    return null;
+  }
+}
 
-    // Search for track
-    const query = encodeURIComponent(`${trackName} ${artistName}`);
+async function searchSpotifyTrack(trackName: string, artistName: string, accessToken: string): Promise<string | null> {
+  try {
+    const query = encodeURIComponent(`track:${trackName} artist:${artistName}`);
     const searchUrl = `https://api.spotify.com/v1/search?q=${query}&type=track&limit=1`;
 
     const searchResponse = await fetch(searchUrl, {
-      headers: { 'Authorization': `Bearer ${access_token}` },
+      headers: { 'Authorization': `Bearer ${accessToken}` },
     });
 
     if (!searchResponse.ok) {
-      console.error(`Search failed for "${trackName}" by ${artistName}`);
+      const errorText = await searchResponse.text();
+      console.error(`Search failed for "${trackName}" by ${artistName}: ${searchResponse.status} - ${errorText}`);
       return null;
     }
 
     const searchData = await searchResponse.json();
+    console.log(`Search result for "${trackName}" by ${artistName}:`, searchData.tracks?.items?.length || 0, 'results');
+
     const spotifyTrack = searchData.tracks?.items?.[0];
 
     if (spotifyTrack) {
+      console.log(`  ✓ Found: ${spotifyTrack.name} by ${spotifyTrack.artists[0].name} (${spotifyTrack.id})`);
       return spotifyTrack.id;
     }
 
+    console.log(`  ✗ No results found on Spotify`);
     return null;
   } catch (error) {
-    console.error(`Error looking up Spotify ID:`, error);
+    console.error(`Error searching for "${trackName}" by ${artistName}:`, error);
     return null;
   }
 }
@@ -77,6 +90,17 @@ export async function GET() {
 
   try {
     log('Starting track ID migration...\n');
+
+    // Get Spotify access token once
+    const accessToken = await getSpotifyToken();
+    if (!accessToken) {
+      log('ERROR: Failed to get Spotify access token');
+      return NextResponse.json({
+        success: false,
+        error: 'Failed to get Spotify access token',
+        log: output,
+      }, { status: 500 });
+    }
 
     // Find all reviews with UUID track IDs
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -101,7 +125,7 @@ export async function GET() {
       log(`Migrating: "${review.trackName}" by ${review.trackArtist}`);
       log(`  Old ID: ${review.trackId}`);
 
-      const spotifyId = await getSpotifyId(review.trackName, review.trackArtist);
+      const spotifyId = await searchSpotifyTrack(review.trackName, review.trackArtist, accessToken);
 
       if (spotifyId) {
         await prisma.review.update({
