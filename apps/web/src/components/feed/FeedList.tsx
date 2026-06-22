@@ -6,13 +6,16 @@ import { AlbumReviewItem } from "./AlbumReviewItem";
 
 interface FeedListProps {
   items: UnifiedFeedItem[];
+  currentUserId?: string;
   onLike?: (reviewId: string) => Promise<void>;
   onRepost?: (reviewId: string) => Promise<void>;
+  onDelete?: (reviewId: string) => Promise<void>;
   onAlbumLike?: (albumReviewId: string) => Promise<void>;
   onAlbumRepost?: (albumReviewId: string) => Promise<void>;
+  onAlbumDelete?: (albumReviewId: string) => Promise<void>;
 }
 
-export function FeedList({ items, onLike, onRepost, onAlbumLike, onAlbumRepost }: FeedListProps) {
+export function FeedList({ items, currentUserId, onLike, onRepost, onDelete, onAlbumLike, onAlbumRepost, onAlbumDelete }: FeedListProps) {
   if (items.length === 0) {
     return (
       <div
@@ -50,12 +53,24 @@ export function FeedList({ items, onLike, onRepost, onAlbumLike, onAlbumRepost }
 
             {/* Track Review */}
             {(item.kind === "review" || item.kind === "repost") && (
-              <ReviewItem review={item.review} onLike={onLike} onRepost={onRepost} />
+              <ReviewItem
+                review={item.review}
+                currentUserId={currentUserId}
+                onLike={onLike}
+                onRepost={onRepost}
+                onDelete={onDelete}
+              />
             )}
 
             {/* Album Review */}
             {(item.kind === "album_review" || item.kind === "album_repost") && (
-              <AlbumReviewItem albumReview={(item as any).albumReview} onLike={onAlbumLike} onRepost={onAlbumRepost} />
+              <AlbumReviewItem
+                albumReview={(item as any).albumReview}
+                currentUserId={currentUserId}
+                onLike={onAlbumLike}
+                onRepost={onAlbumRepost}
+                onDelete={onAlbumDelete}
+              />
             )}
           </div>
         );
