@@ -46,6 +46,19 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId");
     const type = searchParams.get("type"); // "reposts" | "saved" | null
+    const feed = searchParams.get("feed"); // "friends" | null
+
+    // Public feed - show all playlists
+    if (feed === "friends") {
+      const playlists = await prisma.playlist.findMany({
+        include: playlistInclude,
+        orderBy: { createdAt: "desc" },
+        take: 50,
+      });
+      return NextResponse.json({
+        playlists: playlists.map((p) => formatPlaylist(p, currentUserId)),
+      });
+    }
 
     // Reposts / saves — the current user's own collections, keyed off the session.
     if (type === "reposts" || type === "saved") {

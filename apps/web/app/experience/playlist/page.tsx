@@ -12,18 +12,71 @@ export default function ExperiencePlaylist() {
   useEffect(() => {
     async function loadPlaylist() {
       try {
-        // Get recent community track reviews
-        const reviews = await getReviews({ feed: "friends" });
-        const trackReviews = reviews
-          .filter((r) => r.track?.trackId && !r.track.trackId.startsWith("lastfm-"))
-          .slice(0, 10); // Get top 10 recent reviews
+        // Fetch all content types in parallel
+        const [trackReviews, albumReviews, playlists] = await Promise.all([
+          getReviews({ feed: "friends" }),
+          fetch('/api/album-reviews?feed=friends').then(r => r.json()).then(d => d.albumReviews || []),
+          fetch('/api/playlists?feed=friends').then(r => r.json()).then(d => d.playlists || []),
+        ]);
 
-        if (trackReviews.length > 0) {
-          // Open the community-feed experience starting at the most recent post,
-          // so prev/next walks the whole feed playlist.
-          router.replace(`/experience/${trackReviews[0].id}?type=feed`);
+        // Collect all items with annotations (notes/moments)
+        const annotatedItems: Array<{ id: string; type: string; createdAt: string; hasNotes: boolean }> = [];
+
+        // Track reviews with notes
+        trackReviews.forEach((review: any) => {
+          if (review.notes && review.notes.length > 0) {
+            annotatedItems.push({
+              id: review.id,
+              type: 'review',
+              createdAt: review.createdAt,
+              hasNotes: true,
+            });
+          }
+        });
+
+        // Album review tracks with notes
+        albumReviews.forEach((albumReview: any) => {
+          albumReview.trackReviews?.forEach((trackReview: any) => {
+            if (trackReview.notes && trackReview.notes.length > 0) {
+              annotatedItems.push({
+                id: trackReview.id,
+                type: 'review',
+                createdAt: trackReview.createdAt,
+                hasNotes: true,
+              });
+            }
+          });
+        });
+
+        // Playlist tracks with notes
+        playlists.forEach((playlist: any) => {
+          playlist.tracks?.forEach((track: any) => {
+            if (track.notes && track.notes.length > 0) {
+              annotatedItems.push({
+                id: track.id,
+                type: 'playlist-track',
+                createdAt: playlist.createdAt, // Use playlist creation time
+                hasNotes: true,
+              });
+            }
+          });
+        });
+
+        // Sort by most recent
+        annotatedItems.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+        if (annotatedItems.length > 0) {
+          const firstItem = annotatedItems[0];
+          // All items are reviews (track reviews or album track reviews)
+          // Playlist tracks aren't playable in Experience yet
+          if (firstItem.type === 'review') {
+            router.replace(`/experience/${firstItem.id}?type=feed`);
+          } else {
+            // Fallback to regular feed
+            router.replace("/feed");
+          }
         } else {
-          // No reviews yet, go to feed
+          // No annotated content, go to feed
           router.replace("/feed");
         }
       } catch (error) {
