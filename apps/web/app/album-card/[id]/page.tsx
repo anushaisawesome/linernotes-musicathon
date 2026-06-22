@@ -53,6 +53,10 @@ export default function AlbumCardPage() {
     if (id) loadAlbumReview();
   }, [id]);
 
+  const handleEdit = () => {
+    router.push(`/compose/album?edit=${id}`);
+  };
+
   const handleDelete = async () => {
     if (!albumReview) return;
     setDeleting(true);
@@ -123,6 +127,7 @@ export default function AlbumCardPage() {
         actions={
           <ReviewActions
             onShareCard={() => setShowShare(true)}
+            onEdit={handleEdit}
             onDelete={() => setShowDeleteConfirm(true)}
             isOwner={isOwner}
           />

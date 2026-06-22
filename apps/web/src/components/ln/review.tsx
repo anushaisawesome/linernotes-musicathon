@@ -440,12 +440,14 @@ export function ImmersiveReview({
 // A restyled action toolbar for owners/sharers, rendered in the hero-left column.
 export function ReviewActions({
   onShareCard,
+  onEdit,
   onPickNote,
   onDelete,
   isOwner,
   canPickNote,
 }: {
   onShareCard: () => void;
+  onEdit?: () => void;
   onPickNote?: () => void;
   onDelete?: () => void;
   isOwner: boolean;
@@ -474,14 +476,21 @@ export function ReviewActions({
         <LNIcon name="share" size={15} color="#2c1517" />
         Share review
       </button>
+      {isOwner && onEdit && (
+        <button onClick={onEdit} className="ln-press" style={{ ...btn, background: "rgba(59,130,246,0.14)", border: "1px solid rgba(59,130,246,0.4)", color: "#93c5fd" }}>
+          <LNIcon name="edit" size={15} color="#93c5fd" />
+          Edit review
+        </button>
+      )}
       {onPickNote && canPickNote && (
         <button onClick={onPickNote} className="ln-press" style={btn}>
-          <LNIcon name="edit" size={15} color={INK} />
+          <LNIcon name="star" size={15} color={INK} />
           Choose featured note
         </button>
       )}
       {isOwner && onDelete && (
         <button onClick={onDelete} className="ln-press" style={{ ...btn, background: "rgba(220,38,38,0.14)", border: "1px solid rgba(220,38,38,0.4)", color: "#ff8f8f" }}>
+          <LNIcon name="trash" size={15} color="#ff8f8f" />
           Delete
         </button>
       )}

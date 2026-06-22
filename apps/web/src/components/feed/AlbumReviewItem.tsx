@@ -103,32 +103,16 @@ export function AlbumReviewItem({
             {formatDate(albumReview.createdAt)}
           </span>
         </div>
-        <div className="flex items-center gap-2">
-          {isOwnReview && (
-            <Link
-              href={`/compose/album?edit=${albumReview.id}`}
-              className="text-sm px-4 py-2 rounded-lg hover:opacity-90 transition-all font-medium shadow-sm"
-              style={{
-                backgroundColor: "rgba(59, 130, 246, 0.1)",
-                color: "#3b82f6",
-                border: "1px solid rgba(59, 130, 246, 0.3)",
-              }}
-              title="Edit album review"
-            >
-              Edit
-            </Link>
-          )}
-          <Link
-            href={`/album-card/${albumReview.id}`}
-            className="text-sm px-4 py-2 rounded-lg hover:opacity-90 transition-all font-medium shadow-sm"
-            style={{
-              backgroundColor: "var(--ln-accent)",
-              color: "var(--ln-bg)",
-            }}
-          >
-            View
-          </Link>
-        </div>
+        <Link
+          href={`/album-card/${albumReview.id}`}
+          className="text-sm px-4 py-2 rounded-lg hover:opacity-90 transition-all font-medium shadow-sm"
+          style={{
+            backgroundColor: "var(--ln-accent)",
+            color: "var(--ln-bg)",
+          }}
+        >
+          View
+        </Link>
       </div>
 
       {/* Album Content - Clickable */}

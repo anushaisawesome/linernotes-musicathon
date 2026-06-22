@@ -77,6 +77,10 @@ export default function CardPage() {
     }
   };
 
+  const handleEdit = () => {
+    router.push(`/compose?edit=${id}`);
+  };
+
   const handleDelete = async () => {
     if (!review) return;
     setDeleting(true);
@@ -128,6 +132,7 @@ export default function CardPage() {
         actions={
           <ReviewActions
             onShareCard={() => setShowShare(true)}
+            onEdit={handleEdit}
             onPickNote={() => setShowNotePicker(true)}
             onDelete={() => setShowDeleteConfirm(true)}
             isOwner={isOwner}
