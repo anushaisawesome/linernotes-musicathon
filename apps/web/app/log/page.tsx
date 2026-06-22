@@ -25,6 +25,11 @@ function LogPageContent() {
   const searchParams = useSearchParams();
   const [initialTrack, setInitialTrack] = useState<Track | undefined>(undefined);
   const [isLookingUpSpotify, setIsLookingUpSpotify] = useState(false);
+  const [editReview, setEditReview] = useState<any>(null);
+  const [isLoadingReview, setIsLoadingReview] = useState(false);
+
+  // Check if we're editing an existing review
+  const editId = searchParams.get("edit");
 
   // Check if we have track data from Last.fm prompt
   const trackName = searchParams.get("track");
@@ -35,9 +40,43 @@ function LogPageContent() {
   const promptTag = searchParams.get("tag");
   const initialRating = searchParams.get("rating");
 
+  // Fetch review data if editing
+  useEffect(() => {
+    if (!editId) return;
+
+    async function fetchReview() {
+      setIsLoadingReview(true);
+      try {
+        const response = await fetch(`/api/reviews/${editId}`);
+        if (!response.ok) {
+          throw new Error("Failed to fetch review");
+        }
+        const { review } = await response.json();
+        setEditReview(review);
+
+        // Set initial track from review
+        setInitialTrack({
+          trackId: review.track.trackId,
+          name: review.track.name,
+          artist: review.track.artist,
+          album: review.track.album,
+          artworkUrl: review.track.artworkUrl,
+          previewUrl: review.track.previewUrl || "",
+        });
+      } catch (error) {
+        console.error("[Log Page] Failed to fetch review:", error);
+        alert("Failed to load review for editing");
+      } finally {
+        setIsLoadingReview(false);
+      }
+    }
+
+    fetchReview();
+  }, [editId]);
+
   // Look up real Spotify track ID for Last.fm tracks
   useEffect(() => {
-    if (!trackName || !artistName) return;
+    if (!trackName || !artistName || editId) return;
 
     async function lookupSpotifyTrack() {
       setIsLookingUpSpotify(true);
@@ -107,15 +146,28 @@ function LogPageContent() {
     lookupSpotifyTrack();
   }, [trackName, artistName, albumName, artworkUrl]);
 
+  // Show loading state while fetching review
+  if (isLoadingReview) {
+    return (
+      <div style={{ background: "var(--ln-bg)", color: "var(--ln-fg)", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ width: 28, height: 28, borderRadius: "50%", border: "3px solid rgba(var(--ln-fg-rgb),0.15)", borderTopColor: "var(--ln-accent)", animation: "ln-spin 0.8s linear infinite" }} />
+      </div>
+    );
+  }
+
   return (
     <div style={{ background: "var(--ln-bg)", color: "var(--ln-fg)", minHeight: "100vh", display: "flex", flexDirection: "column", flex: 1 }}>
       <TopBar />
 
       <main style={{ position: "relative", zIndex: 1, flex: 1 }}>
         <section style={{ maxWidth: 960, margin: "0 auto", padding: "112px 20px 90px" }}>
-          <h1 style={{ margin: 0, fontFamily: "var(--ln-display)", fontWeight: 600, fontSize: 30, letterSpacing: "-0.01em" }}>Log a note</h1>
+          <h1 style={{ margin: 0, fontFamily: "var(--ln-display)", fontWeight: 600, fontSize: 30, letterSpacing: "-0.01em" }}>
+            {editId ? "Edit note" : "Log a note"}
+          </h1>
           <p style={{ margin: "8px 0 24px", fontFamily: "var(--ln-preview)", fontStyle: "italic", fontSize: 17, color: "var(--ln-muted)" }}>
-            {promptText || "Search a track, rate it, and time-stamp the exact second it got you. A rating alone is a valid note."}
+            {editId
+              ? "Update your rating, note, or moments below."
+              : promptText || "Search a track, rate it, and time-stamp the exact second it got you. A rating alone is a valid note."}
           </p>
           {promptTag && (
             <div style={{ marginBottom: 16, padding: "6px 12px", borderRadius: 999, background: "rgba(var(--ln-accent-rgb),0.12)", border: "1px solid rgba(var(--ln-accent-rgb),0.3)", display: "inline-flex", alignItems: "center", gap: 6 }}>
@@ -126,7 +178,10 @@ function LogPageContent() {
           <ComposeForm
             searchAPI={searchSpotifyTracks}
             initialTrack={initialTrack}
-            initialRating={initialRating ? parseInt(initialRating) : undefined}
+            initialRating={editReview ? editReview.rating : (initialRating ? parseInt(initialRating) : undefined)}
+            editReviewId={editId || undefined}
+            initialTake={editReview?.take}
+            initialNotes={editReview?.notes}
           />
         </section>
       </main>

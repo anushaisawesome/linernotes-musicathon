@@ -17,9 +17,12 @@ interface ComposeFormProps {
   searchAPI?: (query: string, offset?: number) => Promise<Track[]>;
   initialTrack?: Track;
   initialRating?: number;
+  editReviewId?: string;
+  initialTake?: string;
+  initialNotes?: Array<{ seconds: number; label: string; note?: string; lyric?: string }>;
 }
 
-export function ComposeForm({ onSubmit, onSuccess, searchAPI, initialTrack, initialRating }: ComposeFormProps) {
+export function ComposeForm({ onSubmit, onSuccess, searchAPI, initialTrack, initialRating, editReviewId, initialTake, initialNotes }: ComposeFormProps) {
   const { data: session } = useSession();
   const [track, setTrack] = useState<Track | null>(initialTrack || null);
   const [rating, setRating] = useState(initialRating || 0);
@@ -32,10 +35,17 @@ export function ComposeForm({ onSubmit, onSuccess, searchAPI, initialTrack, init
   useEffect(() => {
     if (initialRating) setRating(initialRating);
   }, [initialRating]);
-  const [showLine, setShowLine] = useState(false);
-  const [line, setLine] = useState("");
-  const [showMoments, setShowMoments] = useState(false);
-  const [moments, setMoments] = useState<DraftMoment[]>([]);
+  const [showLine, setShowLine] = useState(!!initialTake);
+  const [line, setLine] = useState(initialTake || "");
+  const [showMoments, setShowMoments] = useState(!!initialNotes && initialNotes.length > 0);
+  const [moments, setMoments] = useState<DraftMoment[]>(
+    initialNotes?.map(note => ({
+      seconds: note.seconds,
+      label: note.label,
+      note: note.note || "",
+      lyric: note.lyric,
+    })) || []
+  );
   const [captionIdx, setCaptionIdx] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   // Which moment leads the card. Tracked by content signature (not index) so it
@@ -112,6 +122,25 @@ export function ComposeForm({ onSubmit, onSuccess, searchAPI, initialTrack, init
 
       if (onSubmit) {
         await onSubmit(reviewData as unknown as Partial<Review>);
+      } else if (editReviewId) {
+        // Update existing review
+        const response = await fetch(`/api/reviews/${editReviewId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            rating,
+            take: take || undefined,
+            notes: orderedMoments.length > 0 ? orderedMoments.map((m) => ({ seconds: m.seconds, label: m.label || "moment", note: m.note || undefined, lyric: m.lyric || undefined })) : undefined,
+          }),
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || "Failed to update review");
+        }
+
+        const { review: updatedReview } = await response.json();
+        onSuccess?.(updatedReview);
       } else {
         const { createReview } = await import("@/lib/api");
         const newReview = await createReview(reviewData);
@@ -135,7 +164,7 @@ export function ComposeForm({ onSubmit, onSuccess, searchAPI, initialTrack, init
     } catch (error) {
       console.error("Failed to submit review:", error);
       const msg = error instanceof Error ? error.message : "Failed to submit";
-      alert(msg === "Authentication required" || /unauthor/i.test(msg) ? "Please log in to post a note." : `Couldn't post: ${msg}`);
+      alert(msg === "Authentication required" || /unauthor/i.test(msg) ? "Please log in to post a note." : `Couldn't ${editReviewId ? 'update' : 'post'}: ${msg}`);
     } finally {
       setSubmitting(false);
     }
@@ -227,7 +256,7 @@ export function ComposeForm({ onSubmit, onSuccess, searchAPI, initialTrack, init
             )}
 
             <button type="submit" disabled={!canPost || submitting} className="ln-press" style={{ width: "100%", marginTop: 22, padding: "15px", borderRadius: 14, border: "none", cursor: canPost && !submitting ? "pointer" : "default", fontFamily: "var(--ln-body)", fontSize: 15.5, fontWeight: 700, background: canPost ? gold : "rgba(var(--ln-fg-rgb),0.1)", color: canPost ? "#2c1517" : "rgba(var(--ln-fg-rgb),0.4)", transition: "background 0.2s" }}>
-              {submitting ? "Posting…" : !canPost ? "Add a rating to post" : depth === "full" ? "Post note" : depth === "caption" ? "Post" : "Post rating"}
+              {submitting ? (editReviewId ? "Updating…" : "Posting…") : !canPost ? "Add a rating to post" : editReviewId ? "Update note" : depth === "full" ? "Post note" : depth === "caption" ? "Post" : "Post rating"}
             </button>
           </div>
 
