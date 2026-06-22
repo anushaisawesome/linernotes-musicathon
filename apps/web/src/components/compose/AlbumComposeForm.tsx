@@ -8,6 +8,7 @@ import { LNArt, LNReact, LN_REACT, LNIcon } from "@/components/ln/atoms";
 import { LNWCard } from "@/components/ln/cards";
 import { paletteFromString } from "@/lib/palette";
 import type { ReviewVM, TrackVM } from "@/lib/view-adapter";
+import { LyricsBrowser } from "./LyricsBrowser";
 
 interface AlbumComposeFormProps {
   onSubmit?: (albumReview: Partial<AlbumReview>) => Promise<void>;
@@ -18,7 +19,7 @@ interface AlbumComposeFormProps {
   initialAlbum?: { album: string; artist: string; artworkUrl?: string };
 }
 
-interface TrackNote { seconds: number; label: string; note?: string }
+interface TrackNote { seconds: number; label: string; note?: string; lyric?: string }
 interface TrackReaction {
   track: Track;
   trackNumber: number;
@@ -28,6 +29,7 @@ interface TrackReaction {
   notes: TrackNote[];
   showNoteForm: boolean;
   included: boolean; // explicitly shown on the review even without a reaction/note
+  momentInputMode: 'manual' | 'lyrics'; // toggle between manual timestamps and lyrics annotation
 }
 
 export function AlbumComposeForm({ onSubmit, onSuccess, searchAPI, initialAlbum }: AlbumComposeFormProps) {
@@ -63,6 +65,7 @@ export function AlbumComposeForm({ onSubmit, onSuccess, searchAPI, initialAlbum 
             notes: [],
             showNoteForm: false,
             included: false,
+            momentInputMode: 'manual' as const,
           }))
         );
       }
@@ -130,7 +133,7 @@ export function AlbumComposeForm({ onSubmit, onSuccess, searchAPI, initialAlbum 
       n: tr.trackNumber,
       name: tr.track.name,
       reaction: tr.reaction,
-      moments: tr.notes.map((n) => ({ sec: n.seconds, label: n.label || "moment", note: n.note || "" })),
+      moments: tr.notes.map((n) => ({ sec: n.seconds, label: n.label || "moment", note: n.note || "", lyric: n.lyric })),
       review: tr.take || undefined,
     }));
     return {
@@ -188,7 +191,7 @@ export function AlbumComposeForm({ onSubmit, onSuccess, searchAPI, initialAlbum 
           trackNumber: tr.trackNumber,
           notes: tr.notes
             .filter((n) => n.label || n.note)
-            .map((n) => ({ seconds: n.seconds, label: n.label || "moment", note: n.note || undefined })),
+            .map((n) => ({ seconds: n.seconds, label: n.label || "moment", note: n.note || undefined, lyric: n.lyric || undefined })),
         })),
       };
 
@@ -324,12 +327,75 @@ export function AlbumComposeForm({ onSubmit, onSuccess, searchAPI, initialAlbum 
                         </div>
                         {open && (
                           <div style={{ padding: "2px 14px 14px", display: "flex", flexDirection: "column", gap: 9, background: `${gold}07` }}>
-                            <textarea value={tr.take || ""} onChange={(e) => upd(i, { take: e.target.value })} rows={2} placeholder={`A note on “${tr.track.name}”…`} style={{ ...cmpInput, fontSize: 13.5 }} />
-                            <MomentsEditor
-                              moments={tr.notes.map((n) => ({ seconds: n.seconds, label: n.label || "moment", note: n.note || "" }))}
-                              onAdd={(m) => upd(i, { notes: [...tr.notes, { seconds: m.seconds, label: m.label || "moment", note: m.note }].sort((a, b) => a.seconds - b.seconds) })}
-                              onRemove={(idx) => upd(i, { notes: tr.notes.filter((_, j) => j !== idx) })}
-                            />
+                            <textarea value={tr.take || ""} onChange={(e) => upd(i, { take: e.target.value })} rows={2} placeholder={`A note on "${tr.track.name}"…`} style={{ ...cmpInput, fontSize: 13.5 }} />
+
+                            {/* Toggle between Manual and Lyrics input */}
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+                              <span style={{ fontFamily: "var(--ln-mono)", fontSize: 10, letterSpacing: "0.06em", color: "rgba(var(--ln-fg-rgb),0.5)", textTransform: "uppercase" }}>Moments</span>
+                              <div style={{ display: "flex", borderRadius: 6, border: "1px solid rgba(var(--ln-fg-rgb),0.12)", overflow: "hidden" }}>
+                                <button
+                                  type="button"
+                                  onClick={() => upd(i, { momentInputMode: 'manual' })}
+                                  className="ln-press"
+                                  style={{
+                                    padding: "4px 10px",
+                                    border: "none",
+                                    cursor: "pointer",
+                                    fontFamily: "var(--ln-body)",
+                                    fontSize: 11.5,
+                                    fontWeight: 600,
+                                    background: tr.momentInputMode === 'manual' ? `${gold}22` : "transparent",
+                                    color: tr.momentInputMode === 'manual' ? gold : "rgba(var(--ln-fg-rgb),0.6)",
+                                    borderRight: "1px solid rgba(var(--ln-fg-rgb),0.12)",
+                                  }}
+                                >
+                                  Manual
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => upd(i, { momentInputMode: 'lyrics' })}
+                                  className="ln-press"
+                                  style={{
+                                    padding: "4px 10px",
+                                    border: "none",
+                                    cursor: "pointer",
+                                    fontFamily: "var(--ln-body)",
+                                    fontSize: 11.5,
+                                    fontWeight: 600,
+                                    background: tr.momentInputMode === 'lyrics' ? `${gold}22` : "transparent",
+                                    color: tr.momentInputMode === 'lyrics' ? gold : "rgba(var(--ln-fg-rgb),0.6)",
+                                  }}
+                                >
+                                  Lyrics
+                                </button>
+                              </div>
+                            </div>
+
+                            {tr.momentInputMode === 'manual' ? (
+                              <MomentsEditor
+                                moments={tr.notes.map((n) => ({ seconds: n.seconds, label: n.label || "moment", note: n.note || "" }))}
+                                onAdd={(m) => upd(i, { notes: [...tr.notes, { seconds: m.seconds, label: m.label || "moment", note: m.note }].sort((a, b) => a.seconds - b.seconds) })}
+                                onRemove={(idx) => upd(i, { notes: tr.notes.filter((_, j) => j !== idx) })}
+                              />
+                            ) : (
+                              <div style={{ marginTop: 4, maxHeight: 400, border: "1px solid rgba(var(--ln-fg-rgb),0.1)", borderRadius: 8, overflow: "hidden" }}>
+                                <LyricsBrowser
+                                  trackName={tr.track.name}
+                                  artistName={tr.track.artist}
+                                  onBookmark={(moment) => {
+                                    upd(i, {
+                                      notes: [...tr.notes, {
+                                        seconds: moment.seconds,
+                                        label: moment.label || "moment",
+                                        note: moment.note,
+                                        lyric: moment.lyric,
+                                      }].sort((a, b) => a.seconds - b.seconds)
+                                    });
+                                  }}
+                                  bookmarkedLines={new Set(tr.notes.map(n => n.lyric || '').filter(Boolean))}
+                                />
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
