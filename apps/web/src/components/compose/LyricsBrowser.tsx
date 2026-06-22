@@ -56,7 +56,15 @@ export function LyricsBrowser({ trackIsrc, trackName, artistName, onBookmark, bo
         const data = await res.json();
         console.log("[LyricsBrowser] API response data:", data);
 
-        if (data.lyrics && Array.isArray(data.lyrics)) {
+        // Provider down / key expired — degrade with a clear message. The rest of
+        // the composer (the take + manually-added timestamped moments) still works.
+        if (data.unavailable) {
+          setLyrics([]);
+          setError("Lyrics are temporarily unavailable — you can still add timestamped moments manually.");
+          return;
+        }
+
+        if (data.lyrics && Array.isArray(data.lyrics) && data.lyrics.length > 0) {
           // Musixmatch subtitle format
           const parsedLyrics = data.lyrics.map((line: any) => ({
             text: line.text || "",

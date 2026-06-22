@@ -23,13 +23,17 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  // Lyrics are an enhancement, never a gate. Any failure returns HTTP 200 with
+  // empty lyrics + `unavailable: true`, so the Experience keeps playing (and the
+  // composer keeps working) when the Musixmatch key is missing, expired, or
+  // rate-limited. Callers treat an empty list as "no synced lyrics".
+  const unavailable = (reason: string) =>
+    NextResponse.json({ lyrics: [], unavailable: true, reason }, { status: 200 });
+
   const apiKey = process.env.MUSIXMATCH_API_KEY;
   if (!apiKey) {
-    console.error("[Musixmatch] API key not configured");
-    return NextResponse.json(
-      { error: "Musixmatch API not configured" },
-      { status: 500 }
-    );
+    console.warn("[Musixmatch] API key not configured — returning no lyrics");
+    return unavailable("lyrics_provider_unavailable");
   }
 
   try {
@@ -46,15 +50,21 @@ export async function GET(request: NextRequest) {
 
     const matcherRes = await fetch(matcherUrl);
     if (!matcherRes.ok) {
-      console.error("[Musixmatch] Matcher API error:", matcherRes.status);
-      return NextResponse.json(
-        { error: "Failed to find track" },
-        { status: matcherRes.status }
-      );
+      console.warn("[Musixmatch] Matcher API error:", matcherRes.status, "— returning no lyrics");
+      return unavailable("lyrics_provider_unavailable");
     }
 
     const matcherData = await matcherRes.json();
     console.log("[Musixmatch] Matcher response:", JSON.stringify(matcherData, null, 2));
+
+    // Musixmatch reports auth/quota failures with HTTP 200 and a status_code in
+    // the body: 401 = bad/expired key, 402 = usage limit, 403 = forbidden. Treat
+    // those as "lyrics unavailable" so the rest of the app keeps working.
+    const mmStatus = matcherData.message?.header?.status_code;
+    if (mmStatus && [401, 402, 403, 429].includes(mmStatus)) {
+      console.warn("[Musixmatch] Provider unavailable (status_code", mmStatus + ") — returning no lyrics");
+      return unavailable("lyrics_provider_unavailable");
+    }
 
     const trackData = matcherData.message?.body?.track;
 
@@ -74,11 +84,8 @@ export async function GET(request: NextRequest) {
 
     const lyricsRes = await fetch(lyricsUrl);
     if (!lyricsRes.ok) {
-      console.error("[Musixmatch] Lyrics API error:", lyricsRes.status);
-      return NextResponse.json(
-        { error: "Failed to fetch lyrics" },
-        { status: lyricsRes.status }
-      );
+      console.warn("[Musixmatch] Lyrics API error:", lyricsRes.status, "— returning no lyrics");
+      return unavailable("lyrics_provider_unavailable");
     }
 
     const lyricsData = await lyricsRes.json();
@@ -195,12 +202,8 @@ export async function GET(request: NextRequest) {
 
       console.log("[Musixmatch] Parsed", parsedLyrics.length, "lyric lines from LRC format");
     } catch (error) {
-      console.error("[Musixmatch] Failed to parse lyrics:", error);
-      console.error("[Musixmatch] Subtitle body preview:", typeof subtitle.subtitle_body === 'string' ? subtitle.subtitle_body.substring(0, 200) : subtitle.subtitle_body);
-      return NextResponse.json(
-        { error: `Invalid lyrics format: ${error instanceof Error ? error.message : 'Unknown error'}` },
-        { status: 500 }
-      );
+      console.warn("[Musixmatch] Failed to parse lyrics — returning no lyrics:", error);
+      return unavailable("lyrics_unparseable");
     }
 
     console.log("[Musixmatch] Successfully fetched synced lyrics for:", trackData.track_name);
@@ -280,10 +283,8 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error("[Musixmatch] Unexpected error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    // Network failure, JSON parse error, etc. — never block the caller.
+    console.warn("[Musixmatch] Unexpected error — returning no lyrics:", error);
+    return unavailable("lyrics_provider_unavailable");
   }
 }

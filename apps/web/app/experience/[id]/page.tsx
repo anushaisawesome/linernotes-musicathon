@@ -420,19 +420,19 @@ function ExperienceContent() {
         console.log("[Experience] Fetching lyrics for:", trackName, "by", artistName);
         const res = await fetch(`/api/lyrics?track=${encodeURIComponent(trackName)}&artist=${encodeURIComponent(artistName)}`);
 
-        if (res.status === 401 || res.status === 403) {
-          setError("Musixmatch trial key has expired. See the video for the full experience!");
-          return;
-        }
-
+        // Lyrics are an enhancement, never a gate. Any failure (expired/unauthorised
+        // Musixmatch key → 401/403, rate-limit → 429, network, etc.) degrades to
+        // "no synced lyrics" — the music, note and moments keep playing.
         if (!res.ok) {
-          console.log("No lyrics available for this track");
+          console.log("[Experience] Lyrics unavailable (status", res.status + ") — continuing without them");
           setLyrics(null);
+          setTranslation(null);
+          setShowTranslation(false);
           return;
         }
 
         const data = await res.json();
-        if (data.lyrics && Array.isArray(data.lyrics)) {
+        if (data.lyrics && Array.isArray(data.lyrics) && data.lyrics.length > 0) {
           setLyrics({ lines: data.lyrics });
           console.log("[Experience] Loaded", data.lyrics.length, "synced lyric lines");
 
