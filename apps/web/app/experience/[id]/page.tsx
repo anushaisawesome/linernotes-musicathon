@@ -288,30 +288,32 @@ function ExperienceContent() {
     if (!player || !tid) return;
     if (playedTrackRef.current === tid) return;
 
-    // MIGRATION FIX: If trackId is a UUID (old data), search for Spotify ID
-    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tid);
-    if (isUUID && review) {
-      console.warn("[Experience] Track ID is a UUID, searching for Spotify ID...");
+    // MIGRATION FIX: If trackId is a UUID or non-Spotify ID, search for Spotify ID
+    const isSpotifyId = /^[a-zA-Z0-9]{22}$/.test(tid);
+    if (!isSpotifyId && review) {
+      console.warn("[Experience] Track ID is not a Spotify ID, searching for Spotify ID...");
       const trackName = review?.track?.name;
       const artistName = review?.track?.artist;
 
       if (trackName && artistName) {
-        fetch(`/api/search?q=${encodeURIComponent(`${trackName} ${artistName}`)}&type=track`)
+        fetch(`/api/spotify-search?track=${encodeURIComponent(trackName)}&artist=${encodeURIComponent(artistName)}`)
           .then(res => res.json())
           .then(data => {
-            const spotifyTrack = data.tracks?.[0];
-            if (spotifyTrack?.trackId) {
-              console.log("[Experience] Found Spotify ID:", spotifyTrack.trackId);
-              playedTrackRef.current = spotifyTrack.trackId;
-              player.playTrack(`spotify:track:${spotifyTrack.trackId}`).catch((e) => {
+            if (data.trackId) {
+              console.log("[Experience] Found Spotify ID:", data.trackId);
+              playedTrackRef.current = data.trackId;
+              player.playTrack(`spotify:track:${data.trackId}`).catch((e) => {
                 console.error("[Experience] Failed to play track:", e);
               });
             } else {
-              console.error("[Experience] No Spotify track found");
+              console.error("[Experience] No Spotify track found:", data.error);
               setError("Track not available on Spotify");
             }
           })
-          .catch(e => console.error("[Experience] Search failed:", e));
+          .catch(e => {
+            console.error("[Experience] Spotify search failed:", e);
+            setError("Failed to find track on Spotify");
+          });
       }
       return;
     }
