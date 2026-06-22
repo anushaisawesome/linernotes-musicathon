@@ -284,9 +284,38 @@ function ExperienceContent() {
   // load, on next/prev, on auto-advance), play it on the shared device. Routed
   // through one place so a reused page instance still starts the right song.
   useEffect(() => {
-    const tid = review?.track?.trackId;
+    let tid = review?.track?.trackId;
     if (!player || !tid) return;
     if (playedTrackRef.current === tid) return;
+
+    // MIGRATION FIX: If trackId is a UUID (old data), search for Spotify ID
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tid);
+    if (isUUID) {
+      console.warn("[Experience] Track ID is a UUID, searching for Spotify ID...");
+      const trackName = review.track?.name;
+      const artistName = review.track?.artist;
+
+      if (trackName && artistName) {
+        fetch(`/api/search?q=${encodeURIComponent(`${trackName} ${artistName}`)}&type=track`)
+          .then(res => res.json())
+          .then(data => {
+            const spotifyTrack = data.tracks?.[0];
+            if (spotifyTrack?.trackId) {
+              console.log("[Experience] Found Spotify ID:", spotifyTrack.trackId);
+              playedTrackRef.current = spotifyTrack.trackId;
+              player.playTrack(`spotify:track:${spotifyTrack.trackId}`).catch((e) => {
+                console.error("[Experience] Failed to play track:", e);
+              });
+            } else {
+              console.error("[Experience] No Spotify track found");
+              setError("Track not available on Spotify");
+            }
+          })
+          .catch(e => console.error("[Experience] Search failed:", e));
+      }
+      return;
+    }
+
     playedTrackRef.current = tid;
     player.playTrack(`spotify:track:${tid}`).catch((e) => {
       console.error("[Experience] Failed to play track:", e);
@@ -354,8 +383,15 @@ function ExperienceContent() {
         // Create rhythm from real BPM
         const rhythm = createMockRhythm(bpm);
 
-        // Initialize engine
-        engineRef.current = new VisualiserEngine(baseAesthetic, rhythm);
+        // Extract rhythmic texture features
+        const rhythmicTexture = audioFeatures ? {
+          rhythmicDensity: audioFeatures.rhythmicDensity,
+          percussiveStrength: audioFeatures.percussiveStrength,
+          grooveRegularity: audioFeatures.grooveRegularity,
+        } : undefined;
+
+        // Initialize engine with rhythmic texture
+        engineRef.current = new VisualiserEngine(baseAesthetic, rhythm, rhythmicTexture);
       } catch (error) {
         console.error('[Visualiser] Failed to initialize:', error);
         // Fallback to defaults
