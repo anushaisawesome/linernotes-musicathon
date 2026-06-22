@@ -1128,14 +1128,17 @@ function ExperienceContent() {
                             fontSize: isActive ? 22 : isAnnotated ? 19 : 18,
                             lineHeight: 1.25,
                             letterSpacing: "-0.01em",
-                            color: isActive ? INK : isAnnotated ? "#f5f1e8" : passed ? muted(0.32) : muted(0.5),
-                            opacity: isActive ? 1 : isAnnotated ? 0.9 : Math.max(0.26, 1 - dist * 0.16),
+                            color: (isActive && isAnnotated) ? "#2c1517" : isActive ? INK : passed ? muted(0.32) : muted(0.5),
+                            opacity: isActive ? 1 : Math.max(0.26, 1 - dist * 0.16),
                             transition: "all 0.4s cubic-bezier(.2,.8,.2,1)",
                             wordWrap: "break-word",
-                            textShadow: isAnnotated && !isActive ? `0 0 16px ${accent}, 0 0 8px ${accent}99` : "none",
+                            padding: (isActive && isAnnotated) ? "10px 13px" : "0",
+                            borderRadius: (isActive && isAnnotated) ? 10 : 0,
+                            background: (isActive && isAnnotated) ? accent : "transparent",
+                            border: (isActive && isAnnotated) ? `1px solid ${accent}` : "none",
+                            boxShadow: (isActive && isAnnotated) ? `0 8px 20px -8px ${accent}` : "none",
                           }}>
-                            {isActive && <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: accent, marginRight: 12, verticalAlign: "middle", boxShadow: `0 0 0 4px ${accent}33` }} />}
-                            {isAnnotated && !isActive && <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: accent, marginRight: 10, verticalAlign: "middle", boxShadow: `0 0 8px ${accent}` }} />}
+                            {isActive && !isAnnotated && <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: accent, marginRight: 12, verticalAlign: "middle", boxShadow: `0 0 0 4px ${accent}33` }} />}
                             {line.text}
                           </div>
                           {showTranslation && translatedLine && translatedLine.text !== line.text && (
