@@ -46,11 +46,26 @@ export async function GET(request: NextRequest) {
     if (!searchResponse.ok) {
       if (searchResponse.status === 429) {
         const retryAfter = searchResponse.headers.get('Retry-After');
-        const waitSeconds = retryAfter ? parseInt(retryAfter) : 30;
+        let waitSeconds = 30; // default
+
+        if (retryAfter) {
+          // Retry-After can be either seconds (integer) or HTTP date
+          const parsed = parseInt(retryAfter);
+          if (!isNaN(parsed) && parsed < 86400) { // Less than 1 day = it's seconds
+            waitSeconds = parsed;
+          } else {
+            // Might be HTTP date, calculate difference
+            const retryDate = new Date(retryAfter);
+            if (!isNaN(retryDate.getTime())) {
+              waitSeconds = Math.max(30, Math.floor((retryDate.getTime() - Date.now()) / 1000));
+            }
+          }
+        }
+
         console.warn(`[Spotify Search] Rate limit hit, retry after ${waitSeconds}s`);
         return NextResponse.json(
           {
-            error: `Spotify rate limit exceeded, please wait ${waitSeconds} seconds`,
+            error: `Spotify rate limit exceeded, please wait ${Math.ceil(waitSeconds / 60)} minutes`,
             retryAfter: waitSeconds
           },
           { status: 429 }
