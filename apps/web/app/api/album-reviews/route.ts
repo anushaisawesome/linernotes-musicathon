@@ -181,8 +181,8 @@ export async function GET(request: NextRequest) {
         likeCount: albumReview._count.likes,
         repostCount: albumReview._count.reposts,
         saveCount: albumReview._count.saves,
-        likedByMe: albumReview.likes.length > 0,
-        repostedByMe: albumReview.reposts.some(r => r.userId === currentUserId),
+        likedByMe: Array.isArray(albumReview.likes) && albumReview.likes.length > 0,
+        repostedByMe: currentUserId ? albumReview.reposts.some(r => r.userId === currentUserId) : false,
         saved: Array.isArray(albumReview.saves) && albumReview.saves.length > 0,
         reposts: albumReview.reposts.map(r => ({
           id: r.id,
