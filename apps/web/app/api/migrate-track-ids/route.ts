@@ -1,18 +1,5 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg';
-import { Pool } from 'pg';
-
-// Initialize Prisma with pg adapter
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
-
-const adapter = new PrismaPg(pool);
-
-const prisma = new PrismaClient({
-  adapter,
-});
+import { prisma } from '@/lib/prisma';
 
 async function getSpotifyToken(): Promise<string | null> {
   try {
@@ -291,7 +278,5 @@ export async function GET() {
       error: String(error),
       log: output,
     }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
   }
 }
