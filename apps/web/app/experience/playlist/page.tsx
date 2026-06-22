@@ -12,11 +12,38 @@ export default function ExperiencePlaylist() {
   useEffect(() => {
     async function loadPlaylist() {
       try {
-        // Fetch all content types in parallel
+        // Fetch all content types in parallel with detailed error handling
         const [trackReviews, albumReviews, playlists] = await Promise.all([
-          getReviews({ feed: "friends" }),
-          fetch('/api/album-reviews?feed=friends').then(r => r.json()).then(d => d.albumReviews || []),
-          fetch('/api/playlists?feed=friends').then(r => r.json()).then(d => d.playlists || []),
+          getReviews({ feed: "friends" }).catch(e => {
+            console.error("[Experience] Failed to fetch track reviews:", e);
+            throw new Error(`Track reviews: ${e.message}`);
+          }),
+          fetch('/api/album-reviews?feed=friends')
+            .then(async r => {
+              if (!r.ok) {
+                const errorText = await r.text();
+                throw new Error(`Album reviews (${r.status}): ${errorText}`);
+              }
+              return r.json();
+            })
+            .then(d => d.albumReviews || [])
+            .catch(e => {
+              console.error("[Experience] Failed to fetch album reviews:", e);
+              throw new Error(`Album reviews: ${e.message}`);
+            }),
+          fetch('/api/playlists?feed=friends')
+            .then(async r => {
+              if (!r.ok) {
+                const errorText = await r.text();
+                throw new Error(`Playlists (${r.status}): ${errorText}`);
+              }
+              return r.json();
+            })
+            .then(d => d.playlists || [])
+            .catch(e => {
+              console.error("[Experience] Failed to fetch playlists:", e);
+              throw new Error(`Playlists: ${e.message}`);
+            }),
         ]);
 
         // Collect all items with annotations (notes/moments)
@@ -81,9 +108,11 @@ export default function ExperiencePlaylist() {
         }
       } catch (error) {
         console.error("Failed to load experience playlist:", error);
-        router.replace("/feed");
-      } finally {
+        console.error("Error details:", error instanceof Error ? error.message : String(error));
+        // Don't redirect immediately - show the error state
         setLoading(false);
+        alert(`Failed to load reviews: ${error instanceof Error ? error.message : String(error)}\n\nCheck the console for details.`);
+        router.replace("/feed");
       }
     }
 
