@@ -57,6 +57,7 @@ export async function GET(
       trackReviews: albumReview.trackReviews.map(review => ({
         id: review.id,
         userId: review.userId,
+        user: albumReview.user, // Inherit album reviewer as track review author
         track: {
           trackId: review.trackId,
           name: review.trackName,
@@ -74,6 +75,7 @@ export async function GET(
           seconds: note.seconds,
           label: note.label,
           note: note.note || undefined,
+          lyric: note.lyric || undefined,
           createdAt: note.createdAt.toISOString(),
         })),
         featuredNoteId: review.featuredNoteId || undefined,
@@ -179,6 +181,7 @@ export async function PATCH(
       trackReviews: updatedAlbumReview.trackReviews.map(review => ({
         id: review.id,
         userId: review.userId,
+        user: updatedAlbumReview.user, // Inherit album reviewer as track review author
         track: {
           trackId: review.trackId,
           name: review.trackName,
@@ -196,6 +199,7 @@ export async function PATCH(
           seconds: note.seconds,
           label: note.label,
           note: note.note || undefined,
+          lyric: note.lyric || undefined,
           createdAt: note.createdAt.toISOString(),
         })),
         featuredNoteId: review.featuredNoteId || undefined,
