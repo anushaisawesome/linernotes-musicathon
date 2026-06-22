@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getSpotifyAppToken } from '@/lib/spotify-token-cache';
 
 /**
  * GET /api/spotify-search?track=...&artist=...
@@ -6,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
  * Spotify-only search for Experience playback fallback
  * Returns only Spotify track IDs (never iTunes/MusicBrainz)
  */
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const trackName = searchParams.get('track');
@@ -19,34 +21,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Get Spotify app token
-    const clientId = process.env.SPOTIFY_CLIENT_ID;
-    const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
-
-    if (!clientId || !clientSecret) {
-      return NextResponse.json(
-        { error: 'Spotify not configured' },
-        { status: 500 }
-      );
-    }
-
-    const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Authorization': `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
-      },
-      body: 'grant_type=client_credentials',
-    });
-
-    if (!tokenResponse.ok) {
-      return NextResponse.json(
-        { error: 'Failed to get Spotify token' },
-        { status: 500 }
-      );
-    }
-
-    const { access_token } = await tokenResponse.json();
+    // Get cached or new Spotify token
+    const access_token = await getSpotifyAppToken();
 
     // Search Spotify
     const query = encodeURIComponent(`track:${trackName} artist:${artistName}`);
@@ -57,6 +33,13 @@ export async function GET(request: NextRequest) {
     });
 
     if (!searchResponse.ok) {
+      if (searchResponse.status === 429) {
+        console.warn('[Spotify Search] Rate limit hit, returning 429');
+        return NextResponse.json(
+          { error: 'Spotify rate limit exceeded, please wait' },
+          { status: 429 }
+        );
+      }
       return NextResponse.json(
         { error: 'Spotify search failed' },
         { status: searchResponse.status }
