@@ -88,6 +88,11 @@ export function VisualiserCanvas({ visualState, width, height, className }: Visu
       }
 
       // ──────────────────────────────────────────────────────────────────────
+      // Layer 2.5: ENERGY INDICATOR (make energy VERY visible)
+      // ──────────────────────────────────────────────────────────────────────
+      drawEnergyIndicator(ctx, canvas, visualState, smoothedState.smoothIntensity);
+
+      // ──────────────────────────────────────────────────────────────────────
       // Layer 3: Lyric Accent Effects
       // ──────────────────────────────────────────────────────────────────────
       if (visualState.accentColour) {
@@ -497,6 +502,76 @@ function drawNebula(
     ctx.beginPath();
     ctx.arc(x, y, size * 2, 0, Math.PI * 2);
     ctx.fill();
+  }
+}
+
+/**
+ * Draw energy indicator - make energy multiplier VERY visible.
+ * High energy = flashes, speed lines, shake
+ * Low energy = dimming, slow motion
+ */
+function drawEnergyIndicator(
+  ctx: CanvasRenderingContext2D,
+  canvas: HTMLCanvasElement,
+  state: VisualState,
+  smoothIntensity: number
+) {
+  const { energyMultiplier } = state;
+
+  // HIGH ENERGY (> 1.3) - FLASH AND SPEED LINES
+  if (energyMultiplier > 1.3) {
+    const flashIntensity = (energyMultiplier - 1.0) * 0.3; // 0.09-0.3
+
+    // Flash overlay
+    ctx.save();
+    ctx.globalAlpha = flashIntensity * smoothIntensity;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
+
+    // Speed lines radiating from center
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const lineCount = 12;
+
+    ctx.save();
+    ctx.strokeStyle = `rgba(255, 255, 255, ${flashIntensity * 0.5})`;
+    ctx.lineWidth = 3;
+
+    for (let i = 0; i < lineCount; i++) {
+      const angle = (i / lineCount) * Math.PI * 2;
+      const startDist = Math.min(canvas.width, canvas.height) * 0.2;
+      const endDist = Math.min(canvas.width, canvas.height) * 0.6;
+
+      const startX = centerX + Math.cos(angle) * startDist;
+      const startY = centerY + Math.sin(angle) * startDist;
+      const endX = centerX + Math.cos(angle) * endDist * smoothIntensity;
+      const endY = centerY + Math.sin(angle) * endDist * smoothIntensity;
+
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+      ctx.lineTo(endX, endY);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // LOW ENERGY (< 0.7) - VIGNETTE DIMMING
+  if (energyMultiplier < 0.7) {
+    const dimAmount = (0.7 - energyMultiplier) * 0.5; // 0-0.35
+
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const radius = Math.max(canvas.width, canvas.height) * 0.8;
+
+    const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
+    gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    gradient.addColorStop(1, `rgba(0, 0, 0, ${dimAmount})`);
+
+    ctx.save();
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
   }
 }
 

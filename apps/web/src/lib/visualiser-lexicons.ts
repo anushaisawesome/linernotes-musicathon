@@ -37,23 +37,107 @@ export const COLOR_LEXICON: Record<string, string> = {
   'grey': '#808080',
   'gray': '#808080',
 
-  // Poetic/metaphorical colors
+  // RED SYNONYMS (blood, wine, fire)
+  'blood': '#8b0000',
   'bloody': '#8b0000',
   'crimson': '#dc143c',
   'scarlet': '#ff2400',
-  'violet': '#8b00ff',
-  'indigo': '#4b0082',
-  'turquoise': '#40e0d0',
-  'emerald': '#50c878',
-  'amber': '#ffbf00',
+  'ruby': '#e0115f',
+  'cherry': '#de3163',
+  'wine': '#722f37',
+  'rose': '#ff007f',
+  'rust': '#b7410e',
+  'brick': '#b22222',
+  'fire': '#ff4500',
+  'flame': '#ff4500',
+  'blush': '#ff6b9d',
 
-  // Darkness/light
+  // BLUE SYNONYMS (ocean, sky, ice)
+  'ocean': '#006994',
+  'sea': '#006994',
+  'sky': '#87ceeb',
+  'navy': '#000080',
+  'sapphire': '#0f52ba',
+  'cobalt': '#0047ab',
+  'azure': '#007fff',
+  'ice': '#afeeee',
+  'frost': '#c9e4f5',
+  'aqua': '#00ffff',
+  'teal': '#008080',
+
+  // GREEN SYNONYMS (emerald, jade, lime)
+  'emerald': '#50c878',
+  'jade': '#00a86b',
+  'lime': '#00ff00',
+  'mint': '#98ff98',
+  'olive': '#808000',
+  'forest': '#228b22',
+  'grass': '#7cfc00',
+  'moss': '#8a9a5b',
+  'sage': '#9dc183',
+
+  // YELLOW/ORANGE SYNONYMS (turmeric, honey, sunset)
+  'amber': '#ffbf00',
+  'honey': '#ffb347',
+  'butter': '#fff8dc',
+  'cream': '#fffdd0',
+  'lemon': '#fff700',
+  'sunny': '#ffdf00',
+  'turmeric': '#ff9500',
+  'marigold': '#ffa500',
+  'sunset': '#ff6347',
+
+  // PURPLE/PINK SYNONYMS (violet, lavender, magenta)
+  'violet': '#8b00ff',
+  'lavender': '#e6e6fa',
+  'lilac': '#c8a2c8',
+  'magenta': '#ff00ff',
+  'plum': '#8e4585',
+  'mauve': '#e0b0ff',
+  'fuchsia': '#ff00ff',
+  'coral': '#ff7f50',
+
+  // NEUTRALS (grey, ash, silver)
+  'ash': '#b2beb5',
+  'smoke': '#738276',
+  'slate': '#708090',
+  'pearl': '#eae0c8',
+  'ivory': '#fffff0',
+  'beige': '#f5f5dc',
+  'tan': '#d2b48c',
+
+  // BROWN SYNONYMS (chocolate, coffee, bronze)
+  'chocolate': '#7b3f00',
+  'coffee': '#6f4e37',
+  'mocha': '#967969',
+  'bronze': '#cd7f32',
+  'copper': '#b87333',
+  'caramel': '#af6e4d',
+  'cinnamon': '#d2691e',
+
+  // LIGHT SYNONYMS (bright, glow, shimmer)
+  'bright': '#ffffff',
+  'light': '#f0f0f0',
+  'pale': '#fafafa',
+  'glow': '#fff8dc',
+  'shimmer': '#ffd700',
+  'shine': '#ffffff',
+
+  // DARKNESS SYNONYMS
   'dark': '#1a0d0e',
   'darkness': '#0a0a0a',
   'phantom': '#2a2a3a',
   'shadow': '#36454f',
   'night': '#0c0c1e',
   'midnight': '#191970',
+  'ebony': '#0a0a0a',
+  'coal': '#0a0a0a',
+  'charcoal': '#36454f',
+  'ink': '#000000',
+
+  // NATURE COLORS
+  'turquoise': '#40e0d0',
+  'indigo': '#4b0082',
 };
 
 // ============================================================================
