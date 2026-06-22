@@ -17,14 +17,23 @@ import { analyzeLyricAccents } from './visualiser-accent-analyzer';
 // VISUALISER ENGINE
 // ============================================================================
 
+// Optional per-track rhythmic texture features fed in from audio analysis.
+export type RhythmicTexture = {
+  rhythmicDensity?: number;
+  percussiveStrength?: number;
+  grooveRegularity?: number;
+};
+
 export class VisualiserEngine {
   private baseAesthetic: BaseAesthetic;
   private rhythm: RhythmData | null;
+  private rhythmicTexture: RhythmicTexture | null;
   private lastLyricLine: string = '';
 
-  constructor(baseAesthetic: BaseAesthetic, rhythm?: RhythmData) {
+  constructor(baseAesthetic: BaseAesthetic, rhythm?: RhythmData, rhythmicTexture?: RhythmicTexture) {
     this.baseAesthetic = baseAesthetic;
     this.rhythm = rhythm || null;
+    this.rhythmicTexture = rhythmicTexture || null;
   }
 
   /**

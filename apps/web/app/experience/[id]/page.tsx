@@ -292,8 +292,8 @@ function ExperienceContent() {
     const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tid);
     if (isUUID) {
       console.warn("[Experience] Track ID is a UUID, searching for Spotify ID...");
-      const trackName = review.track?.name;
-      const artistName = review.track?.artist;
+      const trackName = review?.track?.name;
+      const artistName = review?.track?.artist;
 
       if (trackName && artistName) {
         fetch(`/api/search?q=${encodeURIComponent(`${trackName} ${artistName}`)}&type=track`)
