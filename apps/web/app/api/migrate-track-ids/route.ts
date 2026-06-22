@@ -37,7 +37,7 @@ async function getSpotifyToken(): Promise<string | null> {
   }
 }
 
-async function searchSpotifyTrack(trackName: string, artistName: string, accessToken: string): Promise<string | null> {
+async function searchSpotifyTrack(trackName: string, artistName: string, accessToken: string, retryCount = 0): Promise<string | null> {
   try {
     const query = encodeURIComponent(`track:${trackName} artist:${artistName}`);
     const searchUrl = `https://api.spotify.com/v1/search?q=${query}&type=track&limit=1`;
@@ -45,6 +45,20 @@ async function searchSpotifyTrack(trackName: string, artistName: string, accessT
     const searchResponse = await fetch(searchUrl, {
       headers: { 'Authorization': `Bearer ${accessToken}` },
     });
+
+    if (searchResponse.status === 429) {
+      const retryAfter = searchResponse.headers.get('Retry-After');
+      const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : 2000;
+
+      if (retryCount < 3) {
+        globalLog?.(`  Rate limited, waiting ${waitTime}ms before retry ${retryCount + 1}/3`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        return searchSpotifyTrack(trackName, artistName, accessToken, retryCount + 1);
+      } else {
+        globalLog?.(`  ERROR: Rate limited after 3 retries`);
+        return null;
+      }
+    }
 
     if (!searchResponse.ok) {
       const errorText = await searchResponse.text();
@@ -71,7 +85,7 @@ async function searchSpotifyTrack(trackName: string, artistName: string, accessT
   }
 }
 
-async function searchSpotifyAlbum(albumName: string, artistName: string, accessToken: string): Promise<string | null> {
+async function searchSpotifyAlbum(albumName: string, artistName: string, accessToken: string, retryCount = 0): Promise<string | null> {
   try {
     const query = encodeURIComponent(`album:${albumName} artist:${artistName}`);
     const searchUrl = `https://api.spotify.com/v1/search?q=${query}&type=album&limit=1`;
@@ -79,6 +93,20 @@ async function searchSpotifyAlbum(albumName: string, artistName: string, accessT
     const searchResponse = await fetch(searchUrl, {
       headers: { 'Authorization': `Bearer ${accessToken}` },
     });
+
+    if (searchResponse.status === 429) {
+      const retryAfter = searchResponse.headers.get('Retry-After');
+      const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : 2000;
+
+      if (retryCount < 3) {
+        globalLog?.(`  Rate limited, waiting ${waitTime}ms before retry ${retryCount + 1}/3`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        return searchSpotifyAlbum(albumName, artistName, accessToken, retryCount + 1);
+      } else {
+        globalLog?.(`  ERROR: Rate limited after 3 retries`);
+        return null;
+      }
+    }
 
     if (!searchResponse.ok) {
       const errorText = await searchResponse.text();
@@ -166,8 +194,8 @@ export async function GET() {
         failCount++;
       }
 
-      // Rate limit: wait 100ms between requests
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Rate limit: wait 500ms between requests to avoid 429s
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
 
     log('\n=== Track Reviews Migration Summary ===');
