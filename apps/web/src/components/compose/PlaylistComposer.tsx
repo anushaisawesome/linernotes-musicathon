@@ -5,10 +5,24 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import type { Track, Review } from "@/lib/types";
 import { TrackSearch } from "./TrackSearch";
-import { searchTracks, getReviews } from "@/lib/api";
+import { getReviews } from "@/lib/api";
 import { LNArt, LNIcon } from "@/components/ln/atoms";
 import { paletteFromString } from "@/lib/palette";
 import { ModeTabs, MomentsEditor, type DraftMoment } from "./composer-ui";
+
+// Spotify-only track search so every playlist track is saved with a real Spotify
+// id (playable in the Experience). The general /api/search falls back to iTunes,
+// whose numeric ids can't be played by the Web Playback SDK.
+async function searchSpotifyTracks(query: string, offset = 0): Promise<Track[]> {
+  try {
+    const res = await fetch(`/api/spotify/search?q=${encodeURIComponent(query)}&limit=10&offset=${offset}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.tracks || [];
+  } catch {
+    return [];
+  }
+}
 
 interface PlaylistTrack extends Track {
   take?: string;             // a written note on the track (album-style)
@@ -226,7 +240,7 @@ export function PlaylistComposer() {
         <div style={{ fontFamily: "var(--ln-body)", fontSize: 14.5, fontWeight: 400, letterSpacing: "0.01em", color: gold, marginBottom: 10 }}>
           Add tracks ({tracks.length})
         </div>
-        <TrackSearch onTrackSelect={handleAddTrack} searchAPI={searchTracks} />
+        <TrackSearch onTrackSelect={handleAddTrack} searchAPI={searchSpotifyTracks} />
       </div>
 
       {/* Pick from tracks you've reviewed */}

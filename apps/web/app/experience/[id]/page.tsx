@@ -195,6 +195,18 @@ function ExperienceContent() {
     router.push("/");
   };
 
+  // Back also leaves the experience player, so stop playback (tear down the
+  // shared device) before returning to the previous page.
+  const goBack = () => {
+    try {
+      WebPlaybackSDK.disconnectShared();
+    } catch {
+      /* best-effort */
+    }
+    playerRef.current = null;
+    router.back();
+  };
+
   // Play/pause. Right after a device is created the SDK may not have an active
   // playback state yet, so togglePlay() would be a no-op (the bug where the play
   // button did nothing until a refresh). If there's no state, start playback of
@@ -569,7 +581,7 @@ function ExperienceContent() {
         {/* Top row: back + visualiser toggle + vision-demo tag */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 26 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <button onClick={() => router.back()} className="ln-press" style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(244,239,230,0.06)", border: "1px solid rgba(244,239,230,0.16)", color: INK, borderRadius: 999, padding: "8px 15px", cursor: "pointer", fontFamily: "var(--ln-body)", fontSize: 13.5, fontWeight: 600 }}>
+            <button onClick={goBack} className="ln-press" style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(244,239,230,0.06)", border: "1px solid rgba(244,239,230,0.16)", color: INK, borderRadius: 999, padding: "8px 15px", cursor: "pointer", fontFamily: "var(--ln-body)", fontSize: 13.5, fontWeight: 600 }}>
               <span style={{ fontSize: 15, lineHeight: 1 }}>←</span> Back
             </button>
             <button onClick={exitExperience} className="ln-press" title="Stop playback and leave the experience" style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgba(244,239,230,0.06)", border: `1px solid ${accent}55`, color: INK, borderRadius: 999, padding: "8px 15px", cursor: "pointer", fontFamily: "var(--ln-body)", fontSize: 13.5, fontWeight: 600 }}>
