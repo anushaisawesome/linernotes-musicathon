@@ -29,6 +29,10 @@ export function VisualiserCanvas({ visualState, width, height, className }: Visu
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameRef = useRef<number | undefined>(undefined);
 
+  // Smooth decay envelope - tracks intensity over time for smooth swells
+  const intensityRef = useRef(0);
+  const lastBeatPhaseRef = useRef(1);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -48,15 +52,39 @@ export function VisualiserCanvas({ visualState, width, height, className }: Visu
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       // ──────────────────────────────────────────────────────────────────────
+      // Smooth decay envelope (300-400ms swell, no snapping)
+      // ──────────────────────────────────────────────────────────────────────
+      // Detect beat trigger (beatPhase crosses from high to low)
+      const beatJustHit = visualState.beatPhase < lastBeatPhaseRef.current && lastBeatPhaseRef.current > 0.9;
+      lastBeatPhaseRef.current = visualState.beatPhase;
+
+      // On beat: kick intensity up, then decay smoothly
+      if (beatJustHit) {
+        intensityRef.current = Math.min(1, intensityRef.current + 0.7);
+      } else {
+        // Smooth exponential decay (~350ms to reach 10%)
+        intensityRef.current *= 0.92;
+      }
+
+      // Clamp to prevent drift
+      if (intensityRef.current < 0.01) intensityRef.current = 0;
+
+      // Create smoothed visual state
+      const smoothedState = {
+        ...visualState,
+        smoothIntensity: intensityRef.current,
+      };
+
+      // ──────────────────────────────────────────────────────────────────────
       // Layer 1: Base Gradient (from palette)
       // ──────────────────────────────────────────────────────────────────────
       drawBaseGradient(ctx, canvas, visualState);
 
       // ──────────────────────────────────────────────────────────────────────
-      // Layer 2: Beat Pulse (radial pulse from center)
+      // Layer 2: Beat Pulse (rhythmic art with smooth decay)
       // ──────────────────────────────────────────────────────────────────────
       if (visualState.beatPhase !== undefined) {
-        drawBeatPulse(ctx, canvas, visualState);
+        drawBeatPulse(ctx, canvas, smoothedState);
       }
 
       // ──────────────────────────────────────────────────────────────────────
@@ -227,88 +255,46 @@ function applyTexture(
 }
 
 /**
- * Draw beat pulse (genre-appropriate pulse synced to beatPhase).
- * Pulse style varies based on texture (sharp vs soft) and motion type.
+ * Draw beat-synced rhythmic art piece with smooth decay envelope.
+ * Creates distinct artistic styles based on motion type.
  */
 function drawBeatPulse(
   ctx: CanvasRenderingContext2D,
   canvas: HTMLCanvasElement,
-  state: VisualState
+  state: VisualState & { smoothIntensity?: number }
 ) {
-  const { beatPhase, baseIntensity, energyMultiplier, texture, motion } = state;
+  const { beatPhase, baseIntensity, energyMultiplier, motion, smoothIntensity = 0 } = state;
 
   const centerX = canvas.width / 2;
   const centerY = canvas.height / 2;
-  const maxRadius = Math.min(canvas.width, canvas.height) * 0.4;
 
-  // ──────────────────────────────────────────────────────────────────────
-  // TEXTURE-BASED TIMING (sharp vs soft)
-  // ──────────────────────────────────────────────────────────────────────
-  let pulseDuration = 0.3; // default
-  let baseOpacity = 0.3;   // default
+  // Use smooth decay envelope intensity (300-400ms swell, no snapping)
+  const intensity = smoothIntensity * baseIntensity * energyMultiplier;
 
-  switch (texture) {
-    case 'sharp':
-      // Fast, aggressive pulse (Trap, Metal, Electronic)
-      pulseDuration = 0.2;
-      baseOpacity = 0.5;
-      break;
-    case 'soft':
-      // Slow, smooth fade (R&B, Jazz, Ambient)
-      pulseDuration = 0.6;
-      baseOpacity = 0.15;
-      break;
-    case 'glow':
-      // Medium, glowing pulse (Pop, Dance)
-      pulseDuration = 0.4;
-      baseOpacity = 0.25;
-      break;
-    case 'grain':
-      // Subtle, textured pulse (Folk, Indie)
-      pulseDuration = 0.5;
-      baseOpacity = 0.2;
-      break;
-  }
-
-  // Ease function for pulse (peaks at beatPhase = 0, fades by pulseDuration)
-  const pulseIntensity = beatPhase < pulseDuration
-    ? 1 - (beatPhase / pulseDuration)
-    : 0;
-
-  const radius = maxRadius * (0.5 + pulseIntensity * 0.5) * energyMultiplier;
-  const opacity = pulseIntensity * baseIntensity * baseOpacity;
-
-  if (opacity < 0.01) return;
+  if (intensity < 0.01) return;
 
   ctx.save();
-  ctx.globalAlpha = opacity;
 
-  // ──────────────────────────────────────────────────────────────────────
-  // MOTION-BASED RENDERING (angular vs undulating vs pulse vs drift)
-  // ──────────────────────────────────────────────────────────────────────
+  // Route to artistic rendering based on motion type
   switch (motion) {
     case 'angular':
-      // Geometric shapes (rectangles/diamonds) for hard-hitting tracks
-      drawAngularPulse(ctx, centerX, centerY, radius, texture);
+      // Fractal icicles (crystalline branching)
+      drawFractalIcicles(ctx, canvas, centerX, centerY, intensity, smoothIntensity);
       break;
 
     case 'undulating':
-      // Multiple expanding wave rings (organic, flowing)
-      drawUndulatingPulse(ctx, centerX, centerY, radius, pulseIntensity);
-      break;
-
-    case 'drift':
-      // Floating particles instead of centered pulse
-      drawDriftParticles(ctx, canvas, radius, pulseIntensity, energyMultiplier);
+      // Lava lamp (organic flowing blobs)
+      drawLavaLamp(ctx, canvas, centerX, centerY, intensity, smoothIntensity);
       break;
 
     case 'pulse':
-    default:
-      // Standard radial pulse (classic circle)
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-      ctx.beginPath();
-      ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-      ctx.fill();
+      // Pond ripples (expanding water circles)
+      drawPondRipples(ctx, canvas, centerX, centerY, intensity, smoothIntensity);
+      break;
+
+    case 'drift':
+      // Nebula (galaxy-like particle drift)
+      drawNebula(ctx, canvas, centerX, centerY, intensity, smoothIntensity, energyMultiplier);
       break;
   }
 
@@ -316,78 +302,200 @@ function drawBeatPulse(
 }
 
 /**
- * Draw angular geometric pulse (for sharp, aggressive genres).
+ * Fractal icicles - crystalline branches that propagate and fade.
+ * For angular/sharp genres (Trap, Metal, Electronic).
  */
-function drawAngularPulse(
+function drawFractalIcicles(
   ctx: CanvasRenderingContext2D,
+  canvas: HTMLCanvasElement,
   centerX: number,
   centerY: number,
-  radius: number,
-  texture: 'sharp' | 'soft' | 'grain' | 'glow'
+  intensity: number,
+  smoothIntensity: number
 ) {
-  ctx.fillStyle = texture === 'sharp'
-    ? 'rgba(255, 255, 255, 0.9)'
-    : 'rgba(255, 255, 255, 0.6)';
+  const branchCount = 8;
+  const maxLength = Math.min(canvas.width, canvas.height) * 0.35;
+  const growth = smoothIntensity; // Smooth swell and decay
 
-  // Draw rotated diamond/square
-  const size = radius * 1.2;
-  ctx.save();
-  ctx.translate(centerX, centerY);
-  ctx.rotate(Math.PI / 4); // 45-degree rotation
-  ctx.fillRect(-size / 2, -size / 2, size, size);
-  ctx.restore();
-}
+  for (let i = 0; i < branchCount; i++) {
+    const angle = (i / branchCount) * Math.PI * 2;
+    const length = maxLength * growth;
 
-/**
- * Draw undulating wave rings (for smooth, flowing genres).
- */
-function drawUndulatingPulse(
-  ctx: CanvasRenderingContext2D,
-  centerX: number,
-  centerY: number,
-  radius: number,
-  intensity: number
-) {
-  // Draw 3 expanding rings with offset
-  for (let i = 0; i < 3; i++) {
-    const offset = i * 0.15;
-    const ringIntensity = Math.max(0, intensity - offset);
-    if (ringIntensity <= 0) continue;
+    // Main icicle branch
+    const endX = centerX + Math.cos(angle) * length;
+    const endY = centerY + Math.sin(angle) * length;
 
-    const ringRadius = radius * (0.7 + i * 0.15);
-    const ringOpacity = ringIntensity * 0.3;
-
-    ctx.globalAlpha = ringOpacity;
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+    ctx.strokeStyle = `rgba(255, 255, 255, ${intensity * 0.6})`;
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.arc(centerX, centerY, ringRadius, 0, Math.PI * 2);
+    ctx.moveTo(centerX, centerY);
+    ctx.lineTo(endX, endY);
     ctx.stroke();
+
+    // Sub-branches (fractal pattern)
+    if (growth > 0.3) {
+      const subBranches = 3;
+      for (let j = 1; j <= subBranches; j++) {
+        const progress = j / (subBranches + 1);
+        const subStartX = centerX + Math.cos(angle) * length * progress;
+        const subStartY = centerY + Math.sin(angle) * length * progress;
+
+        // Branch left and right
+        [-1, 1].forEach(dir => {
+          const subAngle = angle + (Math.PI / 6) * dir;
+          const subLength = length * 0.3 * (1 - progress);
+          const subEndX = subStartX + Math.cos(subAngle) * subLength;
+          const subEndY = subStartY + Math.sin(subAngle) * subLength;
+
+          ctx.strokeStyle = `rgba(255, 255, 255, ${intensity * 0.4})`;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(subStartX, subStartY);
+          ctx.lineTo(subEndX, subEndY);
+          ctx.stroke();
+        });
+      }
+    }
+
+    // Crystalline endpoint glow
+    ctx.fillStyle = `rgba(255, 255, 255, ${intensity * 0.8})`;
+    ctx.beginPath();
+    ctx.arc(endX, endY, 4 * growth, 0, Math.PI * 2);
+    ctx.fill();
   }
 }
 
 /**
- * Draw drifting particles (for ambient, spacey genres).
+ * Lava lamp - organic flowing blobs that morph smoothly.
+ * For undulating/soft genres (R&B, Jazz, Soul).
  */
-function drawDriftParticles(
+function drawLavaLamp(
   ctx: CanvasRenderingContext2D,
   canvas: HTMLCanvasElement,
-  baseRadius: number,
+  centerX: number,
+  centerY: number,
   intensity: number,
+  smoothIntensity: number
+) {
+  const blobCount = 5;
+  const baseRadius = Math.min(canvas.width, canvas.height) * 0.15;
+  const time = Date.now() / 1000;
+
+  for (let i = 0; i < blobCount; i++) {
+    const angle = (i / blobCount) * Math.PI * 2 + time * 0.2;
+    const distance = baseRadius * (1 + Math.sin(time * 0.5 + i) * 0.3);
+    const blobX = centerX + Math.cos(angle) * distance;
+    const blobY = centerY + Math.sin(angle) * distance;
+
+    // Blob size pulses with smooth intensity
+    const blobSize = baseRadius * (0.3 + smoothIntensity * 0.5);
+
+    // Organic blob with gradient
+    const gradient = ctx.createRadialGradient(blobX, blobY, 0, blobX, blobY, blobSize);
+    gradient.addColorStop(0, `rgba(255, 255, 255, ${intensity * 0.5})`);
+    gradient.addColorStop(0.6, `rgba(255, 255, 255, ${intensity * 0.2})`);
+    gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(blobX, blobY, blobSize, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Add distortion for organic feel
+    ctx.globalCompositeOperation = 'lighter';
+    const distortSize = blobSize * 0.7;
+    const distortX = blobX + Math.cos(time * 1.5 + i * 2) * distortSize * 0.3;
+    const distortY = blobY + Math.sin(time * 1.5 + i * 2) * distortSize * 0.3;
+
+    ctx.fillStyle = `rgba(255, 255, 255, ${intensity * 0.15})`;
+    ctx.beginPath();
+    ctx.arc(distortX, distortY, distortSize, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+  }
+}
+
+/**
+ * Pond ripples - expanding concentric circles like water.
+ * For pulse genres (Pop, Rock).
+ */
+function drawPondRipples(
+  ctx: CanvasRenderingContext2D,
+  canvas: HTMLCanvasElement,
+  centerX: number,
+  centerY: number,
+  intensity: number,
+  smoothIntensity: number
+) {
+  const maxRadius = Math.min(canvas.width, canvas.height) * 0.6;
+  const rippleCount = 3;
+  const time = Date.now() / 1000;
+
+  for (let i = 0; i < rippleCount; i++) {
+    const ripplePhase = (time * 0.5 + i * 0.3) % 1;
+    const radius = maxRadius * ripplePhase * smoothIntensity;
+    const opacity = intensity * (1 - ripplePhase) * 0.5;
+
+    if (opacity > 0.01 && smoothIntensity > 0.1) {
+      ctx.strokeStyle = `rgba(255, 255, 255, ${opacity})`;
+      ctx.lineWidth = 2 + (1 - ripplePhase) * 4;
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+
+  // Central splash (larger on beat)
+  const splashSize = 20 * smoothIntensity;
+  if (splashSize > 2) {
+    const splash = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, splashSize);
+    splash.addColorStop(0, `rgba(255, 255, 255, ${intensity * 0.7})`);
+    splash.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+    ctx.fillStyle = splash;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, splashSize, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+/**
+ * Nebula - galaxy-like particle clouds that drift and swirl.
+ * For drift genres (Ambient, Electronic).
+ */
+function drawNebula(
+  ctx: CanvasRenderingContext2D,
+  canvas: HTMLCanvasElement,
+  centerX: number,
+  centerY: number,
+  intensity: number,
+  smoothIntensity: number,
   energyMultiplier: number
 ) {
-  const particleCount = Math.floor(8 * energyMultiplier);
+  const particleCount = Math.floor(30 * energyMultiplier);
+  const time = Date.now() / 1000;
+  const maxRadius = Math.min(canvas.width, canvas.height) * 0.4;
 
   for (let i = 0; i < particleCount; i++) {
-    const angle = (i / particleCount) * Math.PI * 2;
-    const distance = baseRadius * (0.5 + intensity * 0.5);
-    const x = canvas.width / 2 + Math.cos(angle) * distance;
-    const y = canvas.height / 2 + Math.sin(angle) * distance;
-    const size = 4 + intensity * 6;
+    const angle = (i / particleCount) * Math.PI * 2 + time * 0.1;
+    const spiral = (i / particleCount) * 3;
+    const distance = maxRadius * (0.3 + spiral * 0.2);
 
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    const x = centerX + Math.cos(angle + spiral) * distance;
+    const y = centerY + Math.sin(angle + spiral) * distance;
+
+    // Particle size pulses with beat
+    const size = (2 + Math.sin(time * 2 + i) * 2) * (0.5 + smoothIntensity * 0.5);
+    const opacity = intensity * (0.3 + Math.sin(time + i) * 0.2);
+
+    // Glowing particle
+    const glow = ctx.createRadialGradient(x, y, 0, x, y, size * 2);
+    glow.addColorStop(0, `rgba(255, 255, 255, ${opacity})`);
+    glow.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+    ctx.fillStyle = glow;
     ctx.beginPath();
-    ctx.arc(x, y, size, 0, Math.PI * 2);
+    ctx.arc(x, y, size * 2, 0, Math.PI * 2);
     ctx.fill();
   }
 }

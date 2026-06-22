@@ -70,6 +70,9 @@ export async function GET(request: NextRequest) {
     const itunesData = await fetchITunesMetadata(trackName, artistName);
     const genre = itunesData?.genre || 'Pop';
 
+    // Fetch Last.fm tags for mood enrichment (optional, enhances base aesthetic)
+    const lastfmTags = await fetchLastFmTags(trackName, artistName);
+
     // TRY PYTHON SERVICE FIRST (real librosa beat tracking)
     if (itunesData?.previewUrl) {
       const pythonServiceUrl = process.env.AUDIO_ANALYSIS_SERVICE_URL || 'http://localhost:8001';
@@ -91,10 +94,11 @@ export async function GET(request: NextRequest) {
           const pythonData = await pythonResponse.json();
           console.log(`[audio-analysis] ✅ Python service success: ${pythonData.bpm} BPM`);
 
-          // Add genre to Python response
+          // Add genre and Last.fm tags to Python response
           return NextResponse.json({
             ...pythonData,
             genre,
+            lastfmTags,
           });
         }
       } catch (pythonError) {
@@ -121,6 +125,7 @@ export async function GET(request: NextRequest) {
       firstBeatMs: 0,
       beats: [],
       audioFeatures,
+      lastfmTags,
       source: 'genre-heuristic-fallback',
     });
   } catch (error) {
@@ -156,6 +161,51 @@ async function fetchITunesMetadata(track: string, artist: string) {
   } catch (error) {
     console.error('[audio-analysis] iTunes API error:', error);
     return null;
+  }
+}
+
+/**
+ * Fetch Last.fm tags for mood enrichment (optional enhancement).
+ * Returns top vibe tags like "chill", "melancholic", "energetic", etc.
+ */
+async function fetchLastFmTags(track: string, artist: string): Promise<string[]> {
+  try {
+    const apiKey = process.env.LASTFM_API_KEY;
+    if (!apiKey) {
+      console.log('[audio-analysis] Last.fm API key not configured');
+      return [];
+    }
+
+    const trackEncoded = encodeURIComponent(track);
+    const artistEncoded = encodeURIComponent(artist);
+    const url = `https://ws.audioscrobbler.com/2.0/?method=track.getTopTags&artist=${artistEncoded}&track=${trackEncoded}&api_key=${apiKey}&format=json`;
+
+    const response = await fetch(url, { signal: AbortSignal.timeout(3000) });
+    if (!response.ok) return [];
+
+    const data = await response.json();
+    const tags = data.toptags?.tag || [];
+
+    // Extract top 3 meaningful vibe tags
+    const vibeTags = tags
+      .filter((t: any) => t.count > 50) // Filter out low-confidence tags
+      .map((t: any) => t.name.toLowerCase())
+      .filter((name: string) =>
+        // Keep only mood/vibe tags, not genre labels
+        ['chill', 'melancholic', 'energetic', 'dark', 'upbeat', 'sad', 'happy',
+         'romantic', 'aggressive', 'calm', 'intense', 'mellow', 'atmospheric']
+          .some(vibe => name.includes(vibe))
+      )
+      .slice(0, 3);
+
+    if (vibeTags.length > 0) {
+      console.log(`[audio-analysis] Last.fm tags: ${vibeTags.join(', ')}`);
+    }
+
+    return vibeTags;
+  } catch (error) {
+    console.warn('[audio-analysis] Last.fm fetch failed:', error);
+    return [];
   }
 }
 
