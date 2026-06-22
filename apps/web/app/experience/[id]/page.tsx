@@ -87,6 +87,12 @@ function ExperienceContent() {
   const INK = "#d7c9d0";
   const muted = (a: number) => `rgba(215,201,208,${a})`;
 
+  // Reset scroll states when review changes
+  useEffect(() => {
+    setLyricShift(0);
+    setMomentShift(0);
+  }, [review?.id]);
+
   // Fetch review data — a single track review, or every reviewed track of an album.
   useEffect(() => {
     async function fetchReview() {
@@ -296,6 +302,26 @@ function ExperienceContent() {
     if (segments.length < 2) return;
     const clamped = Math.max(0, Math.min(segments.length - 1, n));
     if (clamped === idx) return;
+
+    // Clear played track ref to allow the new track to play
+    playedTrackRef.current = null;
+
+    // Reset end detection
+    endedHandledRef.current = false;
+    lastPosRef.current = 0;
+
+    // Reset scroll states and refs
+    setLyricShift(0);
+    setMomentShift(0);
+    momentRefs.current = [];
+    lineRefs.current = [];
+
+    // Clear lyrics and annotations while transitioning
+    setLyrics(null);
+    setTranslation(null);
+    setAnnotations(null);
+
+    // Update to new segment
     setIdx(clamped);
     setReview(segments[clamped]);
   };

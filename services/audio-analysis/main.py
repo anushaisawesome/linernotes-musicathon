@@ -69,7 +69,7 @@ def root():
         "status": "running"
     }
 
-@app.post("/analyze", response_model=AnalysisResponse)
+@app.post("/analyze", response_model=AnalysisResponse, response_model_by_alias=True)
 async def analyze_audio(request: AnalysisRequest):
     """
     Analyze audio from preview URL using librosa.
