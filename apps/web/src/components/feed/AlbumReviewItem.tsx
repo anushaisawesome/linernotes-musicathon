@@ -1,19 +1,27 @@
 "use client";
 
+import React from "react";
 import type { AlbumReview } from "@/lib/types";
 import Link from "next/link";
 
 interface AlbumReviewItemProps {
   albumReview: AlbumReview;
+  currentUserId?: string;
   onLike?: (albumReviewId: string) => Promise<void>;
   onRepost?: (albumReviewId: string) => Promise<void>;
+  onDelete?: (albumReviewId: string) => Promise<void>;
 }
 
 export function AlbumReviewItem({
   albumReview,
+  currentUserId,
   onLike,
   onRepost,
+  onDelete,
 }: AlbumReviewItemProps) {
+  const [deleting, setDeleting] = React.useState(false);
+  const isOwnReview = currentUserId && albumReview.userId === currentUserId;
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -23,6 +31,23 @@ export function AlbumReviewItem({
     if (diffHours < 1) return "Just now";
     if (diffHours < 24) return `${diffHours}h ago`;
     return date.toLocaleDateString();
+  };
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (deleting || !onDelete) return;
+
+    if (!confirm("Are you sure you want to delete this album review?")) return;
+
+    setDeleting(true);
+    try {
+      await onDelete(albumReview.id);
+    } catch (error) {
+      console.error("Failed to delete:", error);
+      alert("Failed to delete album review");
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const getReactionEmoji = (reaction?: string) => {
@@ -204,6 +229,26 @@ export function AlbumReviewItem({
           </svg>
           <span className="text-sm">{albumReview.repostCount || 0}</span>
         </button>
+
+        {/* Delete button - only show for own album reviews */}
+        {isOwnReview && (
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className="ml-auto flex items-center gap-2 px-4 py-2 rounded-lg hover:scale-105 transition-all disabled:opacity-50 font-medium shadow-sm"
+            style={{
+              backgroundColor: "rgba(239, 68, 68, 0.1)",
+              color: "#dc2626",
+              border: "1px solid rgba(239, 68, 68, 0.3)",
+            }}
+            title="Delete album review"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            <span className="text-sm">{deleting ? "Deleting..." : "Delete"}</span>
+          </button>
+        )}
       </div>
     </div>
   );

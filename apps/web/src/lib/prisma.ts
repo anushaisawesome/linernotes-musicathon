@@ -15,7 +15,7 @@ function createPrismaClient() {
 
   const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    max: 1, // Serverless: 1 connection per function instance
+    max: process.env.NODE_ENV === "production" ? 1 : 5, // Dev: 5 connections, Prod: 1 connection per function instance
     idleTimeoutMillis: 10000, // Close idle clients after 10 seconds
     connectionTimeoutMillis: 5000, // Timeout if connection takes too long
   });

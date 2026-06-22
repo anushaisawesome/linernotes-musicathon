@@ -35,14 +35,18 @@ export function LyricsBrowser({ trackIsrc, trackName, artistName, onBookmark, bo
 
       try {
         const params = new URLSearchParams();
+        // Always pass all available info for fallback robustness
         if (trackIsrc) {
           params.set("isrc", trackIsrc);
-          console.log("[LyricsBrowser] Fetching lyrics by ISRC:", trackIsrc);
-        } else {
-          params.set("track", trackName);
-          params.set("artist", artistName);
-          console.log("[LyricsBrowser] Fetching lyrics by track/artist:", trackName, "/", artistName);
         }
+        params.set("track", trackName);
+        params.set("artist", artistName);
+
+        console.log("[LyricsBrowser] Fetching lyrics with:", {
+          isrc: trackIsrc || "none",
+          track: trackName,
+          artist: artistName,
+        });
 
         const res = await fetch(`/api/lyrics?${params.toString()}`);
         console.log("[LyricsBrowser] API response status:", res.status);

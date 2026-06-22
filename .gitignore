@@ -45,3 +45,4 @@ coverage/
 *.tsbuildinfo
 .eslintcache
 .shots/
+.vercel

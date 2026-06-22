@@ -37,41 +37,48 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    let matcherUrl: string;
+    let trackData: any = null;
+    // Set when Musixmatch reports an auth/quota failure so we degrade (vs a
+    // genuine no-match, which is a 404).
+    let providerError = false;
 
-    // Step 1: Get track ID from ISRC or track/artist search
+    // Run one matcher query. Musixmatch reports auth/quota failures with HTTP 200
+    // and an in-body status_code (401 = bad/expired key, 402 = usage limit,
+    // 403 = forbidden, 429 = rate-limited) — capture that so the caller degrades.
+    const matchTrack = async (qs: string): Promise<any> => {
+      const res = await fetch(`https://api.musixmatch.com/ws/1.1/matcher.track.get?format=json&${qs}&apikey=${apiKey}`);
+      if (!res.ok) return null;
+      const json = await res.json();
+      const status = json.message?.header?.status_code;
+      if (status && [401, 402, 403, 429].includes(status)) {
+        providerError = true;
+        return null;
+      }
+      return json.message?.body?.track || null;
+    };
+
+    // Step 1: Get track ID from ISRC or track/artist search (with fallback retry)
     if (isrc) {
-      matcherUrl = `https://api.musixmatch.com/ws/1.1/matcher.track.get?format=json&track_isrc=${encodeURIComponent(isrc)}&apikey=${apiKey}`;
       console.log("[Musixmatch] Searching by ISRC:", isrc);
+      trackData = await matchTrack(`track_isrc=${encodeURIComponent(isrc)}`);
+      if (!trackData && !providerError && track && artist) {
+        console.log("[Musixmatch] ISRC search failed, retrying with track/artist:", track, "/", artist);
+        trackData = await matchTrack(`q_track=${encodeURIComponent(track)}&q_artist=${encodeURIComponent(artist)}`);
+      }
     } else {
-      matcherUrl = `https://api.musixmatch.com/ws/1.1/matcher.track.get?format=json&q_track=${encodeURIComponent(track!)}&q_artist=${encodeURIComponent(artist!)}&apikey=${apiKey}`;
       console.log("[Musixmatch] Searching by track/artist:", track, "/", artist);
+      trackData = await matchTrack(`q_track=${encodeURIComponent(track!)}&q_artist=${encodeURIComponent(artist!)}`);
     }
 
-    const matcherRes = await fetch(matcherUrl);
-    if (!matcherRes.ok) {
-      console.warn("[Musixmatch] Matcher API error:", matcherRes.status, "— returning no lyrics");
+    if (providerError) {
+      console.warn("[Musixmatch] Provider auth/quota failure — returning no lyrics");
       return unavailable("lyrics_provider_unavailable");
     }
-
-    const matcherData = await matcherRes.json();
-    console.log("[Musixmatch] Matcher response:", JSON.stringify(matcherData, null, 2));
-
-    // Musixmatch reports auth/quota failures with HTTP 200 and a status_code in
-    // the body: 401 = bad/expired key, 402 = usage limit, 403 = forbidden. Treat
-    // those as "lyrics unavailable" so the rest of the app keeps working.
-    const mmStatus = matcherData.message?.header?.status_code;
-    if (mmStatus && [401, 402, 403, 429].includes(mmStatus)) {
-      console.warn("[Musixmatch] Provider unavailable (status_code", mmStatus + ") — returning no lyrics");
-      return unavailable("lyrics_provider_unavailable");
-    }
-
-    const trackData = matcherData.message?.body?.track;
 
     if (!trackData || !trackData.track_id) {
-      console.log("[Musixmatch] No track found");
+      console.log("[Musixmatch] No track found after all attempts");
       return NextResponse.json(
-        { error: "Track not found on Musixmatch", searched: isrc ? { isrc } : { track, artist } },
+        { error: "Track not found on Musixmatch", searched: isrc ? { isrc, fallback: track && artist } : { track, artist } },
         { status: 404 }
       );
     }

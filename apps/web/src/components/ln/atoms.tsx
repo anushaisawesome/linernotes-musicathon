@@ -117,7 +117,9 @@ export type IconName =
   | "play"
   | "edit"
   | "share"
-  | "back";
+  | "back"
+  | "star"
+  | "trash";
 
 export function LNIcon({
   name,
@@ -187,6 +189,18 @@ export function LNIcon({
     return (
       <svg {...common} fill={color}>
         <path d="M7 5l12 7-12 7V5z" />
+      </svg>
+    );
+  if (name === "star")
+    return (
+      <svg {...common} fill={filled ? color : "none"}>
+        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  if (name === "trash")
+    return (
+      <svg {...common} fill="none">
+        <path d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14zM10 11v6M14 11v6" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     );
   return null;

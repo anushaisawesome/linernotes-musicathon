@@ -69,6 +69,12 @@ function ExperienceContent() {
   const colRef = useRef<HTMLDivElement | null>(null);
   const [lyricShift, setLyricShift] = useState(0);
 
+  // Moments scroll and sync
+  const momentRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const momentsColRef = useRef<HTMLDivElement | null>(null);
+  const [momentSync, setMomentSync] = useState(true);
+  const [momentShift, setMomentShift] = useState(0);
+
   // The Spotify SDK is initialised once per page; navigating songs reuses it.
   const playerRef = useRef<WebPlaybackSDK | null>(null);
   const initedRef = useRef(false);
@@ -81,21 +87,85 @@ function ExperienceContent() {
   const INK = "#d7c9d0";
   const muted = (a: number) => `rgba(215,201,208,${a})`;
 
+  // Reset scroll states when review changes
+  useEffect(() => {
+    setLyricShift(0);
+    setMomentShift(0);
+  }, [review?.id]);
+
   // Fetch review data — a single track review, or every reviewed track of an album.
   useEffect(() => {
     async function fetchReview() {
       try {
         if (isFeedExp) {
-          // Compile the GLOBAL community feed into a playlist of track reviews
-          // (feed:"friends" is the public all-reviews feed; your own posts are
-          // included), starting at the post that was clicked when it's present.
-          const all = await getReviews({ feed: "friends" });
-          const segs: Review[] = (all || [])
-            .filter((r) => r.track?.trackId && !r.track.trackId.startsWith("lastfm-"))
-            // Newest first, so the queue starts on the most recent track review.
-            .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-          if (segs.length === 0) throw new Error("No community posts to play yet");
-          // The community experience always opens on the most recent track review.
+          // Compile the GLOBAL community feed into a playlist of ALL annotated content:
+          // track reviews, album track reviews, and playlist tracks with notes.
+          const [trackReviews, albumReviewsData, playlistsData] = await Promise.all([
+            getReviews({ feed: "friends" }),
+            fetch('/api/album-reviews?feed=friends').then(r => r.json()),
+            fetch('/api/playlists?feed=friends').then(r => r.json()),
+          ]);
+
+          const segs: Review[] = [];
+
+          // Add standalone track reviews with notes
+          (trackReviews || []).forEach((r) => {
+            if (r.track?.trackId && !r.track.trackId.startsWith("lastfm-") && r.notes && r.notes.length > 0) {
+              segs.push(r);
+            }
+          });
+
+          // Add album track reviews with notes
+          (albumReviewsData.albumReviews || []).forEach((albumReview: any) => {
+            (albumReview.trackReviews || []).forEach((tr: any) => {
+              if (tr.track?.trackId && tr.notes && tr.notes.length > 0) {
+                // Inherit album review user if track review doesn't have one
+                segs.push({ ...tr, user: tr.user || albumReview.user });
+              }
+            });
+          });
+
+          // Add playlist tracks with notes
+          (playlistsData.playlists || []).forEach((pl: any) => {
+            (pl.tracks || []).forEach((t: any) => {
+              if (t.trackId && t.notes && t.notes.length > 0) {
+                segs.push({
+                  id: `${pl.id}-${t.id}`,
+                  userId: pl.userId,
+                  user: pl.user,
+                  track: {
+                    trackId: t.trackId,
+                    name: t.name,
+                    artist: t.artist,
+                    album: t.album || "",
+                    artworkUrl: t.artworkUrl || "",
+                  },
+                  rating: 0,
+                  take: t.take || t.note || undefined,
+                  notes: (t.notes || []).map((n: any) => ({
+                    id: n.id,
+                    seconds: n.seconds,
+                    label: n.label,
+                    note: n.note || undefined,
+                    lyric: n.lyric || undefined,
+                    createdAt: n.createdAt,
+                  })),
+                  createdAt: pl.createdAt,
+                  likeCount: 0,
+                  repostCount: 0,
+                  likedByMe: false,
+                  repostedByMe: false,
+                } as Review);
+              }
+            });
+          });
+
+          // Sort by newest first
+          segs.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+
+          if (segs.length === 0) throw new Error("No annotated content to play yet");
+
+          // The community experience always opens on the most recent annotated track.
           setPlaylistLabel("Community feed");
           setSegments(segs);
           setIdx(0);
@@ -232,6 +302,26 @@ function ExperienceContent() {
     if (segments.length < 2) return;
     const clamped = Math.max(0, Math.min(segments.length - 1, n));
     if (clamped === idx) return;
+
+    // Clear played track ref to allow the new track to play
+    playedTrackRef.current = null;
+
+    // Reset end detection
+    endedHandledRef.current = false;
+    lastPosRef.current = 0;
+
+    // Reset scroll states and refs
+    setLyricShift(0);
+    setMomentShift(0);
+    momentRefs.current = [];
+    lineRefs.current = [];
+
+    // Clear lyrics and annotations while transitioning
+    setLyrics(null);
+    setTranslation(null);
+    setAnnotations(null);
+
+    // Update to new segment
     setIdx(clamped);
     setReview(segments[clamped]);
   };
@@ -288,30 +378,32 @@ function ExperienceContent() {
     if (!player || !tid) return;
     if (playedTrackRef.current === tid) return;
 
-    // MIGRATION FIX: If trackId is a UUID (old data), search for Spotify ID
-    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tid);
-    if (isUUID && review) {
-      console.warn("[Experience] Track ID is a UUID, searching for Spotify ID...");
+    // MIGRATION FIX: If trackId is a UUID or non-Spotify ID, search for Spotify ID
+    const isSpotifyId = /^[a-zA-Z0-9]{22}$/.test(tid);
+    if (!isSpotifyId && review) {
+      console.warn("[Experience] Track ID is not a Spotify ID, searching for Spotify ID...");
       const trackName = review?.track?.name;
       const artistName = review?.track?.artist;
 
       if (trackName && artistName) {
-        fetch(`/api/search?q=${encodeURIComponent(`${trackName} ${artistName}`)}&type=track`)
+        fetch(`/api/spotify-search?track=${encodeURIComponent(trackName)}&artist=${encodeURIComponent(artistName)}`)
           .then(res => res.json())
           .then(data => {
-            const spotifyTrack = data.tracks?.[0];
-            if (spotifyTrack?.trackId) {
-              console.log("[Experience] Found Spotify ID:", spotifyTrack.trackId);
-              playedTrackRef.current = spotifyTrack.trackId;
-              player.playTrack(`spotify:track:${spotifyTrack.trackId}`).catch((e) => {
+            if (data.trackId) {
+              console.log("[Experience] Found Spotify ID:", data.trackId);
+              playedTrackRef.current = data.trackId;
+              player.playTrack(`spotify:track:${data.trackId}`).catch((e) => {
                 console.error("[Experience] Failed to play track:", e);
               });
             } else {
-              console.error("[Experience] No Spotify track found");
+              console.error("[Experience] No Spotify track found:", data.error);
               setError("Track not available on Spotify");
             }
           })
-          .catch(e => console.error("[Experience] Search failed:", e));
+          .catch(e => {
+            console.error("[Experience] Spotify search failed:", e);
+            setError("Failed to find track on Spotify");
+          });
       }
       return;
     }
@@ -366,22 +458,36 @@ function ExperienceContent() {
         let audioFeatures = undefined;
         let lastfmTags: string[] = [];
 
+        let rhythm;
+
         if (response.ok) {
           const data = await response.json();
           genre = data.genre || 'Pop';
           bpm = data.bpm || 120;
           audioFeatures = data.audioFeatures;
           lastfmTags = data.lastfmTags || [];
-          console.log(`[Visualiser] Loaded audio analysis: ${genre} @ ${bpm} BPM${lastfmTags.length > 0 ? ` (tags: ${lastfmTags.join(', ')})` : ''}`);
+
+          // Use REAL beat data from Python service if available
+          if (data.firstBeatMs !== undefined && data.beatIntervalMs && data.beats) {
+            rhythm = {
+              bpm: data.bpm,
+              beatIntervalMs: data.beatIntervalMs,
+              firstBeatMs: data.firstBeatMs,
+              beats: data.beats || [],
+            };
+            console.log(`[Visualiser] Loaded audio analysis: ${genre} @ ${bpm} BPM, first beat at ${data.firstBeatMs}ms, ${data.beats.length} beats detected${lastfmTags.length > 0 ? ` (tags: ${lastfmTags.join(', ')})` : ''}`);
+          } else {
+            // Fallback to mock rhythm if Python service didn't return beats
+            rhythm = createMockRhythm(bpm);
+            console.log(`[Visualiser] Loaded audio analysis: ${genre} @ ${bpm} BPM (mock rhythm)${lastfmTags.length > 0 ? ` (tags: ${lastfmTags.join(', ')})` : ''}`);
+          }
         } else {
           console.warn('[Visualiser] Audio analysis failed, using defaults');
+          rhythm = createMockRhythm(120);
         }
 
         // Derive base aesthetic from real genre + audio features + Last.fm tags
         const baseAesthetic = deriveBaseAesthetic(genre, audioFeatures, lastfmTags);
-
-        // Create rhythm from real BPM
-        const rhythm = createMockRhythm(bpm);
 
         // Extract rhythmic texture features
         const rhythmicTexture = audioFeatures ? {
@@ -544,6 +650,25 @@ function ExperienceContent() {
     }
   }, [annotations?.activeLineIndex, lyrics?.lines]);
 
+  // Moments auto-scroll effect (when sync is enabled)
+  useLayoutEffect(() => {
+    if (!momentSync || !review?.notes || review.notes.length === 0 || !playerState) return;
+
+    const positionSec = (playerState.positionMs || 0) / 1000;
+    const durationSec = (playerState.durationMs || 1) / 1000;
+    const validMoments = review.notes.filter(m => m.seconds <= durationSec);
+    const activeMomentIndex = validMoments.findIndex(m => positionSec >= m.seconds && positionSec < m.seconds + 9);
+
+    if (activeMomentIndex >= 0) {
+      const el = momentRefs.current[activeMomentIndex];
+      const col = momentsColRef.current;
+
+      if (el && col) {
+        setMomentShift(col.clientHeight * 0.40 - (el.offsetTop + el.offsetHeight / 2));
+      }
+    }
+  }, [playerState, review?.notes, momentSync]);
+
   if (error) {
     return (
       <div style={{ padding: 40, textAlign: "center", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", background: "var(--ln-bg)", color: "var(--ln-fg)" }}>
@@ -659,10 +784,10 @@ function ExperienceContent() {
                   {playlistLabel} · {idx + 1} / {segments.length}
                 </div>
               )}
-              <h1 style={{ margin: 0, fontFamily: "var(--ln-album)", fontWeight: 600, fontSize: 30, lineHeight: 1.06, letterSpacing: "-0.01em", color: INK }}>
+              <h1 style={{ margin: 0, fontFamily: "var(--ln-album)", fontWeight: 600, fontSize: 30, lineHeight: 1.06, letterSpacing: "-0.01em", color: INK, textShadow: "0 2px 12px rgba(0,0,0,0.6), 0 1px 3px rgba(0,0,0,0.8)" }}>
                 {playerState?.trackName || review.track.name}
               </h1>
-              <div style={{ marginTop: 5, fontFamily: "var(--ln-body)", fontSize: 15, color: muted(0.7) }}>
+              <div style={{ marginTop: 5, fontFamily: "var(--ln-body)", fontSize: 15, color: muted(0.7), textShadow: "0 1px 8px rgba(0,0,0,0.5)" }}>
                 {playerState?.artistName || review.track.artist}
               </div>
             </div>
@@ -740,7 +865,7 @@ function ExperienceContent() {
           <div className="mu-exp-right" style={{ minWidth: 0 }}>
             {/* Reviewer note — only when the author actually wrote one */}
             {caption && (
-              <div key={review.id} style={{ borderRadius: 16, border: `1px solid ${accent}33`, background: `${accent}10`, padding: "16px 18px", animation: "mu-rise 0.45s cubic-bezier(.2,.8,.2,1) both" }}>
+              <div key={review.id} style={{ borderRadius: 16, border: `1px solid ${accent}33`, background: `${accent}10`, backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", padding: "16px 18px", animation: "mu-rise 0.45s cubic-bezier(.2,.8,.2,1) both", boxShadow: "0 4px 20px rgba(0,0,0,0.3)" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 11 }}>
                   <span style={{ width: 30, height: 30, borderRadius: "50%", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: `${accent}26`, border: `1px solid ${accent}66`, color: accent, fontFamily: "var(--ln-display)", fontWeight: 600, fontSize: 14 }}>
                     {review.user?.displayName?.[0] || "U"}
@@ -757,7 +882,7 @@ function ExperienceContent() {
                     </button>
                   )}
                 </div>
-                <p style={{ margin: 0, fontFamily: "var(--ln-preview)", fontStyle: "italic", fontWeight: 500, fontSize: 18, lineHeight: 1.45, color: INK, wordWrap: "break-word" }}>
+                <p style={{ margin: 0, fontFamily: "var(--ln-preview)", fontStyle: "italic", fontWeight: 500, fontSize: 18, lineHeight: 1.45, color: INK, wordWrap: "break-word", textShadow: "0 1px 6px rgba(0,0,0,0.4)" }}>
                   {caption}
                 </p>
                 {noteOpen && hasMoreNote && (
@@ -772,29 +897,182 @@ function ExperienceContent() {
               </div>
             )}
 
-            {/* Active moment live callout */}
-            <div style={{ minHeight: 52, marginTop: 12, position: "relative" }}>
-              {activeMoment && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 8, borderRadius: 12, background: accent, color: "#2c1517", padding: "11px 15px", animation: "mu-pop 0.3s cubic-bezier(.16,1,.3,1) both", boxShadow: `0 14px 30px -12px ${accent}` }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
-                    <span style={{ fontFamily: "var(--ln-mono)", fontSize: 13, fontWeight: 700 }}>{lnFmt(activeMoment.seconds)}</span>
-                    <span style={{ width: 1, height: 20, background: "rgba(44,21,23,0.3)" }} />
-                    <span style={{ flex: 1, minWidth: 0, fontFamily: "var(--ln-preview)", fontStyle: (activeMoment as any).lyric ? "italic" : "normal", fontSize: 17, fontWeight: 600, lineHeight: 1.4, wordWrap: "break-word", color: (activeMoment as any).lyric ? "#f5f1e8" : "inherit" }}>
-                      {(activeMoment as any).lyric || activeMoment.label}
-                    </span>
-                    <button onClick={() => { setShareMoment(activeMoment); setShareModalOpen(true); }} className="ln-press" title="Share this lyric" style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 5, background: "rgba(44,21,23,0.16)", border: "none", color: "#2c1517", borderRadius: 999, padding: "6px 11px", cursor: "pointer", fontFamily: "var(--ln-body)", fontSize: 12.5, fontWeight: 700, whiteSpace: "nowrap" }}>
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 15V4M12 4l-4 4M12 4l4 4M5 13v5a2 2 0 002 2h10a2 2 0 002-2v-5" stroke="#2c1517" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                      Share
-                    </button>
-                  </div>
-                  {activeMoment.note && (
-                    <div style={{ fontFamily: "var(--ln-body)", fontSize: 15, lineHeight: 1.45, color: "#f5f1e8", paddingLeft: 3 }}>
-                      {activeMoment.note}
-                    </div>
-                  )}
+            {/* Annotated moments - scrollable list with sync toggle */}
+            {review.notes && review.notes.length > 0 && (
+              <div style={{ marginTop: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 8 }}>
+                  <span style={{ fontFamily: "var(--ln-label)", fontSize: 11, letterSpacing: "0.16em", textTransform: "uppercase", fontWeight: 700, color: accent }}>
+                    Moments ({review.notes.filter(m => m.seconds <= durationSec).length})
+                  </span>
+                  <span style={{ flex: 1, height: 1, background: "rgba(244,239,230,0.12)" }} />
+                  <button
+                    onClick={() => setMomentSync(!momentSync)}
+                    className="ln-press"
+                    title={momentSync ? "Disable auto-scroll" : "Enable auto-scroll"}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 5,
+                      background: momentSync ? `${accent}1a` : "rgba(244,239,230,0.06)",
+                      border: `1px solid ${momentSync ? `${accent}55` : "rgba(244,239,230,0.16)"}`,
+                      borderRadius: 6,
+                      padding: "4px 9px",
+                      cursor: "pointer",
+                      fontFamily: "var(--ln-mono)",
+                      fontSize: 9,
+                      letterSpacing: "0.04em",
+                      color: momentSync ? accent : muted(0.6),
+                      fontWeight: 600,
+                      transition: "all 0.2s",
+                    }}
+                  >
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+                      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    </svg>
+                    {momentSync ? "SYNC" : "MANUAL"}
+                  </button>
                 </div>
-              )}
-            </div>
+                <div
+                  ref={momentsColRef}
+                  className="ln-scroll"
+                  style={{
+                    position: "relative",
+                    height: "200px",
+                    overflow: momentSync ? "hidden" : "auto",
+                    WebkitMaskImage: momentSync ? "linear-gradient(180deg, transparent, #000 12%, #000 88%, transparent)" : "none",
+                    borderRadius: 12,
+                    background: "rgba(244,239,230,0.06)",
+                    backdropFilter: "blur(10px)",
+                    WebkitBackdropFilter: "blur(10px)",
+                    border: "1px solid rgba(244,239,230,0.12)",
+                    boxShadow: "0 2px 16px rgba(0,0,0,0.2)",
+                  }}
+                  onWheel={() => {
+                    // Disable sync when user manually scrolls
+                    if (momentSync) setMomentSync(false);
+                  }}
+                >
+                  <div
+                    style={{
+                      transform: momentSync ? `translateY(${momentShift}px)` : "none",
+                      transition: momentSync ? "transform 0.5s cubic-bezier(.2,.8,.2,1)" : "none",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 8,
+                      padding: "12px",
+                    }}
+                  >
+                    {review.notes
+                      .filter(m => m.seconds <= durationSec) // Filter out invalid timestamps
+                      .map((moment, i) => {
+                        const isActive = positionSec >= moment.seconds && positionSec < moment.seconds + 9;
+                        const isPast = positionSec > moment.seconds + 9;
+                        const isInvalid = moment.seconds > durationSec;
+
+                        return (
+                          <div
+                            key={i}
+                            ref={(el) => { momentRefs.current[i] = el; }}
+                            onClick={() => player?.seek(moment.seconds * 1000)}
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 6,
+                              borderRadius: 10,
+                              background: isActive ? accent : isPast ? "rgba(244,239,230,0.04)" : "rgba(244,239,230,0.06)",
+                              color: isActive ? "#2c1517" : isPast ? muted(0.45) : INK,
+                              padding: "10px 13px",
+                              cursor: "pointer",
+                              transition: "all 0.3s cubic-bezier(.2,.8,.2,1)",
+                              border: `1px solid ${isActive ? accent : "rgba(244,239,230,0.08)"}`,
+                              boxShadow: isActive ? `0 8px 20px -8px ${accent}` : "none",
+                              opacity: isActive ? 1 : isPast ? 0.5 : 0.75,
+                            }}
+                          >
+                            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                              <span style={{ fontFamily: "var(--ln-mono)", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+                                {lnFmt(moment.seconds)}
+                              </span>
+                              <span style={{ width: 1, height: 16, background: isActive ? "rgba(44,21,23,0.3)" : "rgba(244,239,230,0.2)", flexShrink: 0 }} />
+                              <span style={{
+                                flex: 1,
+                                minWidth: 0,
+                                fontFamily: "var(--ln-preview)",
+                                fontStyle: (moment as any).lyric ? "italic" : "normal",
+                                fontSize: isActive ? 16 : 14,
+                                fontWeight: 600,
+                                lineHeight: 1.3,
+                                wordWrap: "break-word",
+                                transition: "font-size 0.3s",
+                              }}>
+                                {(moment as any).lyric || moment.label}
+                              </span>
+                              {isActive && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShareMoment(moment);
+                                    setShareModalOpen(true);
+                                  }}
+                                  className="ln-press"
+                                  title="Share this moment"
+                                  style={{
+                                    flexShrink: 0,
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 4,
+                                    background: "rgba(44,21,23,0.12)",
+                                    border: "none",
+                                    color: "#2c1517",
+                                    borderRadius: 999,
+                                    padding: "5px 9px",
+                                    cursor: "pointer",
+                                    fontFamily: "var(--ln-body)",
+                                    fontSize: 11,
+                                    fontWeight: 700,
+                                  }}
+                                >
+                                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+                                    <path d="M12 15V4M12 4l-4 4M12 4l4 4M5 13v5a2 2 0 002 2h10a2 2 0 002-2v-5" stroke="#2c1517" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                  </svg>
+                                  Share
+                                </button>
+                              )}
+                            </div>
+                            {moment.note && (
+                              <div style={{
+                                fontFamily: "var(--ln-body)",
+                                fontSize: isActive ? 14 : 13,
+                                lineHeight: 1.45,
+                                color: isActive ? "#f5f1e8" : muted(0.65),
+                                paddingLeft: 3,
+                                wordWrap: "break-word",
+                                transition: "font-size 0.3s, color 0.3s",
+                              }}>
+                                {moment.note}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    {review.notes.filter(m => m.seconds > durationSec).length > 0 && (
+                      <div style={{
+                        padding: "8px 12px",
+                        borderRadius: 8,
+                        background: "rgba(255,100,100,0.1)",
+                        border: "1px solid rgba(255,100,100,0.3)",
+                        fontFamily: "var(--ln-mono)",
+                        fontSize: 11,
+                        color: "#ff9999",
+                        textAlign: "center",
+                      }}>
+                        {review.notes.filter(m => m.seconds > durationSec).length} moment(s) beyond track duration
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Synced lyrics */}
             {lyrics && lyrics.lines && lyrics.lines.length > 0 ? (
@@ -826,7 +1104,7 @@ function ExperienceContent() {
                   <span style={{ fontFamily: "var(--ln-mono)", fontSize: 9.5, letterSpacing: "0.04em", color: muted(0.45) }}>synced · Musixmatch</span>
                 </div>
 
-                <div ref={colRef} className="ln-scroll" style={{ position: "relative", height: "clamp(360px, 52vh, 560px)", overflow: "hidden", WebkitMaskImage: "linear-gradient(180deg, transparent, #000 16%, #000 80%, transparent)" }}>
+                <div ref={colRef} className="ln-scroll" style={{ position: "relative", height: "clamp(360px, 52vh, 560px)", overflow: "hidden", WebkitMaskImage: "linear-gradient(180deg, transparent, #000 16%, #000 80%, transparent)", padding: "12px", background: "rgba(244,239,230,0.02)", borderRadius: 12, backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)" }}>
                   <div style={{ transform: `translateY(${lyricShift}px)`, transition: "transform 0.5s cubic-bezier(.2,.8,.2,1)", display: "flex", flexDirection: "column", gap: 4, paddingTop: 8 }}>
                     {lyrics.lines.map((line, i) => {
                       const lineSec = line.time.total / 1000;
@@ -834,6 +1112,11 @@ function ExperienceContent() {
                       const passed = annotations?.activeLineIndex !== undefined && i < annotations.activeLineIndex;
                       const dist = Math.abs(i - (annotations?.activeLineIndex || 0));
                       const translatedLine = translation?.lines?.[i];
+
+                      // Check if this line is annotated in a moment
+                      const isAnnotated = review?.notes?.some((note: any) =>
+                        note.lyric && line.text.toLowerCase().includes(note.lyric.toLowerCase())
+                      );
 
                       return (
                         <div key={i} ref={(el) => { lineRefs.current[i] = el; }}
@@ -844,16 +1127,22 @@ function ExperienceContent() {
                           }}>
                           <div style={{
                             fontFamily: "var(--ln-album)",
-                            fontWeight: isActive ? 600 : 500,
-                            fontSize: isActive ? 22 : 18,
+                            fontWeight: isActive ? 600 : isAnnotated ? 550 : 500,
+                            fontSize: isActive ? 22 : isAnnotated ? 19 : 18,
                             lineHeight: 1.25,
                             letterSpacing: "-0.01em",
-                            color: isActive ? INK : passed ? muted(0.32) : muted(0.5),
+                            color: (isActive && isAnnotated) ? "#2c1517" : isActive ? INK : passed ? muted(0.32) : muted(0.5),
                             opacity: isActive ? 1 : Math.max(0.26, 1 - dist * 0.16),
                             transition: "all 0.4s cubic-bezier(.2,.8,.2,1)",
                             wordWrap: "break-word",
+                            padding: (isActive && isAnnotated) ? "10px 13px" : "0",
+                            borderRadius: (isActive && isAnnotated) ? 10 : 0,
+                            background: (isActive && isAnnotated) ? accent : "transparent",
+                            border: (isActive && isAnnotated) ? `1px solid ${accent}` : "none",
+                            boxShadow: (isActive && isAnnotated) ? `0 8px 20px -8px ${accent}` : "none",
+                            textShadow: isActive ? "0 2px 10px rgba(0,0,0,0.6), 0 1px 3px rgba(0,0,0,0.8)" : "0 1px 6px rgba(0,0,0,0.5)",
                           }}>
-                            {isActive && <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: accent, marginRight: 12, verticalAlign: "middle", boxShadow: `0 0 0 4px ${accent}33` }} />}
+                            {isActive && !isAnnotated && <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: accent, marginRight: 12, verticalAlign: "middle", boxShadow: `0 0 0 4px ${accent}33` }} />}
                             {line.text}
                           </div>
                           {showTranslation && translatedLine && translatedLine.text !== line.text && (

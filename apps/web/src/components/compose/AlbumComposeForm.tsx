@@ -17,6 +17,8 @@ interface AlbumComposeFormProps {
   // Deep-link pre-fill (e.g. from a "worth a note" album prompt). The album is
   // looked up + its tracklist loaded; the user still picks which tracks to react to.
   initialAlbum?: { album: string; artist: string; artworkUrl?: string };
+  // Edit mode: pre-fill with existing album review data
+  initialAlbumReview?: AlbumReview;
 }
 
 interface TrackNote { seconds: number; label: string; note?: string; lyric?: string }
@@ -32,7 +34,7 @@ interface TrackReaction {
   momentInputMode: 'manual' | 'lyrics'; // toggle between manual timestamps and lyrics annotation
 }
 
-export function AlbumComposeForm({ onSubmit, onSuccess, searchAPI, initialAlbum }: AlbumComposeFormProps) {
+export function AlbumComposeForm({ onSubmit, onSuccess, searchAPI, initialAlbum, initialAlbumReview }: AlbumComposeFormProps) {
   const [selectedAlbum, setSelectedAlbum] = useState<Album | null>(null);
   const [albumWithTracks, setAlbumWithTracks] = useState<Album | null>(null);
   const [overallRating, setOverallRating] = useState(0);
@@ -44,6 +46,7 @@ export function AlbumComposeForm({ onSubmit, onSuccess, searchAPI, initialAlbum 
   const [openTrack, setOpenTrack] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [loadingTracks, setLoadingTracks] = useState(false);
+  const [editingReviewId, setEditingReviewId] = useState<string | null>(null);
 
   const handleAlbumSelect = async (album: Album) => {
     setSelectedAlbum(album);
@@ -77,10 +80,96 @@ export function AlbumComposeForm({ onSubmit, onSuccess, searchAPI, initialAlbum 
     }
   };
 
+  // Pre-fill from editing an existing review
+  useEffect(() => {
+    if (!initialAlbumReview) return;
+
+    const review = initialAlbumReview;
+    setEditingReviewId(review.id);
+
+    // Set up the album data
+    const album: Album = {
+      albumId: review.album.albumId,
+      name: review.album.name,
+      artist: review.album.artist,
+      artworkUrl: review.album.artworkUrl || "",
+      releaseDate: review.album.releaseDate,
+      totalTracks: review.album.totalTracks,
+      tracks: [], // Will be populated with tracklist
+    };
+
+    setSelectedAlbum(album);
+    setOverallRating(review.overallRating || 0);
+    setAlbumTake(review.take || "");
+    setShowTake(!!review.take);
+
+    // Fetch full album tracklist, then merge with existing track reviews
+    (async () => {
+      setLoadingTracks(true);
+      try {
+        const res = await fetch(`/api/albums/${album.albumId}`);
+        if (res.ok) {
+          const data = await res.json();
+          const fullAlbum: Album = data.album;
+          setAlbumWithTracks(fullAlbum);
+
+          if (fullAlbum.tracks) {
+            // Create a map of existing track reviews by trackId
+            const existingReviews = new Map(
+              (review.trackReviews || []).map(tr => [tr.track.trackId, tr])
+            );
+
+            // Build track reactions, merging existing reviews with full tracklist
+            const reactions = fullAlbum.tracks.map((track, index) => {
+              const existing = existingReviews.get(track.trackId);
+              if (existing) {
+                return {
+                  track,
+                  trackNumber: existing.trackNumber || index + 1,
+                  reaction: existing.reaction || null,
+                  rating: existing.rating || 3.0,
+                  take: existing.take || "",
+                  notes: (existing.notes || []).map(n => ({
+                    seconds: n.seconds,
+                    label: n.label || "moment",
+                    note: n.note,
+                    lyric: n.lyric,
+                  })),
+                  showNoteForm: false,
+                  included: true, // Mark as included if it was in the original review
+                  momentInputMode: 'manual' as const,
+                };
+              } else {
+                return {
+                  track,
+                  trackNumber: index + 1,
+                  reaction: null,
+                  rating: 3.0,
+                  take: "",
+                  notes: [],
+                  showNoteForm: false,
+                  included: false,
+                  momentInputMode: 'manual' as const,
+                };
+              }
+            });
+
+            setTrackReactions(reactions);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch album tracks for editing:", error);
+      } finally {
+        setLoadingTracks(false);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialAlbumReview]);
+
   // Pre-fill from a prompt: resolve the album (search → albumId), then load it so
   // the user lands on the tracklist ready to pick what stuck.
   useEffect(() => {
-    if (!initialAlbum?.album || !initialAlbum?.artist) return;
+    if (!initialAlbum?.album || !initialAlbum?.artist || initialAlbumReview) return;
     let cancelled = false;
     (async () => {
       try {
@@ -198,12 +287,18 @@ export function AlbumComposeForm({ onSubmit, onSuccess, searchAPI, initialAlbum 
       if (onSubmit) {
         await onSubmit(albumReviewData as unknown as Partial<AlbumReview>);
       } else {
-        const res = await fetch("/api/album-reviews", {
-          method: "POST",
+        // Use PATCH if editing, POST if creating new
+        const url = editingReviewId
+          ? `/api/album-reviews/${editingReviewId}`
+          : "/api/album-reviews";
+        const method = editingReviewId ? "PATCH" : "POST";
+
+        const res = await fetch(url, {
+          method,
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(albumReviewData),
         });
-        if (!res.ok) throw new Error("Failed to create album review");
+        if (!res.ok) throw new Error(editingReviewId ? "Failed to update album review" : "Failed to create album review");
         const data = await res.json();
         window.location.href = `/album-card/${data.albumReview.id}`;
         return;
@@ -405,7 +500,13 @@ export function AlbumComposeForm({ onSubmit, onSuccess, searchAPI, initialAlbum 
               )}
 
               <button type="submit" disabled={!canPost || submitting} className="ln-press" style={{ width: "100%", marginTop: 22, padding: "15px", borderRadius: 14, border: "none", cursor: canPost && !submitting ? "pointer" : "default", fontFamily: "var(--ln-body)", fontSize: 15.5, fontWeight: 700, background: canPost ? gold : "rgba(var(--ln-fg-rgb),0.1)", color: canPost ? "#2c1517" : "rgba(var(--ln-fg-rgb),0.4)", transition: "background 0.2s" }}>
-                {submitting ? "Posting…" : !canPost ? "React or rate to post" : "Post album review"}
+                {submitting
+                  ? editingReviewId ? "Updating…" : "Posting…"
+                  : !canPost
+                  ? "React or rate to post"
+                  : editingReviewId
+                  ? "Update album review"
+                  : "Post album review"}
               </button>
             </>
           )}

@@ -181,8 +181,8 @@ export async function GET(request: NextRequest) {
         likeCount: albumReview._count.likes,
         repostCount: albumReview._count.reposts,
         saveCount: albumReview._count.saves,
-        likedByMe: albumReview.likes.length > 0,
-        repostedByMe: albumReview.reposts.some(r => r.userId === currentUserId),
+        likedByMe: Array.isArray(albumReview.likes) && albumReview.likes.length > 0,
+        repostedByMe: currentUserId ? albumReview.reposts.some(r => r.userId === currentUserId) : false,
         saved: Array.isArray(albumReview.saves) && albumReview.saves.length > 0,
         reposts: albumReview.reposts.map(r => ({
           id: r.id,
@@ -339,8 +339,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ albumReviews: transformedAlbumReviews });
   } catch (error) {
     console.error("Get album reviews error:", error);
+    console.error("Error details:", error instanceof Error ? error.message : String(error));
     return NextResponse.json(
-      { error: "Failed to fetch album reviews" },
+      {
+        error: "Failed to fetch album reviews",
+        details: error instanceof Error ? error.message : String(error)
+      },
       { status: 500 }
     );
   }
@@ -387,11 +391,124 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Get ONE Spotify token for all lookups
+    let spotifyToken: string | null = null;
+    const needsLookup = !(/^[a-zA-Z0-9]{22}$/.test(albumId)) ||
+      (trackReviews && trackReviews.some((tr: any) => !(/^[a-zA-Z0-9]{22}$/.test(tr.trackId))));
+
+    if (needsLookup) {
+      try {
+        const clientId = process.env.SPOTIFY_CLIENT_ID;
+        const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
+
+        if (clientId && clientSecret) {
+          const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'Authorization': `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
+            },
+            body: 'grant_type=client_credentials',
+          });
+
+          if (tokenResponse.ok) {
+            const { access_token } = await tokenResponse.json();
+            spotifyToken = access_token;
+            console.log("[Album Reviews] Got Spotify token for lookups");
+          }
+        }
+      } catch (error) {
+        console.error("[Album Reviews] Failed to get Spotify token:", error);
+      }
+    }
+
+    // Look up album ID if needed
+    let finalAlbumId = albumId;
+    const isAlbumSpotifyId = /^[a-zA-Z0-9]{22}$/.test(albumId);
+
+    if (!isAlbumSpotifyId && spotifyToken) {
+      console.log("[Album Reviews] Looking up Spotify ID for album:", albumId);
+      try {
+        const query = encodeURIComponent(`album:${albumName} artist:${albumArtist}`);
+        const searchUrl = `https://api.spotify.com/v1/search?q=${query}&type=album&limit=1`;
+        const searchResponse = await fetch(searchUrl, {
+          headers: { Authorization: `Bearer ${spotifyToken}` },
+        });
+
+        if (searchResponse.ok) {
+          const searchData = await searchResponse.json();
+          const spotifyAlbum = searchData.albums?.items?.[0];
+          if (spotifyAlbum) {
+            finalAlbumId = spotifyAlbum.id;
+            console.log("[Album Reviews] Found Spotify album ID:", finalAlbumId);
+          } else {
+            console.warn("[Album Reviews] No Spotify album match, using original ID:", albumId);
+          }
+        }
+      } catch (error) {
+        console.error("[Album Reviews] Spotify album lookup failed:", error);
+      }
+    }
+
+    // Look up track IDs using the SAME token
+    const finalTrackReviews = trackReviews && trackReviews.length > 0 ? await Promise.all(
+      trackReviews.map(async (tr: any) => {
+        let finalTrackId = tr.trackId;
+        const isTrackSpotifyId = /^[a-zA-Z0-9]{22}$/.test(tr.trackId);
+
+        if (!isTrackSpotifyId && spotifyToken) {
+          console.log("[Album Reviews] Looking up Spotify ID for track:", tr.trackId);
+          try {
+            const query = encodeURIComponent(`track:${tr.trackName} artist:${tr.trackArtist}`);
+            const searchUrl = `https://api.spotify.com/v1/search?q=${query}&type=track&limit=1`;
+            const searchResponse = await fetch(searchUrl, {
+              headers: { Authorization: `Bearer ${spotifyToken}` },
+            });
+
+            if (searchResponse.ok) {
+              const searchData = await searchResponse.json();
+              const spotifyTrack = searchData.tracks?.items?.[0];
+              if (spotifyTrack) {
+                finalTrackId = spotifyTrack.id;
+                console.log("[Album Reviews] Found Spotify track ID:", finalTrackId);
+              } else {
+                console.warn("[Album Reviews] No Spotify track match, using original ID:", tr.trackId);
+              }
+            }
+          } catch (error) {
+            console.error("[Album Reviews] Spotify track lookup failed:", error);
+          }
+        }
+
+        return {
+          userId: currentUserId,
+          trackId: finalTrackId,
+          trackName: tr.trackName,
+          trackArtist: tr.trackArtist,
+          trackAlbum: albumName,
+          artworkUrl: tr.artworkUrl || artworkUrl,
+          previewUrl: tr.previewUrl || null,
+          rating: tr.rating,
+          take: tr.take || null,
+          reaction: tr.reaction || null,
+          trackNumber: tr.trackNumber,
+          notes: tr.notes && tr.notes.length > 0 ? {
+            create: tr.notes.map((note: any) => ({
+              seconds: note.seconds,
+              label: note.label,
+              note: note.note || null,
+              lyric: note.lyric || null,
+            })),
+          } : undefined,
+        };
+      })
+    ) : [];
+
     // Create album review with track reviews
     const albumReview = await prisma.albumReview.create({
       data: {
         userId: currentUserId,
-        albumId,
+        albumId: finalAlbumId,
         albumName,
         albumArtist,
         artworkUrl,
@@ -399,27 +516,8 @@ export async function POST(request: NextRequest) {
         totalTracks,
         overallRating: overallRating ?? null,
         take: take || null,
-        trackReviews: trackReviews && trackReviews.length > 0 ? {
-          create: trackReviews.map((tr: any) => ({
-            userId: currentUserId,
-            trackId: tr.trackId,
-            trackName: tr.trackName,
-            trackArtist: tr.trackArtist,
-            trackAlbum: albumName,
-            artworkUrl: tr.artworkUrl || artworkUrl,
-            previewUrl: tr.previewUrl || null,
-            rating: tr.rating,
-            take: tr.take || null,
-            reaction: tr.reaction || null,
-            trackNumber: tr.trackNumber,
-            notes: tr.notes && tr.notes.length > 0 ? {
-              create: tr.notes.map((note: any) => ({
-                seconds: note.seconds,
-                label: note.label,
-                note: note.note || null,
-              })),
-            } : undefined,
-          })),
+        trackReviews: finalTrackReviews.length > 0 ? {
+          create: finalTrackReviews,
         } : undefined,
       },
       include: {

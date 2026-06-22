@@ -117,11 +117,12 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await request.json();
-    const { overallRating, take } = body;
+    const { overallRating, take, trackReviews } = body;
 
     // Check if album review exists and belongs to user
     const albumReview = await prisma.albumReview.findUnique({
       where: { id },
+      include: { trackReviews: true },
     });
 
     if (!albumReview) {
@@ -138,6 +139,145 @@ export async function PATCH(
         { error: "Overall rating must be between 0.5 and 5.0" },
         { status: 400 }
       );
+    }
+
+    // Get Spotify token for track ID lookups if needed
+    let spotifyToken: string | null = null;
+    const needsLookup = trackReviews && trackReviews.some((tr: any) => !(/^[a-zA-Z0-9]{22}$/.test(tr.trackId)));
+
+    if (needsLookup) {
+      try {
+        const clientId = process.env.SPOTIFY_CLIENT_ID;
+        const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
+
+        if (clientId && clientSecret) {
+          const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'Authorization': `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
+            },
+            body: 'grant_type=client_credentials',
+          });
+
+          if (tokenResponse.ok) {
+            const { access_token } = await tokenResponse.json();
+            spotifyToken = access_token;
+          }
+        }
+      } catch (error) {
+        console.error("[Album Reviews PATCH] Failed to get Spotify token:", error);
+      }
+    }
+
+    // Process track reviews if provided
+    if (trackReviews && Array.isArray(trackReviews)) {
+      // Delete all existing track reviews (cascade will delete notes)
+      await prisma.review.deleteMany({
+        where: { albumReviewId: id },
+      });
+
+      // Create new track reviews
+      if (trackReviews.length > 0) {
+        const finalTrackReviews = await Promise.all(
+          trackReviews.map(async (tr: any) => {
+            let finalTrackId = tr.trackId;
+            const isTrackSpotifyId = /^[a-zA-Z0-9]{22}$/.test(tr.trackId);
+
+            if (!isTrackSpotifyId && spotifyToken) {
+              try {
+                const query = encodeURIComponent(`track:${tr.trackName} artist:${tr.trackArtist}`);
+                const searchUrl = `https://api.spotify.com/v1/search?q=${query}&type=track&limit=1`;
+                const searchResponse = await fetch(searchUrl, {
+                  headers: { Authorization: `Bearer ${spotifyToken}` },
+                });
+
+                if (searchResponse.ok) {
+                  const searchData = await searchResponse.json();
+                  const spotifyTrack = searchData.tracks?.items?.[0];
+                  if (spotifyTrack) {
+                    finalTrackId = spotifyTrack.id;
+                  }
+                }
+              } catch (error) {
+                console.error("[Album Reviews PATCH] Spotify track lookup failed:", error);
+              }
+            }
+
+            return {
+              userId: currentUserId,
+              trackId: finalTrackId,
+              trackName: tr.trackName,
+              trackArtist: tr.trackArtist,
+              trackAlbum: albumReview.albumName,
+              artworkUrl: tr.artworkUrl || albumReview.artworkUrl,
+              previewUrl: tr.previewUrl || null,
+              rating: tr.rating,
+              take: tr.take || null,
+              reaction: tr.reaction || null,
+              trackNumber: tr.trackNumber,
+              notes: tr.notes && tr.notes.length > 0 ? {
+                create: tr.notes.map((note: any) => ({
+                  seconds: note.seconds,
+                  label: note.label,
+                  note: note.note || null,
+                  lyric: note.lyric || null,
+                })),
+              } : undefined,
+            };
+          })
+        );
+
+        await prisma.review.createMany({
+          data: finalTrackReviews.map((tr: any) => ({
+            userId: tr.userId,
+            trackId: tr.trackId,
+            trackName: tr.trackName,
+            trackArtist: tr.trackArtist,
+            trackAlbum: tr.trackAlbum,
+            artworkUrl: tr.artworkUrl,
+            previewUrl: tr.previewUrl,
+            rating: tr.rating,
+            take: tr.take,
+            reaction: tr.reaction,
+            trackNumber: tr.trackNumber,
+            albumReviewId: id,
+          })),
+        });
+
+        // Create notes for each track review
+        for (const tr of finalTrackReviews) {
+          if (tr.notes?.create && tr.notes.create.length > 0) {
+            const trackReview = await prisma.review.findFirst({
+              where: {
+                albumReviewId: id,
+                trackId: tr.trackId,
+                trackNumber: tr.trackNumber,
+              },
+            });
+            if (trackReview) {
+              await prisma.note.createMany({
+                data: tr.notes.create.map((note: any) => ({
+                  ...note,
+                  reviewId: trackReview.id,
+                })),
+              });
+
+              // Set featured note for the first note
+              const firstNote = await prisma.note.findFirst({
+                where: { reviewId: trackReview.id },
+                orderBy: { createdAt: 'asc' },
+              });
+              if (firstNote) {
+                await prisma.review.update({
+                  where: { id: trackReview.id },
+                  data: { featuredNoteId: firstNote.id },
+                });
+              }
+            }
+          }
+        }
+      }
     }
 
     // Update album review

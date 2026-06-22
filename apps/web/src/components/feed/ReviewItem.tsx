@@ -6,16 +6,21 @@ import Link from "next/link";
 
 interface ReviewItemProps {
   review: Review;
+  currentUserId?: string;
   onLike?: (reviewId: string) => Promise<void>;
   onRepost?: (reviewId: string) => Promise<void>;
+  onDelete?: (reviewId: string) => Promise<void>;
 }
 
-export function ReviewItem({ review, onLike, onRepost }: ReviewItemProps) {
+export function ReviewItem({ review, currentUserId, onLike, onRepost, onDelete }: ReviewItemProps) {
   const [likeCount, setLikeCount] = useState(review.likeCount);
   const [repostCount, setRepostCount] = useState(review.repostCount);
   const [likedByMe, setLikedByMe] = useState(review.likedByMe || false);
   const [repostedByMe, setRepostedByMe] = useState(review.repostedByMe || false);
   const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const isOwnReview = currentUserId && review.userId === currentUserId;
 
   const handleLike = async () => {
     if (loading) return;
@@ -74,6 +79,22 @@ export function ReviewItem({ review, onLike, onRepost }: ReviewItemProps) {
       console.error("Failed to repost:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (deleting || !onDelete) return;
+
+    if (!confirm("Are you sure you want to delete this review?")) return;
+
+    setDeleting(true);
+    try {
+      await onDelete(review.id);
+    } catch (error) {
+      console.error("Failed to delete:", error);
+      alert("Failed to delete review");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -233,6 +254,26 @@ export function ReviewItem({ review, onLike, onRepost }: ReviewItemProps) {
           </svg>
           <span className="text-sm">{repostCount}</span>
         </button>
+
+        {/* Delete button - only show for own reviews */}
+        {isOwnReview && (
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className="ml-auto flex items-center gap-2 px-4 py-2 rounded-lg hover:scale-105 transition-all disabled:opacity-50 font-medium shadow-sm"
+            style={{
+              backgroundColor: "rgba(239, 68, 68, 0.1)",
+              color: "#dc2626",
+              border: "1px solid rgba(239, 68, 68, 0.3)",
+            }}
+            title="Delete review"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            <span className="text-sm">{deleting ? "Deleting..." : "Delete"}</span>
+          </button>
+        )}
       </div>
     </div>
   );

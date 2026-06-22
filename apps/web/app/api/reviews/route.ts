@@ -316,8 +316,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ reviews: transformedReviews });
   } catch (error) {
     console.error("Get reviews error:", error);
+    console.error("Error details:", error instanceof Error ? error.message : String(error));
+    console.error("Stack:", error instanceof Error ? error.stack : 'N/A');
     return NextResponse.json(
-      { error: "Failed to fetch reviews" },
+      {
+        error: "Failed to fetch reviews",
+        details: error instanceof Error ? error.message : String(error)
+      },
       { status: 500 }
     );
   }
@@ -383,28 +388,42 @@ export async function POST(request: NextRequest) {
     if (!isSpotifyId) {
       console.log("[Reviews] Looking up Spotify ID for non-Spotify track:", trackId);
       try {
-        // Get user's Spotify token for lookup
-        const connection = await prisma.musicConnection.findUnique({
-          where: { userId_service: { userId: currentUserId, service: "spotify" } },
-        });
+        // Use app credentials for reliable lookup
+        const clientId = process.env.SPOTIFY_CLIENT_ID;
+        const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
 
-        if (connection?.accessToken) {
-          const query = encodeURIComponent(`${trackName} ${trackArtist}`);
-          const searchUrl = `https://api.spotify.com/v1/search?q=${query}&type=track&limit=1`;
-          const searchResponse = await fetch(searchUrl, {
-            headers: { Authorization: `Bearer ${connection.accessToken}` },
+        if (clientId && clientSecret) {
+          // Get app token
+          const tokenResponse = await fetch('https://accounts.spotify.com/api/token', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'Authorization': `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
+            },
+            body: 'grant_type=client_credentials',
           });
 
-          if (searchResponse.ok) {
-            const searchData = await searchResponse.json();
-            const spotifyTrack = searchData.tracks?.items?.[0];
+          if (tokenResponse.ok) {
+            const { access_token } = await tokenResponse.json();
+            const query = encodeURIComponent(`track:${trackName} artist:${trackArtist}`);
+            const searchUrl = `https://api.spotify.com/v1/search?q=${query}&type=track&limit=1`;
+            const searchResponse = await fetch(searchUrl, {
+              headers: { Authorization: `Bearer ${access_token}` },
+            });
 
-            if (spotifyTrack) {
-              finalTrackId = spotifyTrack.id;
-              const images = spotifyTrack.album.images || [];
-              finalArtworkUrl = images.find((img: any) => img.width >= 640)?.url || images[0]?.url || finalArtworkUrl;
-              finalAlbum = spotifyTrack.album.name || finalAlbum;
-              console.log("[Reviews] Found Spotify ID:", finalTrackId);
+            if (searchResponse.ok) {
+              const searchData = await searchResponse.json();
+              const spotifyTrack = searchData.tracks?.items?.[0];
+
+              if (spotifyTrack) {
+                finalTrackId = spotifyTrack.id;
+                const images = spotifyTrack.album.images || [];
+                finalArtworkUrl = images.find((img: any) => img.width >= 640)?.url || images[0]?.url || finalArtworkUrl;
+                finalAlbum = spotifyTrack.album.name || finalAlbum;
+                console.log("[Reviews] Found Spotify ID:", finalTrackId);
+              } else {
+                console.warn("[Reviews] No Spotify match found, storing original ID:", trackId);
+              }
             }
           }
         }
