@@ -6,8 +6,8 @@ import Link from "next/link";
 import { TopBar, Footer } from "@/components/ln/nav";
 import { FeedItem } from "@/components/ln/cards";
 import { getReviews, getFriends, toggleLike, toggleRepost } from "@/lib/api";
-import { toReviewVM, toAlbumReviewVM, type ReviewVM } from "@/lib/view-adapter";
-import type { AlbumReview, User } from "@/lib/types";
+import { toReviewVM, toAlbumReviewVM, toPlaylistVM, type ReviewVM } from "@/lib/view-adapter";
+import type { AlbumReview, Playlist, User } from "@/lib/types";
 import { PromptShelf } from "@/components/prompts/PromptShelf";
 
 interface Prompt {
@@ -48,13 +48,15 @@ export default function Home() {
       try {
         // The "/feed=friends" API param is actually the public all-reviews feed,
         // so we filter the home feed to your friends (+ your own posts) here.
-        const [reviews, albumRes, communityReviews, friendsData] = await Promise.all([
+        const [reviews, albumRes, playlistRes, communityReviews, friendsData] = await Promise.all([
           getReviews({ feed: "friends" }).catch(() => []),
           fetch("/api/album-reviews?feed=friends", { cache: "no-store" }).then((r) => (r.ok ? r.json() : { albumReviews: [] })).catch(() => ({ albumReviews: [] })),
+          fetch("/api/playlists", { cache: "no-store" }).then((r) => (r.ok ? r.json() : { playlists: [] })).catch(() => ({ playlists: [] })),
           getReviews({ feed: "friends" }).catch(() => []), // All community reviews (for the hero)
           getFriends().catch(() => ({ friends: [] as User[] })),
         ]);
         const albumReviews: AlbumReview[] = albumRes.albumReviews || [];
+        const playlists: Playlist[] = playlistRes.playlists || [];
 
         // Your feed = reviews by your accepted friends, plus your own.
         const friendIds = new Set<string>((friendsData.friends || []).map((f: User) => f.id));
@@ -63,6 +65,7 @@ export default function Home() {
         const vms = [
           ...reviews.map((r) => toReviewVM(r)),
           ...albumReviews.map((a) => toAlbumReviewVM(a)),
+          ...playlists.map((p) => toPlaylistVM(p)),
         ]
           .filter((vm) => friendIds.has(vm.user.id))
           .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
@@ -237,9 +240,9 @@ export default function Home() {
                 <FeedItem
                   key={vm.id}
                   vm={vm}
-                  onLike={() => { if (vm.kind === "track") toggleLike(vm.id).catch(() => {}); else if (vm.kind === "album") fetch(`/api/album-reviews/${vm.id}/like`, { method: "POST" }).catch(() => {}); }}
-                  onRepost={() => { if (vm.kind === "track") toggleRepost(vm.id).catch(() => {}); else if (vm.kind === "album") fetch(`/api/album-reviews/${vm.id}/repost`, { method: "POST" }).catch(() => {}); }}
-                  onSave={() => { if (vm.kind === "track") fetch(`/api/reviews/${vm.id}/save`, { method: "POST" }).catch(() => {}); else if (vm.kind === "album") fetch(`/api/album-reviews/${vm.id}/save`, { method: "POST" }).catch(() => {}); }}
+                  onLike={() => { if (vm.kind === "track") toggleLike(vm.id).catch(() => {}); else if (vm.kind === "album") fetch(`/api/album-reviews/${vm.id}/like`, { method: "POST" }).catch(() => {}); else if (vm.kind === "playlist") fetch(`/api/playlists/${vm.id}/like`, { method: "POST" }).catch(() => {}); }}
+                  onRepost={() => { if (vm.kind === "track") toggleRepost(vm.id).catch(() => {}); else if (vm.kind === "album") fetch(`/api/album-reviews/${vm.id}/repost`, { method: "POST" }).catch(() => {}); else if (vm.kind === "playlist") fetch(`/api/playlists/${vm.id}/repost`, { method: "POST" }).catch(() => {}); }}
+                  onSave={() => { if (vm.kind === "track") fetch(`/api/reviews/${vm.id}/save`, { method: "POST" }).catch(() => {}); else if (vm.kind === "album") fetch(`/api/album-reviews/${vm.id}/save`, { method: "POST" }).catch(() => {}); else if (vm.kind === "playlist") fetch(`/api/playlists/${vm.id}/save`, { method: "POST" }).catch(() => {}); }}
                 />
               ))}
             </div>

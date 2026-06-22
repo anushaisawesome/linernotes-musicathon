@@ -4,13 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import type { User, Review, AlbumReview, Album } from "@/lib/types";
+import type { User, Review, AlbumReview, Album, Playlist } from "@/lib/types";
 import { TopBar, Footer } from "@/components/ln/nav";
 import { LNArt, LNStars, LNIcon } from "@/components/ln/atoms";
 import { LNWCard } from "@/components/ln/cards";
 import { AlbumSearch } from "@/components/compose/AlbumSearch";
 import { ProfileShareModal } from "@/components/share";
-import { toReviewVM, toAlbumReviewVM, type ReviewVM } from "@/lib/view-adapter";
+import { toReviewVM, toAlbumReviewVM, toPlaylistVM, type ReviewVM } from "@/lib/view-adapter";
 import { paletteFromString, tintFromString } from "@/lib/palette";
 
 type ProfileUser = User & { bio?: string; friendCount?: number; favourites?: string | null };
@@ -123,6 +123,9 @@ export default function ProfilePage() {
   const [savedReviews, setSavedReviews] = useState<Review[]>([]);
   const [repostedAlbums, setRepostedAlbums] = useState<AlbumReview[]>([]);
   const [savedAlbums, setSavedAlbums] = useState<AlbumReview[]>([]);
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [repostedPlaylists, setRepostedPlaylists] = useState<Playlist[]>([]);
+  const [savedPlaylists, setSavedPlaylists] = useState<Playlist[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [tab, setTab] = useState<"notes" | "reposts" | "saved">("notes");
@@ -162,14 +165,22 @@ export default function ProfilePage() {
           setAlbumReviews(albumReviewsData.albumReviews || []);
         }
 
+        const playlistsResponse = await fetch(`/api/playlists?userId=${userData.user.id}`);
+        if (playlistsResponse.ok) {
+          const playlistsData = await playlistsResponse.json();
+          setPlaylists(playlistsData.playlists || []);
+        }
+
         // Reposts + saved are the *current user's* own collections (the API keys
         // them off the session), so only load them when viewing your own profile.
         if (isOwnProfile) {
-          const [repostsResponse, savedResponse, albumRepostsResponse, albumSavedResponse] = await Promise.all([
+          const [repostsResponse, savedResponse, albumRepostsResponse, albumSavedResponse, playlistRepostsResponse, playlistSavedResponse] = await Promise.all([
             fetch(`/api/reviews?type=reposts`, { cache: "no-store" }),
             fetch(`/api/reviews?type=saved`, { cache: "no-store" }),
             fetch(`/api/album-reviews?type=reposts`, { cache: "no-store" }),
             fetch(`/api/album-reviews?type=saved`, { cache: "no-store" }),
+            fetch(`/api/playlists?type=reposts`, { cache: "no-store" }),
+            fetch(`/api/playlists?type=saved`, { cache: "no-store" }),
           ]);
           if (repostsResponse.ok) {
             const repostsData = await repostsResponse.json();
@@ -186,6 +197,14 @@ export default function ProfilePage() {
           if (albumSavedResponse.ok) {
             const d = await albumSavedResponse.json();
             setSavedAlbums(d.albumReviews || []);
+          }
+          if (playlistRepostsResponse.ok) {
+            const d = await playlistRepostsResponse.json();
+            setRepostedPlaylists(d.playlists || []);
+          }
+          if (playlistSavedResponse.ok) {
+            const d = await playlistSavedResponse.json();
+            setSavedPlaylists(d.playlists || []);
           }
         }
       } catch (err) {
@@ -247,14 +266,18 @@ export default function ProfilePage() {
     });
   };
 
+  // Map a VM kind to its API base so social toggles hit the right resource.
+  const apiBase = (kind: ReviewVM["kind"]) =>
+    kind === "album" ? "/api/album-reviews" : kind === "playlist" ? "/api/playlists" : "/api/reviews";
+
   // Unsave from the Saved tab: toggle the save off and drop it from the list.
-  // Works for both track and album reviews.
+  // Works for track, album and playlist reviews.
   const handleUnsave = async (vm: ReviewVM) => {
     if (vm.kind === "album") setSavedAlbums((arr) => arr.filter((a) => a.id !== vm.id));
+    else if (vm.kind === "playlist") setSavedPlaylists((arr) => arr.filter((p) => p.id !== vm.id));
     else setSavedReviews((arr) => arr.filter((r) => r.id !== vm.id));
     try {
-      const base = vm.kind === "album" ? "/api/album-reviews" : "/api/reviews";
-      await fetch(`${base}/${vm.id}/save`, { method: "POST" });
+      await fetch(`${apiBase(vm.kind)}/${vm.id}/save`, { method: "POST" });
     } catch {
       /* best-effort; resyncs on reload */
     }
@@ -263,10 +286,10 @@ export default function ProfilePage() {
   // Unrepost from your profile: toggle the repost off and drop it from the list.
   const handleUnrepost = async (vm: ReviewVM) => {
     if (vm.kind === "album") setRepostedAlbums((arr) => arr.filter((a) => a.id !== vm.id));
+    else if (vm.kind === "playlist") setRepostedPlaylists((arr) => arr.filter((p) => p.id !== vm.id));
     else setRepostedReviews((arr) => arr.filter((r) => r.id !== vm.id));
     try {
-      const base = vm.kind === "album" ? "/api/album-reviews" : "/api/reviews";
-      await fetch(`${base}/${vm.id}/repost`, { method: "POST" });
+      await fetch(`${apiBase(vm.kind)}/${vm.id}/repost`, { method: "POST" });
     } catch {
       /* best-effort; resyncs on reload */
     }
@@ -315,6 +338,7 @@ export default function ProfilePage() {
   const ownNotes = [
     ...reviews.map((r) => ({ vm: toReviewVM({ ...r, user: r.user || user }), reposted: false })),
     ...albumReviews.map((ar) => ({ vm: toAlbumReviewVM({ ...ar, user: ar.user || user }), reposted: false })),
+    ...playlists.map((pl) => ({ vm: toPlaylistVM({ ...pl, user: pl.user || user }), reposted: false })),
   ].sort((a, b) => new Date(b.vm.at).getTime() - new Date(a.vm.at).getTime());
   const repostNotes = [
     ...repostedReviews.map((r) => ({
@@ -327,13 +351,15 @@ export default function ProfilePage() {
       ),
       reposted: true,
     })),
-    // Album reposts keep their original author (not the profile owner).
+    // Album + playlist reposts keep their original author (not the profile owner).
     ...repostedAlbums.map((a) => ({ vm: toAlbumReviewVM(a), reposted: true })),
+    ...repostedPlaylists.map((p) => ({ vm: toPlaylistVM(p), reposted: true })),
   ].sort((a, b) => new Date(b.vm.at).getTime() - new Date(a.vm.at).getTime());
-  // Saved reviews/albums keep their original author (not the profile owner).
+  // Saved reviews/albums/playlists keep their original author (not the profile owner).
   const savedVms: ReviewVM[] = [
     ...savedReviews.map((r) => toReviewVM(r)),
     ...savedAlbums.map((a) => toAlbumReviewVM(a)),
+    ...savedPlaylists.map((p) => toPlaylistVM(p)),
   ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
 
   const ghostBtn: React.CSSProperties = { padding: "6px 14px", borderRadius: 999, cursor: "pointer", background: "rgba(var(--ln-fg-rgb),0.05)", color: "rgba(var(--ln-fg-rgb),0.75)", border: "1px solid rgba(var(--ln-fg-rgb),0.18)", fontFamily: "var(--ln-body)", fontSize: 12.5, fontWeight: 600 };
@@ -361,7 +387,7 @@ export default function ProfilePage() {
                 <div style={{ fontFamily: "var(--ln-mono)", fontSize: 13, color: "rgba(var(--ln-fg-rgb),0.5)", marginTop: 5 }}>@{user.handle}</div>
                 {user.bio && <p style={{ margin: "14px 0 0", maxWidth: 520, fontFamily: "var(--ln-body)", fontSize: 16, lineHeight: 1.55, color: "rgba(var(--ln-fg-rgb),0.78)" }}>{user.bio}</p>}
                 <div style={{ display: "flex", gap: 26, marginTop: 18 }}>
-                  <Stat n={reviews.length + albumReviews.length} label="notes" />
+                  <Stat n={reviews.length + albumReviews.length + playlists.length} label="notes" />
                   <Stat n={momentCount} label="moments" />
                   <Stat n={user.friendCount || 0} label="friends" />
                 </div>

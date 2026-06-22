@@ -1,56 +1,90 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth-helpers";
+import { requireAuth, getSession } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/prisma";
 
+// Include shape that carries everything needed to compute counts + the viewer's
+// own like/repost/save state for a playlist.
+const playlistInclude = {
+  user: { select: { id: true, handle: true, displayName: true, avatarUrl: true } },
+  tracks: { orderBy: { order: "asc" as const } },
+  likes: true,
+  reposts: true,
+  saves: true,
+  _count: { select: { likes: true, reposts: true, saves: true } },
+};
+
+function formatPlaylist(p: any, currentUserId?: string) {
+  return {
+    id: p.id,
+    userId: p.userId,
+    title: p.title,
+    description: p.description,
+    user: p.user,
+    tracks: p.tracks,
+    likeCount: p._count?.likes ?? 0,
+    repostCount: p._count?.reposts ?? 0,
+    saveCount: p._count?.saves ?? 0,
+    likedByMe: currentUserId ? (p.likes || []).some((l: any) => l.userId === currentUserId) : false,
+    repostedByMe: currentUserId ? (p.reposts || []).some((r: any) => r.userId === currentUserId) : false,
+    saved: currentUserId ? (p.saves || []).some((s: any) => s.userId === currentUserId) : false,
+    createdAt: p.createdAt.toISOString(),
+  };
+}
+
 /**
- * GET /api/playlists - Get user's playlists or all public playlists
+ * GET /api/playlists - Get user's playlists, the public feed, or the current
+ * user's reposted/saved collections (type=reposts|saved).
  */
 export async function GET(request: Request) {
   try {
+    const session = await getSession();
+    const currentUserId = session?.user?.id;
+
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId");
+    const type = searchParams.get("type"); // "reposts" | "saved" | null
+
+    // Reposts / saves — the current user's own collections, keyed off the session.
+    if (type === "reposts" || type === "saved") {
+      if (!currentUserId) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+      if (type === "reposts") {
+        const reposts = await prisma.playlistRepost.findMany({
+          where: { userId: currentUserId },
+          include: { playlist: { include: playlistInclude } },
+          orderBy: { createdAt: "desc" },
+        });
+        const playlists = reposts
+          .map((r) => r.playlist)
+          .filter(Boolean)
+          .map((p) => formatPlaylist(p, currentUserId));
+        return NextResponse.json({ playlists });
+      }
+      const saves = await prisma.playlistSave.findMany({
+        where: { userId: currentUserId },
+        include: { playlist: { include: playlistInclude } },
+        orderBy: { createdAt: "desc" },
+      });
+      const playlists = saves
+        .map((s) => s.playlist)
+        .filter(Boolean)
+        .map((p) => formatPlaylist(p, currentUserId));
+      return NextResponse.json({ playlists });
+    }
 
     const where = userId ? { userId } : {};
 
     const playlists = await prisma.playlist.findMany({
       where,
-      include: {
-        user: {
-          select: {
-            id: true,
-            handle: true,
-            displayName: true,
-            avatarUrl: true,
-          },
-        },
-        tracks: {
-          orderBy: { order: "asc" },
-        },
-        _count: {
-          select: {
-            likes: true,
-            reposts: true,
-          },
-        },
-      },
+      include: playlistInclude,
       orderBy: { createdAt: "desc" },
       take: 50,
     });
 
-    // Format response
-    const formattedPlaylists = playlists.map((p) => ({
-      id: p.id,
-      userId: p.userId,
-      title: p.title,
-      description: p.description,
-      user: p.user,
-      tracks: p.tracks,
-      likeCount: p._count.likes,
-      repostCount: p._count.reposts,
-      createdAt: p.createdAt.toISOString(),
-    }));
-
-    return NextResponse.json({ playlists: formattedPlaylists });
+    return NextResponse.json({
+      playlists: playlists.map((p) => formatPlaylist(p, currentUserId)),
+    });
   } catch (error) {
     console.error("Failed to fetch playlists:", error);
     return NextResponse.json(

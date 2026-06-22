@@ -32,6 +32,7 @@ function ExperienceContent() {
   const expType = searchParams.get("type");
   const isAlbumExp = expType === "album";
   const isFeedExp = expType === "feed";
+  const isPlaylistExp = expType === "playlist";
 
   // `segments` holds every playable track in order (one for a track review, every
   // reviewed track for an album, the whole community feed for a feed experience);
@@ -113,6 +114,33 @@ function ExperienceContent() {
           setSegments(segs);
           setIdx(0);
           setReview(segs[0]);
+        } else if (isPlaylistExp) {
+          const res = await fetch(`/api/playlists/${reviewId}`);
+          if (!res.ok) throw new Error("Failed to load playlist");
+          const data = await res.json();
+          const pl = data.playlist;
+          // Each playlist track becomes a playable segment; the curator's note
+          // rides along as the segment's take.
+          const segs: Review[] = (pl.tracks || [])
+            .filter((t: any) => t.trackId)
+            .sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0))
+            .map((t: any) => ({
+              id: `${pl.id}-${t.id}`,
+              userId: pl.userId,
+              user: pl.user,
+              track: { trackId: t.trackId, name: t.name, artist: t.artist, album: t.album || "", artworkUrl: t.artworkUrl || "" },
+              rating: 0,
+              take: t.note || undefined,
+              notes: [],
+              createdAt: pl.createdAt,
+              likeCount: 0,
+              repostCount: 0,
+            }));
+          if (segs.length === 0) throw new Error("This playlist has no playable tracks");
+          setPlaylistLabel(pl.title || null);
+          setSegments(segs);
+          setIdx(0);
+          setReview(segs[0]);
         } else {
           const res = await fetch(`/api/reviews/${reviewId}`);
           if (!res.ok) throw new Error("Failed to load review");
@@ -127,12 +155,12 @@ function ExperienceContent() {
     }
 
     fetchReview();
-  }, [reviewId, isAlbumExp, isFeedExp]);
+  }, [reviewId, isAlbumExp, isFeedExp, isPlaylistExp]);
 
   // For a single-track experience, pull 4 other posts from the GLOBAL community
   // feed (feed:"friends" is the public all-reviews feed) to "Experience more".
   useEffect(() => {
-    if (isAlbumExp || isFeedExp) return;
+    if (isAlbumExp || isFeedExp || isPlaylistExp) return;
     let cancelled = false;
     getReviews({ feed: "friends" })
       .then((all) => {
@@ -146,7 +174,7 @@ function ExperienceContent() {
     return () => {
       cancelled = true;
     };
-  }, [isAlbumExp, isFeedExp, reviewId]);
+  }, [isAlbumExp, isFeedExp, isPlaylistExp, reviewId]);
 
   // Exit the experience player entirely: stop playback (tear down the shared
   // device) and leave for home, rather than just going back a page.
@@ -499,7 +527,7 @@ function ExperienceContent() {
 
   // Album / feed experiences are queues; show the next song. A single track
   // experience instead offers more community posts to jump to.
-  const isPlaylist = isAlbumExp || isFeedExp;
+  const isPlaylist = isAlbumExp || isFeedExp || isPlaylistExp;
   const upNext = isPlaylist && idx < segments.length - 1 ? segments[idx + 1] : null;
 
   // Nearest moment to current position for sharing

@@ -45,6 +45,7 @@ model User {
   playlists              Playlist[]
   playlistLikes          PlaylistLike[]
   playlistReposts        PlaylistRepost[]
+  playlistSaves          PlaylistSave[]
 
   @@index([handle])
   @@index([spotifyId])
@@ -326,6 +327,7 @@ model Playlist {
   tracks  PlaylistTrack[]
   likes   PlaylistLike[]
   reposts PlaylistRepost[]
+  saves   PlaylistSave[]
 
   @@index([userId])
   @@index([createdAt])
@@ -364,6 +366,21 @@ model PlaylistLike {
 }
 
 model PlaylistRepost {
+  id         String   @id @default(cuid())
+  userId     String
+  playlistId String
+  createdAt  DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  playlist Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, playlistId])
+  @@index([userId])
+  @@index([playlistId])
+  @@index([createdAt])
+}
+
+model PlaylistSave {
   id         String   @id @default(cuid())
   userId     String
   playlistId String

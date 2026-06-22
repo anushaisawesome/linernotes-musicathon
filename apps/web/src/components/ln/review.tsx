@@ -101,7 +101,12 @@ function SectionLabel({ children, gold }: { children: ReactNode; gold: string })
 // Like / repost / save on the open review page. Mirrors the feed-card actions:
 // optimistic toggle, reverts on error, gated to other people's reviews.
 function ReviewSocialActions({ vm, gold }: { vm: ReviewVM; gold: string }) {
-  const base = vm.kind === "album" ? `/api/album-reviews/${vm.id}` : `/api/reviews/${vm.id}`;
+  const base =
+    vm.kind === "album"
+      ? `/api/album-reviews/${vm.id}`
+      : vm.kind === "playlist"
+        ? `/api/playlists/${vm.id}`
+        : `/api/reviews/${vm.id}`;
   const [like, setLike] = useState({ on: !!vm.likedByMe, n: vm.likeCount || 0 });
   const [repost, setRepost] = useState({ on: !!vm.repostedByMe, n: vm.repostCount || 0 });
   const [saved, setSaved] = useState(!!vm.saved);
@@ -307,10 +312,10 @@ export function ImmersiveReview({
               Open in Spotify
             </button>
 
-            {/* Experience button — track reviews play the one song; album reviews
-                play through every reviewed track with prev/next navigation. */}
-            {(vm.kind === "track" || (vm.kind === "album" && album.tracks.length > 0)) && (
-              <button onClick={() => router.push(`/experience/${vm.id}${vm.kind === "album" ? "?type=album" : ""}`)} className="ln-press" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "15px 20px", borderRadius: 999, border: "none", background: gold, cursor: "pointer", fontFamily: "var(--ln-body)", fontSize: 16, fontWeight: 700, color: "#2c1517", boxShadow: `0 6px 16px -10px ${gold}99` }}>
+            {/* Experience button — track reviews play the one song; album and
+                playlist reviews play through every track with prev/next nav. */}
+            {(vm.kind === "track" || ((vm.kind === "album" || vm.kind === "playlist") && album.tracks.length > 0)) && (
+              <button onClick={() => router.push(`/experience/${vm.id}${vm.kind === "album" ? "?type=album" : vm.kind === "playlist" ? "?type=playlist" : ""}`)} className="ln-press" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "15px 20px", borderRadius: 999, border: "none", background: gold, cursor: "pointer", fontFamily: "var(--ln-body)", fontSize: 16, fontWeight: 700, color: "#2c1517", boxShadow: `0 6px 16px -10px ${gold}99` }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2c1517" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
                   <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3z" />
@@ -332,7 +337,7 @@ export function ImmersiveReview({
               {!isSelf && vm.user.id && vm.user.id !== "anon" && <FollowButton userId={vm.user.id} />}
             </div>
 
-            {!isSelf && vm.kind !== "playlist" && <ReviewSocialActions vm={vm} gold={gold} />}
+            {!isSelf && <ReviewSocialActions vm={vm} gold={gold} />}
 
             {actions}
           </div>
